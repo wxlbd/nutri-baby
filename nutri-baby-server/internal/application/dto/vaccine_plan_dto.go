@@ -2,16 +2,18 @@ package dto
 
 // VaccinePlanDTO 疫苗计划响应DTO
 type VaccinePlanDTO struct {
-	PlanID       string `json:"planId"`
-	VaccineType  string `json:"vaccineType"`
-	VaccineName  string `json:"vaccineName"`
-	Description  string `json:"description"`
-	AgeInMonths  int    `json:"ageInMonths"`
-	DoseNumber   int    `json:"doseNumber"`
-	IsRequired   bool   `json:"isRequired"`
-	ReminderDays int    `json:"reminderDays"`
-	IsCustom     bool   `json:"isCustom"`      // 是否用户自定义
-	TemplateID   string `json:"templateId"`    // 来源模板ID (可选)
+	PlanID        string `json:"planId"`
+	VaccineType   string `json:"vaccineType"`
+	VaccineName   string `json:"vaccineName"`
+	Description   string `json:"description"`
+	AgeInMonths   int    `json:"ageInMonths"`
+	DoseNumber    int    `json:"doseNumber"`
+	IsRequired    bool   `json:"isRequired"`
+	ReminderDays  int    `json:"reminderDays"`
+	IsCustom      bool   `json:"isCustom"`                // 是否用户自定义
+	TemplateID    string `json:"templateId"`              // 来源模板ID (可选)
+	ScheduledDate int64  `json:"scheduledDate,omitempty"` // 预定日期(根据宝宝出生日期计算,可选)
+	Status        string `json:"status,omitempty"`        // 状态: pending/completed/overdue (可选)
 }
 
 // CreateBabyVaccinePlanRequest 创建宝宝疫苗计划请求
