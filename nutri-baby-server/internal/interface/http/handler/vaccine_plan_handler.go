@@ -25,7 +25,7 @@ func NewVaccinePlanHandler(vaccinePlanService *service.VaccinePlanService) *Vacc
 func (h *VaccinePlanHandler) InitializePlans(c *gin.Context) {
 	babyID := c.Param("babyId")
 	if babyID == "" {
-		response.Error(c, errs.ErrInvalidParam.WithMessage("babyId不能为空"))
+		response.Error(c, errs.New(errs.ParamError, "babyId不能为空"))
 		return
 	}
 
@@ -56,7 +56,7 @@ func (h *VaccinePlanHandler) InitializePlans(c *gin.Context) {
 func (h *VaccinePlanHandler) GetPlans(c *gin.Context) {
 	babyID := c.Param("babyId")
 	if babyID == "" {
-		response.Error(c, errs.ErrInvalidParam.WithMessage("babyId不能为空"))
+		response.Error(c, errs.New(errs.ParamError, "babyId不能为空"))
 		return
 	}
 
@@ -74,7 +74,7 @@ func (h *VaccinePlanHandler) GetPlans(c *gin.Context) {
 func (h *VaccinePlanHandler) CreatePlan(c *gin.Context) {
 	babyID := c.Param("babyId")
 	if babyID == "" {
-		response.Error(c, errs.ErrInvalidParam.WithMessage("babyId不能为空"))
+		response.Error(c, errs.New(errs.ParamError, "babyId不能为空"))
 		return
 	}
 
@@ -87,7 +87,7 @@ func (h *VaccinePlanHandler) CreatePlan(c *gin.Context) {
 
 	var req dto.CreateBabyVaccinePlanRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.Error(c, errs.ErrInvalidParam.WithMessage(err.Error()))
+		response.Error(c, errs.Wrap(errs.ParamError, err.Error(), err))
 		return
 	}
 
@@ -105,13 +105,13 @@ func (h *VaccinePlanHandler) CreatePlan(c *gin.Context) {
 func (h *VaccinePlanHandler) UpdatePlan(c *gin.Context) {
 	planID := c.Param("planId")
 	if planID == "" {
-		response.Error(c, errs.ErrInvalidParam.WithMessage("planId不能为空"))
+		response.Error(c, errs.New(errs.ParamError, "planId不能为空"))
 		return
 	}
 
 	var req dto.UpdateBabyVaccinePlanRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.Error(c, errs.ErrInvalidParam.WithMessage(err.Error()))
+		response.Error(c, errs.Wrap(errs.ParamError, err.Error(), err))
 		return
 	}
 
@@ -129,7 +129,7 @@ func (h *VaccinePlanHandler) UpdatePlan(c *gin.Context) {
 func (h *VaccinePlanHandler) DeletePlan(c *gin.Context) {
 	planID := c.Param("planId")
 	if planID == "" {
-		response.Error(c, errs.ErrInvalidParam.WithMessage("planId不能为空"))
+		response.Error(c, errs.New(errs.ParamError, "planId不能为空"))
 		return
 	}
 
