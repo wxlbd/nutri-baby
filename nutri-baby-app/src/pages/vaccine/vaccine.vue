@@ -167,7 +167,8 @@
                 v-model="recordForm.reaction"
                 placeholder="如有不良反应请记录(可选)"
                 :max-length="200"
-                :rows="2"
+                :rows="1"
+                :autosize="{ minHeight: 60, maxHeight: 120 }"
               />
             </view>
 
@@ -177,7 +178,8 @@
                 v-model="recordForm.note"
                 placeholder="其他备注信息(可选)"
                 :max-length="200"
-                :rows="2"
+                :rows="1"
+                :autosize="{ minHeight: 60, maxHeight: 120 }"
               />
             </view>
           </view>
@@ -630,12 +632,12 @@ const goToManage = () => {
 
 .dialog-header {
   flex-shrink: 0;
-  padding: 30rpx;
+  padding: 20rpx 30rpx;
   border-bottom: 1rpx solid #f0f0f0;
 }
 
 .dialog-title {
-  font-size: 36rpx;
+  font-size: 32rpx;
   font-weight: bold;
   text-align: center;
   color: #333;
@@ -648,17 +650,17 @@ const goToManage = () => {
 }
 
 .form-section {
-  padding: 30rpx;
+  padding: 20rpx 30rpx 20rpx 30rpx;
 }
 
 .form-item {
-  margin-bottom: 30rpx;
+  margin-bottom: 20rpx;
 }
 
 .form-label {
-  font-size: 28rpx;
+  font-size: 26rpx;
   font-weight: bold;
-  margin-bottom: 12rpx;
+  margin-bottom: 8rpx;
   color: #333;
 }
 
@@ -671,8 +673,8 @@ const goToManage = () => {
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
-  gap: 20rpx;
-  padding: 30rpx;
+  gap: 16rpx;
+  padding: 20rpx 30rpx 30rpx 30rpx;
   background: #fff;
   border-top: 1rpx solid #f0f0f0;
   box-shadow: 0 -2rpx 8rpx rgba(0, 0, 0, 0.05);
