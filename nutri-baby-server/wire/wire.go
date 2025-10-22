@@ -31,10 +31,9 @@ func InitApp(cfg *config.Config) (*App, error) {
 		persistence.NewSleepRecordRepository,
 		persistence.NewDiaperRecordRepository,
 		persistence.NewGrowthRecordRepository,
-		persistence.NewVaccinePlanRepository,
 		persistence.NewVaccineRecordRepository,
-		persistence.NewVaccineReminderRepository,
 		persistence.NewBabyVaccinePlanRepository, // 宝宝疫苗计划仓储
+		persistence.NewVaccineReminderRepository, // 疫苗提醒仓储
 
 		// 应用服务层
 		service.NewAuthService,
@@ -42,7 +41,7 @@ func InitApp(cfg *config.Config) (*App, error) {
 		service.NewBabyService,
 		service.NewRecordService,
 		service.NewVaccineService,
-		service.NewVaccinePlanService,  // 疫苗计划管理服务
+		service.NewVaccinePlanService, // 疫苗计划管理服务
 		// service.NewSyncService, // TODO: WebSocket同步未实现，暂时注释
 
 		// HTTP处理器
@@ -51,7 +50,7 @@ func InitApp(cfg *config.Config) (*App, error) {
 		handler.NewBabyHandler,
 		handler.NewRecordHandler,
 		handler.NewVaccineHandler,
-		handler.NewVaccinePlanHandler,  // 疫苗计划管理处理器
+		handler.NewVaccinePlanHandler, // 疫苗计划管理处理器
 		handler.NewSyncHandler,
 
 		// 路由
