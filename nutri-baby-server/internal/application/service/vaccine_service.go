@@ -14,7 +14,7 @@ import (
 
 // VaccineService 疫苗服务
 type VaccineService struct {
-	vaccinePlanRepo     repository.VaccinePlanRepository
+	vaccinePlanRepo     repository.BabyVaccinePlanRepository
 	vaccineRecordRepo   repository.VaccineRecordRepository
 	vaccineReminderRepo repository.VaccineReminderRepository
 	babyRepo            repository.BabyRepository
@@ -22,7 +22,7 @@ type VaccineService struct {
 
 // NewVaccineService 创建疫苗服务
 func NewVaccineService(
-	vaccinePlanRepo repository.VaccinePlanRepository,
+	vaccinePlanRepo repository.BabyVaccinePlanRepository,
 	vaccineRecordRepo repository.VaccineRecordRepository,
 	vaccineReminderRepo repository.VaccineReminderRepository,
 	babyRepo repository.BabyRepository,
@@ -44,7 +44,7 @@ func (s *VaccineService) GetVaccinePlans(ctx context.Context, babyID string) ([]
 	}
 
 	// 获取所有疫苗计划
-	plans, err := s.vaccinePlanRepo.FindAll(ctx)
+	plans, err := s.vaccinePlanRepo.FindByBabyID(ctx, babyID)
 	if err != nil {
 		return nil, err
 	}
@@ -108,19 +108,19 @@ func (s *VaccineService) CreateVaccineRecord(
 
 	// 创建记录
 	record := &entity.VaccineRecord{
-		RecordID:     uuid.New().String(),
-		BabyID:       babyID,
-		PlanID:       req.PlanID,
-		VaccineType:  req.VaccineType,
-		VaccineName:  req.VaccineName,
-		DoseNumber:   req.DoseNumber,
-		VaccineDate:  req.VaccineDate,
-		Hospital:     req.Hospital,
-		BatchNumber:  req.BatchNumber,
-		Doctor:       req.Doctor,
-		Reaction:     req.Reaction,
-		Note:         req.Note,
-		CreateBy:     createBy,
+		RecordID:    uuid.New().String(),
+		BabyID:      babyID,
+		PlanID:      req.PlanID,
+		VaccineType: req.VaccineType,
+		VaccineName: req.VaccineName,
+		DoseNumber:  req.DoseNumber,
+		VaccineDate: req.VaccineDate,
+		Hospital:    req.Hospital,
+		BatchNumber: req.BatchNumber,
+		Doctor:      req.Doctor,
+		Reaction:    req.Reaction,
+		Note:        req.Note,
+		CreateBy:    createBy,
 	}
 
 	if err := s.vaccineRecordRepo.Create(ctx, record); err != nil {
@@ -134,20 +134,20 @@ func (s *VaccineService) CreateVaccineRecord(
 	}
 
 	return &dto.VaccineRecordDTO{
-		RecordID:     record.RecordID,
-		BabyID:       record.BabyID,
-		PlanID:       record.PlanID,
-		VaccineType:  record.VaccineType,
-		VaccineName:  record.VaccineName,
-		DoseNumber:   record.DoseNumber,
-		VaccineDate:  record.VaccineDate,
-		Hospital:     record.Hospital,
-		BatchNumber:  record.BatchNumber,
-		Doctor:       record.Doctor,
-		Reaction:     record.Reaction,
-		Note:         record.Note,
-		CreateBy:     record.CreateBy,
-		CreateTime:   record.CreateTime,
+		RecordID:    record.RecordID,
+		BabyID:      record.BabyID,
+		PlanID:      record.PlanID,
+		VaccineType: record.VaccineType,
+		VaccineName: record.VaccineName,
+		DoseNumber:  record.DoseNumber,
+		VaccineDate: record.VaccineDate,
+		Hospital:    record.Hospital,
+		BatchNumber: record.BatchNumber,
+		Doctor:      record.Doctor,
+		Reaction:    record.Reaction,
+		Note:        record.Note,
+		CreateBy:    record.CreateBy,
+		CreateTime:  record.CreateTime,
 	}, nil
 }
 
@@ -228,9 +228,9 @@ func (s *VaccineService) GetVaccineStatistics(
 	recordDTOs := make([]dto.VaccineRecordDTO, 0, len(recentRecords))
 	for _, r := range recentRecords {
 		recordDTOs = append(recordDTOs, dto.VaccineRecordDTO{
-			VaccineName:  r.VaccineName,
-			VaccineDate:  r.VaccineDate,
-			Hospital:     r.Hospital,
+			VaccineName: r.VaccineName,
+			VaccineDate: r.VaccineDate,
+			Hospital:    r.Hospital,
 		})
 	}
 
@@ -252,7 +252,7 @@ func (s *VaccineService) InitializeVaccineReminders(ctx context.Context, babyID 
 		return err
 	}
 
-	plans, err := s.vaccinePlanRepo.FindAll(ctx)
+	plans, err := s.vaccinePlanRepo.FindByBabyID(ctx, babyID)
 	if err != nil {
 		return err
 	}
