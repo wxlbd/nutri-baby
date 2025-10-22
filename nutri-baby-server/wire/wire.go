@@ -1,0 +1,64 @@
+//go:build wireinject
+// +build wireinject
+
+package wire
+
+import (
+	"github.com/google/wire"
+	"github.com/wxlbd/nutri-baby-server/internal/application/service"
+	"github.com/wxlbd/nutri-baby-server/internal/infrastructure/config"
+	"github.com/wxlbd/nutri-baby-server/internal/infrastructure/persistence"
+	"github.com/wxlbd/nutri-baby-server/internal/interface/http/handler"
+	"github.com/wxlbd/nutri-baby-server/internal/interface/http/router"
+)
+
+// InitApp 初始化应用(Wire自动生成) (去家庭化架构)
+func InitApp(cfg *config.Config) (*App, error) {
+	wire.Build(
+		// 基础设施层
+		persistence.NewDatabase,
+		// persistence.NewRedis, // TODO: Redis未使用，暂时注释
+
+		// 仓储层
+		persistence.NewUserRepository,
+		// persistence.NewFamilyRepository, // 已废弃：去家庭化架构
+		// persistence.NewFamilyMemberRepository, // 已废弃：去家庭化架构
+		// persistence.NewInvitationRepository, // 已废弃：去家庭化架构
+		persistence.NewBabyRepository,
+		persistence.NewBabyCollaboratorRepository, // 去家庭化架构：宝宝协作者仓储
+		persistence.NewBabyInvitationRepository,   // 去家庭化架构：宝宝邀请仓储
+		persistence.NewFeedingRecordRepository,
+		persistence.NewSleepRecordRepository,
+		persistence.NewDiaperRecordRepository,
+		persistence.NewGrowthRecordRepository,
+		persistence.NewVaccinePlanRepository,
+		persistence.NewVaccineRecordRepository,
+		persistence.NewVaccineReminderRepository,
+		persistence.NewBabyVaccinePlanRepository, // 宝宝疫苗计划仓储
+
+		// 应用服务层
+		service.NewAuthService,
+		// service.NewFamilyService, // 已废弃：去家庭化架构
+		service.NewBabyService,
+		service.NewRecordService,
+		service.NewVaccineService,
+		service.NewVaccinePlanService,  // 疫苗计划管理服务
+		// service.NewSyncService, // TODO: WebSocket同步未实现，暂时注释
+
+		// HTTP处理器
+		handler.NewAuthHandler,
+		// handler.NewFamilyHandler, // 已废弃：去家庭化架构
+		handler.NewBabyHandler,
+		handler.NewRecordHandler,
+		handler.NewVaccineHandler,
+		handler.NewVaccinePlanHandler,  // 疫苗计划管理处理器
+		handler.NewSyncHandler,
+
+		// 路由
+		router.NewRouter,
+
+		// 应用
+		NewApp,
+	)
+	return &App{}, nil
+}

@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TabBar 图标预览</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 40px 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            text-align: center;
+            color: white;
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            text-shadow: 0 2px 10px rgba(0,0,0,0.2);
+        }
+
+        .subtitle {
+            text-align: center;
+            color: rgba(255,255,255,0.9);
+            margin-bottom: 40px;
+            font-size: 1.1rem;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 30px;
+            margin-bottom: 40px;
+        }
+
+        .icon-card {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .icon-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 40px rgba(0,0,0,0.3);
+        }
+
+        .icon-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .icon-states {
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .icon-state {
+            flex: 1;
+            text-align: center;
+        }
+
+        .icon-preview {
+            width: 81px;
+            height: 81px;
+            margin: 0 auto 15px;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .icon-preview img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+
+        .icon-label {
+            font-size: 0.9rem;
+            color: #666;
+            font-weight: 500;
+        }
+
+        .tabbar-preview {
+            background: white;
+            border-radius: 20px;
+            padding: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            margin-bottom: 40px;
+        }
+
+        .tabbar-preview h2 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 20px;
+        }
+
+        .tabbar-simulator {
+            max-width: 375px;
+            margin: 0 auto;
+            background: #ffffff;
+            border: 1px solid #e0e0e0;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        .tabbar-items {
+            display: flex;
+            justify-content: space-around;
+            padding: 10px 0;
+            border-top: 1px solid #e0e0e0;
+        }
+
+        .tabbar-item {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 5px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .tabbar-item img {
+            width: 27px;
+            height: 27px;
+        }
+
+        .tabbar-item span {
+            font-size: 12px;
+            color: #999999;
+        }
+
+        .tabbar-item.active span {
+            color: #fa2c19;
+        }
+
+        .specs {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+
+        .specs h2 {
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 1.8rem;
+        }
+
+        .specs-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+        }
+
+        .spec-item {
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            border-left: 4px solid #fa2c19;
+        }
+
+        .spec-label {
+            font-size: 0.85rem;
+            color: #666;
+            margin-bottom: 5px;
+        }
+
+        .spec-value {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .color-swatch {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border-radius: 4px;
+            vertical-align: middle;
+            margin-right: 5px;
+            border: 1px solid #ddd;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🍼 宝宝喂养日志 TabBar 图标</h1>
+        <p class="subtitle">底部导航栏图标预览与规范说明</p>
+
+        <!-- TabBar 模拟器 -->
+        <div class="tabbar-preview">
+            <h2>实际效果预览</h2>
+            <div class="tabbar-simulator">
+                <div class="tabbar-items">
+                    <div class="tabbar-item active" data-index="0">
+                        <img src="home-active.png" alt="首页">
+                        <span>首页</span>
+                    </div>
+                    <div class="tabbar-item" data-index="1">
+                        <img src="timeline.png" alt="时间轴">
+                        <span>时间轴</span>
+                    </div>
+                    <div class="tabbar-item" data-index="2">
+                        <img src="statistics.png" alt="统计">
+                        <span>统计</span>
+                    </div>
+                    <div class="tabbar-item" data-index="3">
+                        <img src="user.png" alt="我的">
+                        <span>我的</span>
+                    </div>
+                </div>
+            </div>
+            <p style="text-align: center; margin-top: 15px; color: #666; font-size: 0.9rem;">
+                点击图标查看选中效果
+            </p>
+        </div>
+
+        <!-- 图标列表 -->
+        <div class="grid">
+            <div class="icon-card">
+                <div class="icon-title">🏠 首页</div>
+                <div class="icon-states">
+                    <div class="icon-state">
+                        <div class="icon-preview">
+                            <img src="home.png" alt="首页-未选中">
+                        </div>
+                        <div class="icon-label">未选中</div>
+                    </div>
+                    <div class="icon-state">
+                        <div class="icon-preview">
+                            <img src="home-active.png" alt="首页-选中">
+                        </div>
+                        <div class="icon-label">选中</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="icon-card">
+                <div class="icon-title">📅 时间轴</div>
+                <div class="icon-states">
+                    <div class="icon-state">
+                        <div class="icon-preview">
+                            <img src="timeline.png" alt="时间轴-未选中">
+                        </div>
+                        <div class="icon-label">未选中</div>
+                    </div>
+                    <div class="icon-state">
+                        <div class="icon-preview">
+                            <img src="timeline-active.png" alt="时间轴-选中">
+                        </div>
+                        <div class="icon-label">选中</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="icon-card">
+                <div class="icon-title">📊 统计</div>
+                <div class="icon-states">
+                    <div class="icon-state">
+                        <div class="icon-preview">
+                            <img src="statistics.png" alt="统计-未选中">
+                        </div>
+                        <div class="icon-label">未选中</div>
+                    </div>
+                    <div class="icon-state">
+                        <div class="icon-preview">
+                            <img src="statistics-active.png" alt="统计-选中">
+                        </div>
+                        <div class="icon-label">选中</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="icon-card">
+                <div class="icon-title">👤 我的</div>
+                <div class="icon-states">
+                    <div class="icon-state">
+                        <div class="icon-preview">
+                            <img src="user.png" alt="我的-未选中">
+                        </div>
+                        <div class="icon-label">未选中</div>
+                    </div>
+                    <div class="icon-state">
+                        <div class="icon-preview">
+                            <img src="user-active.png" alt="我的-选中">
+                        </div>
+                        <div class="icon-label">选中</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 设计规范 -->
+        <div class="specs">
+            <h2>设计规范</h2>
+            <div class="specs-grid">
+                <div class="spec-item">
+                    <div class="spec-label">SVG 画布尺寸</div>
+                    <div class="spec-value">48 × 48 px</div>
+                </div>
+                <div class="spec-item">
+                    <div class="spec-label">PNG 输出尺寸</div>
+                    <div class="spec-value">81 × 81 px</div>
+                </div>
+                <div class="spec-item">
+                    <div class="spec-label">未选中颜色</div>
+                    <div class="spec-value">
+                        <span class="color-swatch" style="background: #999999;"></span>
+                        #999999
+                    </div>
+                </div>
+                <div class="spec-item">
+                    <div class="spec-label">选中颜色</div>
+                    <div class="spec-value">
+                        <span class="color-swatch" style="background: #fa2c19;"></span>
+                        #fa2c19
+                    </div>
+                </div>
+                <div class="spec-item">
+                    <div class="spec-label">描边宽度</div>
+                    <div class="spec-value">2 - 2.5 px</div>
+                </div>
+                <div class="spec-item">
+                    <div class="spec-label">文件格式</div>
+                    <div class="spec-value">SVG + PNG</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // TabBar 交互
+        const tabbarItems = document.querySelectorAll('.tabbar-item');
+        const icons = [
+            {normal: 'home.png', active: 'home-active.png'},
+            {normal: 'timeline.png', active: 'timeline-active.png'},
+            {normal: 'statistics.png', active: 'statistics-active.png'},
+            {normal: 'user.png', active: 'user-active.png'}
+        ];
+
+        tabbarItems.forEach((item, index) => {
+            item.addEventListener('click', () => {
+                // 移除所有活动状态
+                tabbarItems.forEach((t, i) => {
+                    t.classList.remove('active');
+                    t.querySelector('img').src = icons[i].normal;
+                });
+
+                // 添加当前活动状态
+                item.classList.add('active');
+                item.querySelector('img').src = icons[index].active;
+            });
+        });
+    </script>
+</body>
+</html>
