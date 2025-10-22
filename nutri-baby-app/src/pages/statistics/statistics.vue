@@ -272,7 +272,8 @@ const feedingStats = computed(() => {
         ? record.detail.amount * 29.5735
         : record.detail.amount
     } else if (record.detail.type === 'breast') {
-      amount = record.detail.duration * 5 // 估算
+      // duration 现在是秒数,转换为分钟后估算(每分钟约5ml)
+      amount = (record.detail.duration / 60) * 5
     }
 
     totalMilk += amount
