@@ -216,7 +216,7 @@ import { userInfo } from '@/store/user'
 import {
   vaccinePlans,
   vaccineRecords,
-  initializeVaccinePlans,
+  initializeVaccinePlansFromServer,
   generateRemindersForBaby,
   getVaccineRemindersByBabyId,
   getUpcomingReminders,
@@ -387,8 +387,8 @@ onMounted(() => {
     return
   }
 
-  // 为当前宝宝初始化疫苗计划
-  initializeVaccinePlans(currentBaby.value.babyId)
+  // 为当前宝宝初始化疫苗计划（使用服务器API）
+  await initializeVaccinePlansFromServer(currentBaby.value.babyId)
 
   // 生成提醒
   generateRemindersForBaby(currentBaby.value.babyId, currentBaby.value.birthDate)
