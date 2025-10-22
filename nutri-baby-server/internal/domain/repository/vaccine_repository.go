@@ -38,18 +38,6 @@ type BabyVaccinePlanRepository interface {
 	CountByBabyID(ctx context.Context, babyID string) (int64, error)
 }
 
-// VaccinePlanRepository 疫苗计划仓储接口 - @deprecated 使用 VaccinePlanTemplateRepository
-type VaccinePlanRepository interface {
-	// FindAll 查找所有疫苗计划
-	FindAll(ctx context.Context) ([]*entity.VaccinePlan, error)
-	// FindByID 根据ID查找计划
-	FindByID(ctx context.Context, planID string) (*entity.VaccinePlan, error)
-	// Create 创建计划(用于初始化系统数据)
-	Create(ctx context.Context, plan *entity.VaccinePlan) error
-	// BatchCreate 批量创建计划
-	BatchCreate(ctx context.Context, plans []*entity.VaccinePlan) error
-}
-
 // VaccineRecordRepository 疫苗接种记录仓储接口
 type VaccineRecordRepository interface {
 	// Create 创建记录
