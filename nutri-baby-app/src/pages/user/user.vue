@@ -1,0 +1,491 @@
+<template>
+  <view class="user-page">
+    <!-- 用户信息卡片 -->
+    <view class="user-card">
+      <view class="user-info">
+        <view class="avatar">
+          <text class="avatar-text">{{ userInfo?.nickName?.charAt(0) || '用' }}</text>
+        </view>
+        <view class="info">
+          <view class="nickname">{{ userInfo?.nickName || '用户' }}</view>
+          <view class="login-time">{{ loginTimeText }}</view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 宝宝信息 -->
+    <view class="section">
+      <view class="section-title">我的宝宝</view>
+      <nut-cell-group>
+        <nut-cell
+          title="宝宝管理"
+          :desc="`共 ${babyList.length} 个宝宝`"
+          is-link
+          @click="goToBabyList"
+        >
+          <template #icon>
+            <text class="cell-icon">👶</text>
+          </template>
+        </nut-cell>
+        <nut-cell
+          title="家庭管理"
+          desc="成员协作"
+          is-link
+          @click="goToFamily"
+        >
+          <template #icon>
+            <text class="cell-icon">👨‍👩‍👧‍👦</text>
+          </template>
+        </nut-cell>
+        <nut-cell
+          title="疫苗提醒"
+          desc="接种计划"
+          is-link
+          @click="goToVaccine"
+        >
+          <template #icon>
+            <text class="cell-icon">💉</text>
+          </template>
+        </nut-cell>
+      </nut-cell-group>
+    </view>
+
+    <!-- 数据管理 -->
+    <view class="section">
+      <view class="section-title">数据管理</view>
+      <nut-cell-group>
+        <nut-cell
+          title="数据导出"
+          desc="导出记录数据"
+          is-link
+          @click="exportData"
+        >
+          <template #icon>
+            <text class="cell-icon">📊</text>
+          </template>
+        </nut-cell>
+        <nut-cell
+          title="数据导入"
+          desc="从剪贴板导入"
+          is-link
+          @click="importData"
+        >
+          <template #icon>
+            <text class="cell-icon">📥</text>
+          </template>
+        </nut-cell>
+        <nut-cell
+          title="数据统计"
+          :desc="`共 ${totalRecords} 条记录`"
+          is-link
+          @click="goToStatistics"
+        >
+          <template #icon>
+            <text class="cell-icon">📈</text>
+          </template>
+        </nut-cell>
+      </nut-cell-group>
+    </view>
+
+    <!-- 设置 -->
+    <view class="section">
+      <view class="section-title">设置</view>
+      <nut-cell-group>
+        <nut-cell
+          title="关于我们"
+          is-link
+          @click="showAbout"
+        >
+          <template #icon>
+            <text class="cell-icon">ℹ️</text>
+          </template>
+        </nut-cell>
+        <nut-cell
+          title="清除缓存"
+          is-link
+          @click="clearCache"
+        >
+          <template #icon>
+            <text class="cell-icon">🗑️</text>
+          </template>
+        </nut-cell>
+      </nut-cell-group>
+    </view>
+
+    <!-- 退出登录 -->
+    <view class="logout-section">
+      <nut-button
+        type="default"
+        size="large"
+        block
+        @click="handleLogout"
+      >
+        退出登录
+      </nut-button>
+    </view>
+
+    <!-- 版本信息 -->
+    <view class="version">
+      <text>宝宝喂养日志 v1.0.0</text>
+    </view>
+  </view>
+</template>
+
+<script setup lang="ts">
+import { computed } from 'vue'
+import { userInfo, clearUserInfo } from '@/store/user'
+import { babyList } from '@/store/baby'
+import { feedingRecords } from '@/store/feeding'
+import { diaperRecords } from '@/store/diaper'
+import { sleepRecords } from '@/store/sleep'
+import { formatDate } from '@/utils/date'
+import { setStorage, StorageKeys } from '@/utils/storage'
+
+
+// 登录时间文本
+const loginTimeText = computed(() => {
+  if (!userInfo.value) return ''
+  return '登录于 ' + formatDate(userInfo.value.createTime, 'YYYY-MM-DD')
+})
+
+// 总记录数
+const totalRecords = computed(() => {
+  return feedingRecords.value.length + diaperRecords.value.length + sleepRecords.value.length
+})
+
+// 跳转到宝宝列表
+const goToBabyList = () => {
+  uni.navigateTo({
+    url: '/pages/baby/list/list'
+  })
+}
+
+// 跳转到家庭管理
+const goToFamily = () => {
+  uni.navigateTo({
+    url: '/pages/family/family'
+  })
+}
+
+// 跳转到疫苗提醒
+const goToVaccine = () => {
+  uni.navigateTo({
+    url: '/pages/vaccine/vaccine'
+  })
+}
+
+// 跳转到统计页面
+const goToStatistics = () => {
+  uni.switchTab({
+    url: '/pages/statistics/statistics'
+  })
+}
+
+// 导出数据
+const exportData = async () => {
+  try {
+    uni.showLoading({
+      title: '准备导出...',
+      mask: true
+    })
+
+    // 准备导出数据
+    const exportData = {
+      exportTime: Date.now(),
+      exportTimeText: formatDate(Date.now(), 'YYYY-MM-DD HH:mm:ss'),
+      babies: babyList.value,
+      feedingRecords: feedingRecords.value,
+      diaperRecords: diaperRecords.value,
+      sleepRecords: sleepRecords.value
+    }
+
+    // 生成 JSON 字符串
+    const jsonStr = JSON.stringify(exportData, null, 2)
+    const fileName = `baby_data_${formatDate(Date.now(), 'YYYYMMDD_HHmmss')}.json`
+
+    uni.hideLoading()
+
+    // 显示导出摘要
+    const summary = `
+导出时间: ${exportData.exportTimeText}
+宝宝数量: ${babyList.value.length}
+喂养记录: ${feedingRecords.value.length} 条
+换尿布记录: ${diaperRecords.value.length} 条
+睡眠记录: ${sleepRecords.value.length} 条
+总记录数: ${totalRecords.value} 条
+
+文件名: ${fileName}
+    `.trim()
+
+    uni.showModal({
+      title: '数据导出成功',
+      content: summary,
+      confirmText: '复制数据',
+      cancelText: '关闭',
+      success: (res) => {
+        if (res.confirm) {
+          // 复制到剪贴板
+          uni.setClipboardData({
+            data: jsonStr,
+            success: () => {
+              uni.showToast({
+                title: '已复制到剪贴板',
+                icon: 'success'
+              })
+            }
+          })
+        }
+      }
+    })
+  } catch (error) {
+    uni.hideLoading()
+    uni.showToast({
+      title: '导出失败',
+      icon: 'none'
+    })
+    console.error('导出数据失败:', error)
+  }
+}
+
+// 导入数据
+const importData = async () => {
+  try {
+    // 从剪贴板获取数据
+    const clipboardData = await uni.getClipboardData()
+    const jsonStr = clipboardData.data
+
+    if (!jsonStr) {
+      uni.showToast({
+        title: '剪贴板为空',
+        icon: 'none'
+      })
+      return
+    }
+
+    // 解析 JSON
+    let importedData: any
+    try {
+      importedData = JSON.parse(jsonStr)
+    } catch (e) {
+      uni.showToast({
+        title: 'JSON 格式错误',
+        icon: 'none'
+      })
+      return
+    }
+
+    // 验证数据结构
+    if (!importedData.babies || !Array.isArray(importedData.babies)) {
+      uni.showToast({
+        title: '数据格式错误',
+        icon: 'none'
+      })
+      return
+    }
+
+    // 显示导入确认
+    const summary = `
+导出时间: ${importedData.exportTimeText || '未知'}
+宝宝数量: ${importedData.babies?.length || 0}
+喂养记录: ${importedData.feedingRecords?.length || 0} 条
+换尿布记录: ${importedData.diaperRecords?.length || 0} 条
+睡眠记录: ${importedData.sleepRecords?.length || 0} 条
+
+警告: 导入将覆盖当前所有数据!
+    `.trim()
+
+    uni.showModal({
+      title: '确认导入数据?',
+      content: summary,
+      confirmText: '确认导入',
+      confirmColor: '#fa2c19',
+      success: (res) => {
+        if (res.confirm) {
+          // 执行导入
+          performImport(importedData)
+        }
+      }
+    })
+  } catch (error) {
+    console.error('导入数据失败:', error)
+    uni.showToast({
+      title: '导入失败',
+      icon: 'none'
+    })
+  }
+}
+
+// 执行导入操作
+const performImport = (data: any) => {
+  try {
+    uni.showLoading({
+      title: '正在导入...',
+      mask: true
+    })
+
+    // 导入宝宝数据
+    if (data.babies && Array.isArray(data.babies)) {
+      babyList.value = data.babies
+      setStorage(StorageKeys.BABY_LIST, data.babies)
+    }
+
+    // 导入喂养记录
+    if (data.feedingRecords && Array.isArray(data.feedingRecords)) {
+      feedingRecords.value = data.feedingRecords
+      setStorage(StorageKeys.FEEDING_RECORDS, data.feedingRecords)
+    }
+
+    // 导入换尿布记录
+    if (data.diaperRecords && Array.isArray(data.diaperRecords)) {
+      diaperRecords.value = data.diaperRecords
+      setStorage(StorageKeys.DIAPER_RECORDS, data.diaperRecords)
+    }
+
+    // 导入睡眠记录
+    if (data.sleepRecords && Array.isArray(data.sleepRecords)) {
+      sleepRecords.value = data.sleepRecords
+      setStorage(StorageKeys.SLEEP_RECORDS, data.sleepRecords)
+    }
+
+    uni.hideLoading()
+
+    uni.showToast({
+      title: '导入成功',
+      icon: 'success'
+    })
+
+    // 1秒后刷新页面
+    setTimeout(() => {
+      uni.reLaunch({
+        url: '/pages/index/index'
+      })
+    }, 1000)
+  } catch (error) {
+    uni.hideLoading()
+    console.error('执行导入失败:', error)
+    uni.showToast({
+      title: '导入失败',
+      icon: 'none'
+    })
+  }
+}
+
+// 关于我们
+const showAbout = () => {
+  uni.showModal({
+    title: '关于我们',
+    content: '宝宝喂养日志是一款专为新手父母设计的育儿记录工具,帮助您科学、轻松地记录和追踪宝宝的成长数据。',
+    showCancel: false
+  })
+}
+
+// 清除缓存
+const clearCache = () => {
+  uni.showModal({
+    title: '确认清除',
+    content: '清除缓存不会删除您的记录数据',
+    success: (res) => {
+      if (res.confirm) {
+        uni.showToast({
+          title: '清除成功',
+          icon: 'success'
+        })
+      }
+    }
+  })
+}
+
+// 退出登录
+const handleLogout = () => {
+  uni.showModal({
+    title: '确认退出',
+    content: '退出登录后,本地数据仍会保留',
+    success: (res) => {
+      if (res.confirm) {
+        clearUserInfo()
+        uni.reLaunch({
+          url: '/pages/user/login'
+        })
+      }
+    }
+  })
+}
+</script>
+
+<style lang="scss" scoped>
+.user-page {
+  min-height: 100vh;
+  background: #f5f5f5;
+  padding-bottom: 40rpx;
+}
+
+.user-card {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  padding: 60rpx 30rpx 40rpx;
+  color: white;
+}
+
+.user-info {
+  display: flex;
+  align-items: center;
+  gap: 24rpx;
+}
+
+.avatar {
+  width: 120rpx;
+  height: 120rpx;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 4rpx solid rgba(255, 255, 255, 0.3);
+}
+
+.avatar-text {
+  font-size: 48rpx;
+  font-weight: bold;
+}
+
+.info {
+  flex: 1;
+}
+
+.nickname {
+  font-size: 36rpx;
+  font-weight: bold;
+  margin-bottom: 12rpx;
+}
+
+.login-time {
+  font-size: 24rpx;
+  opacity: 0.8;
+}
+
+.section {
+  margin-top: 20rpx;
+}
+
+.section-title {
+  padding: 24rpx 30rpx 16rpx;
+  font-size: 28rpx;
+  color: #999;
+}
+
+.cell-icon {
+  font-size: 36rpx;
+  margin-right: 12rpx;
+}
+
+.logout-section {
+  margin-top: 40rpx;
+  padding: 0 30rpx;
+}
+
+.version {
+  text-align: center;
+  padding: 40rpx 0;
+  font-size: 24rpx;
+  color: #999;
+}
+</style>

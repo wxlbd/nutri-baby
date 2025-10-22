@@ -1,0 +1,155 @@
+{
+	"easycom": {
+		"autoscan": true,
+		"custom": {
+			"^nut-(.*)?-(.*)": "nutui-uniapp/components/$1$2/$1$2.vue",
+			"^nut-(.*)": "nutui-uniapp/components/$1/$1.vue"
+		}
+	},
+	"pages": [
+		{
+			"path": "pages/index/index",
+			"style": {
+				"navigationBarTitleText": "今日概览",
+				"navigationStyle": "custom"
+			}
+		},
+		{
+			"path": "pages/user/login",
+			"style": {
+				"navigationBarTitleText": "登录",
+				"navigationStyle": "custom"
+			}
+		},
+		{
+			"path": "pages/welcome/welcome",
+			"style": {
+				"navigationBarTitleText": "欢迎",
+				"navigationStyle": "custom"
+			}
+		},
+		{
+			"path": "pages/baby/list/list",
+			"style": {
+				"navigationBarTitleText": "宝宝管理"
+			}
+		},
+		{
+			"path": "pages/baby/edit/edit",
+			"style": {
+				"navigationBarTitleText": "宝宝信息"
+			}
+		},
+		{
+			"path": "pages/baby/invite/invite",
+			"style": {
+				"navigationBarTitleText": "邀请协作者"
+			}
+		},
+		{
+			"path": "pages/baby/qrcode/qrcode",
+			"style": {
+				"navigationBarTitleText": "扫码加入"
+			}
+		},
+		{
+			"path": "pages/baby/join/join",
+			"style": {
+				"navigationBarTitleText": "加入协作",
+				"navigationStyle": "custom"
+			}
+		},
+		{
+			"path": "pages/record/feeding/feeding",
+			"style": {
+				"navigationBarTitleText": "喂养记录"
+			}
+		},
+		{
+			"path": "pages/record/diaper/diaper",
+			"style": {
+				"navigationBarTitleText": "换尿布"
+			}
+		},
+		{
+			"path": "pages/record/sleep/sleep",
+			"style": {
+				"navigationBarTitleText": "睡眠记录"
+			}
+		},
+		{
+			"path": "pages/record/growth/growth",
+			"style": {
+				"navigationBarTitleText": "成长记录"
+			}
+		},
+		{
+			"path": "pages/timeline/timeline",
+			"style": {
+				"navigationBarTitleText": "时间轴"
+			}
+		},
+		{
+			"path": "pages/statistics/statistics",
+			"style": {
+				"navigationBarTitleText": "统计分析"
+			}
+		},
+		{
+			"path": "pages/user/user",
+			"style": {
+				"navigationBarTitleText": "我的"
+			}
+		},
+		{
+			"path": "pages/vaccine/vaccine",
+			"style": {
+				"navigationBarTitleText": "疫苗提醒"
+			}
+		},
+		{
+			"path": "pages/vaccine/manage/manage",
+			"style": {
+				"navigationBarTitleText": "疫苗计划管理"
+			}
+		}
+	],
+	"tabBar": {
+		"color": "#999999",
+		"selectedColor": "#fa2c19",
+		"backgroundColor": "#ffffff",
+		"borderStyle": "black",
+		"list": [
+			{
+				"pagePath": "pages/index/index",
+				"text": "首页",
+				"iconPath": "static/tabbar/home.png",
+				"selectedIconPath": "static/tabbar/home-active.png"
+			},
+			{
+				"pagePath": "pages/timeline/timeline",
+				"text": "时间轴",
+				"iconPath": "static/tabbar/timeline.png",
+				"selectedIconPath": "static/tabbar/timeline-active.png"
+			},
+			{
+				"pagePath": "pages/statistics/statistics",
+				"text": "统计",
+				"iconPath": "static/tabbar/statistics.png",
+				"selectedIconPath": "static/tabbar/statistics-active.png"
+			},
+			{
+				"pagePath": "pages/user/user",
+				"text": "我的",
+				"iconPath": "static/tabbar/user.png",
+				"selectedIconPath": "static/tabbar/user-active.png"
+			}
+		]
+	},
+	"globalStyle": {
+		"navigationBarTextStyle": "black",
+		"navigationBarTitleText": "宝宝喂养日志",
+		"navigationBarBackgroundColor": "#F8F8F8",
+		"backgroundColor": "#F8F8F8"
+	}
+}

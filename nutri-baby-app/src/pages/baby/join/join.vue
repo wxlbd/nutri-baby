@@ -1,0 +1,402 @@
+<template>
+  <view class="join-container">
+    <!-- 加载状态 -->
+    <view v-if="loading" class="loading-wrapper">
+      <view class="loading-spinner"></view>
+      <text class="loading-text">加载中...</text>
+    </view>
+
+    <!-- 邀请信息展示 -->
+    <view v-else-if="invitationInfo" class="content">
+      <!-- 宝宝信息卡片 -->
+      <view class="baby-card">
+        <view class="baby-avatar">
+          <image
+            v-if="invitationInfo.babyAvatar"
+            :src="invitationInfo.babyAvatar"
+            mode="aspectFill"
+          />
+          <text v-else class="avatar-placeholder">👶</text>
+        </view>
+
+        <view class="baby-info">
+          <view class="baby-name">{{ invitationInfo.babyName }}</view>
+          <view class="inviter-info">
+            <text class="inviter-name">{{ invitationInfo.inviterName }}</text>
+            <text class="invite-text">邀请你一起记录宝宝的成长</text>
+          </view>
+        </view>
+      </view>
+
+      <!-- 权限信息 -->
+      <view class="permission-card">
+        <view class="card-title">协作权限</view>
+        <view class="permission-list">
+          <view class="permission-item">
+            <text class="label">协作角色:</text>
+            <text class="value">{{ roleText }}</text>
+          </view>
+          <view class="permission-item">
+            <text class="label">访问权限:</text>
+            <text class="value">{{ accessTypeText }}</text>
+          </view>
+          <view v-if="invitationInfo.expiresAt" class="permission-item">
+            <text class="label">权限过期:</text>
+            <text class="value">{{ formatExpireTime }}</text>
+          </view>
+        </view>
+
+        <!-- 权限说明 -->
+        <view class="permission-desc">
+          <text v-if="role === 'admin'">管理员可管理宝宝信息、邀请/移除协作者</text>
+          <text v-else-if="role === 'editor'">编辑者可记录和编辑所有数据</text>
+          <text v-else>查看者仅可查看数据,不能编辑</text>
+        </view>
+      </view>
+
+      <!-- 操作按钮 -->
+      <view class="actions">
+        <nut-button type="primary" size="large" @click="handleJoin">
+          确认加入
+        </nut-button>
+        <nut-button type="default" size="large" @click="handleCancel">
+          取消
+        </nut-button>
+      </view>
+
+      <!-- 温馨提示 -->
+      <view class="tips">
+        <view class="tip-title">温馨提示</view>
+        <view class="tip-item">• 加入后可与家人共同记录宝宝的成长</view>
+        <view class="tip-item">• 所有协作者的记录将实时同步</view>
+        <view class="tip-item">• 请谨慎选择协作者,保护宝宝隐私</view>
+      </view>
+    </view>
+
+    <!-- 错误状态 -->
+    <view v-else class="error-wrapper">
+      <text class="error-icon">⚠️</text>
+      <text class="error-text">{{ errorMessage }}</text>
+      <nut-button type="primary" @click="handleBack">返回</nut-button>
+    </view>
+  </view>
+</template>
+
+<script setup lang="ts">
+import { ref, computed } from 'vue'
+import { onLoad } from '@dcloudio/uni-app'
+import { joinBabyCollaboration } from '@/store/collaborator'
+import { get } from '@/utils/request'
+
+// 页面参数
+const babyId = ref('')
+const token = ref('')
+
+// 页面状态
+const loading = ref(true)
+const invitationInfo = ref<any>(null)
+const errorMessage = ref('')
+const role = ref('')
+
+// 角色文本映射
+const roleTextMap: Record<string, string> = {
+  admin: '管理员',
+  editor: '编辑者',
+  viewer: '查看者',
+}
+
+// 访问权限文本映射
+const accessTypeTextMap: Record<string, string> = {
+  permanent: '永久有效',
+  temporary: '临时权限',
+}
+
+// 计算属性
+const roleText = computed(() => roleTextMap[role.value] || '编辑者')
+const accessTypeText = computed(() => {
+  return invitationInfo.value?.accessType
+    ? accessTypeTextMap[invitationInfo.value.accessType]
+    : '永久有效'
+})
+
+const formatExpireTime = computed(() => {
+  if (!invitationInfo.value?.expiresAt) return ''
+  const date = new Date(invitationInfo.value.expiresAt)
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+})
+
+// 页面加载
+onLoad((options) => {
+  if (options?.babyId) {
+    babyId.value = options.babyId
+  }
+  if (options?.token) {
+    token.value = options.token
+  }
+
+  // 加载邀请信息
+  loadInvitationInfo()
+})
+
+// 加载邀请信息
+async function loadInvitationInfo() {
+  if (!babyId.value || !token.value) {
+    errorMessage.value = '邀请链接无效,缺少必要参数'
+    loading.value = false
+    return
+  }
+
+  try {
+    // 这里应该调用后端API获取邀请详情
+    // 暂时使用模拟数据
+    // const response = await get(`/babies/${babyId.value}/invitation/${token.value}`)
+
+    // 模拟数据
+    setTimeout(() => {
+      invitationInfo.value = {
+        babyId: babyId.value,
+        babyName: '小明',
+        babyAvatar: '',
+        inviterName: '爸爸',
+        role: 'editor',
+        accessType: 'permanent',
+        expiresAt: null,
+      }
+      role.value = invitationInfo.value.role
+      loading.value = false
+    }, 500)
+  } catch (error: any) {
+    console.error('load invitation info error:', error)
+    errorMessage.value = error.message || '加载邀请信息失败'
+    loading.value = false
+  }
+}
+
+// 确认加入
+async function handleJoin() {
+  if (!babyId.value || !token.value) {
+    uni.showToast({
+      title: '邀请信息不完整',
+      icon: 'none',
+    })
+    return
+  }
+
+  uni.showLoading({
+    title: '加入中...',
+  })
+
+  try {
+    // 调用加入API
+    const result = await joinBabyCollaboration(babyId.value, token.value)
+
+    uni.hideLoading()
+
+    // 显示成功提示
+    uni.showModal({
+      title: '加入成功',
+      content: `你已成功加入${result.babyName}的协作团队`,
+      showCancel: false,
+      success: () => {
+        // 跳转到宝宝列表页
+        uni.reLaunch({
+          url: '/pages/baby/list/list',
+        })
+      },
+    })
+  } catch (error: any) {
+    uni.hideLoading()
+    console.error('join error:', error)
+    // 错误已在 joinBabyCollaboration 中处理
+  }
+}
+
+// 取消加入
+function handleCancel() {
+  uni.showModal({
+    title: '确认取消',
+    content: '确定要取消加入吗?',
+    success: (res) => {
+      if (res.confirm) {
+        handleBack()
+      }
+    },
+  })
+}
+
+// 返回
+function handleBack() {
+  // 如果是从分享链接进入,返回首页
+  uni.reLaunch({
+    url: '/pages/index/index',
+  })
+}
+</script>
+
+<style lang="scss" scoped>
+.join-container {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  padding: 40rpx 20rpx;
+}
+
+.loading-wrapper,
+.error-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 60vh;
+  color: white;
+
+  .loading-spinner {
+    width: 80rpx;
+    height: 80rpx;
+    border: 6rpx solid rgba(255, 255, 255, 0.3);
+    border-top-color: white;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+  }
+
+  .loading-text,
+  .error-text {
+    margin: 20rpx 0;
+    font-size: 32rpx;
+  }
+
+  .error-icon {
+    font-size: 120rpx;
+    margin-bottom: 20rpx;
+  }
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.content {
+  .baby-card {
+    background: white;
+    border-radius: 24rpx;
+    padding: 40rpx;
+    margin-bottom: 20rpx;
+    display: flex;
+    align-items: center;
+    box-shadow: 0 8rpx 24rpx rgba(0, 0, 0, 0.1);
+
+    .baby-avatar {
+      width: 120rpx;
+      height: 120rpx;
+      border-radius: 60rpx;
+      background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-right: 24rpx;
+      overflow: hidden;
+
+      image {
+        width: 100%;
+        height: 100%;
+      }
+
+      .avatar-placeholder {
+        font-size: 60rpx;
+      }
+    }
+
+    .baby-info {
+      flex: 1;
+
+      .baby-name {
+        font-size: 36rpx;
+        font-weight: bold;
+        color: #333;
+        margin-bottom: 12rpx;
+      }
+
+      .inviter-info {
+        font-size: 28rpx;
+        color: #666;
+
+        .inviter-name {
+          color: #667eea;
+          font-weight: 500;
+          margin-right: 8rpx;
+        }
+      }
+    }
+  }
+
+  .permission-card {
+    background: white;
+    border-radius: 24rpx;
+    padding: 40rpx;
+    margin-bottom: 20rpx;
+    box-shadow: 0 8rpx 24rpx rgba(0, 0, 0, 0.1);
+
+    .card-title {
+      font-size: 32rpx;
+      font-weight: bold;
+      color: #333;
+      margin-bottom: 24rpx;
+    }
+
+    .permission-list {
+      .permission-item {
+        display: flex;
+        justify-content: space-between;
+        padding: 16rpx 0;
+        font-size: 28rpx;
+
+        .label {
+          color: #999;
+        }
+
+        .value {
+          color: #333;
+          font-weight: 500;
+        }
+      }
+    }
+
+    .permission-desc {
+      margin-top: 20rpx;
+      padding: 20rpx;
+      background: #f8f9ff;
+      border-radius: 12rpx;
+      font-size: 26rpx;
+      color: #667eea;
+      line-height: 1.6;
+    }
+  }
+
+  .actions {
+    display: flex;
+    flex-direction: column;
+    gap: 16rpx;
+    margin-bottom: 20rpx;
+  }
+
+  .tips {
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 16rpx;
+    padding: 30rpx;
+    color: white;
+
+    .tip-title {
+      font-size: 28rpx;
+      font-weight: bold;
+      margin-bottom: 16rpx;
+    }
+
+    .tip-item {
+      font-size: 26rpx;
+      line-height: 1.8;
+      opacity: 0.9;
+    }
+  }
+}
+</style>
