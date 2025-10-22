@@ -59,9 +59,9 @@ export type FeedingType = 'breast' | 'bottle' | 'food'
 export interface BreastFeeding {
   type: 'breast'
   side: 'left' | 'right' | 'both' // 喂养侧
-  duration: number // 时长(分钟)
-  leftDuration?: number // 左侧时长
-  rightDuration?: number // 右侧时长
+  duration: number // 总时长(秒)
+  leftDuration?: number // 左侧时长(秒)
+  rightDuration?: number // 右侧时长(秒)
 }
 
 /**
