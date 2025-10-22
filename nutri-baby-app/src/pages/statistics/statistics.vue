@@ -17,7 +17,7 @@
 
       <view class="stat-cards">
         <view class="stat-card">
-          <view class="card-label">总奶量</view>
+          <view class="card-label">奶瓶奶量</view>
           <view class="card-value">{{ feedingStats.totalMilk }}ml</view>
         </view>
         <view class="stat-card">
@@ -32,7 +32,7 @@
 
       <!-- 每日奶量柱状图(简化版) -->
       <view class="daily-chart">
-        <view class="chart-title">每日奶量趋势</view>
+        <view class="chart-title">每日奶瓶奶量趋势</view>
         <view class="chart-bars">
           <view
             v-for="(day, index) in feedingStats.dailyData"
@@ -266,21 +266,18 @@ const feedingStats = computed(() => {
   const dailyMap = new Map<string, number>()
 
   records.forEach(record => {
-    let amount = 0
+    // 只统计奶瓶喂养的奶量，母乳喂养不计入
     if (record.detail.type === 'bottle') {
-      amount = record.detail.unit === 'oz'
+      const amount = record.detail.unit === 'oz'
         ? record.detail.amount * 29.5735
         : record.detail.amount
-    } else if (record.detail.type === 'breast') {
-      // duration 现在是秒数,转换为分钟后估算(每分钟约5ml)
-      amount = (record.detail.duration / 60) * 5
+
+      totalMilk += amount
+
+      // 按日期统计
+      const date = formatDate(record.time, 'MM-DD')
+      dailyMap.set(date, (dailyMap.get(date) || 0) + amount)
     }
-
-    totalMilk += amount
-
-    // 按日期统计
-    const date = formatDate(record.time, 'MM-DD')
-    dailyMap.set(date, (dailyMap.get(date) || 0) + amount)
   })
 
   // 生成每日数据
