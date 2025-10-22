@@ -44,24 +44,6 @@
                                 </nut-button>
                             </view>
                         </view>
-
-                        <!-- 手动输入时长 -->
-                        <nut-cell-group>
-                            <nut-cell title="左侧时长(秒)" desc="或使用计时器">
-                                <nut-input-number
-                                        v-model="breastForm.leftDuration"
-                                        :min="0"
-                                        :max="7200"
-                                />
-                            </nut-cell>
-                            <nut-cell title="右侧时长(秒)" desc="或使用计时器">
-                                <nut-input-number
-                                        v-model="breastForm.rightDuration"
-                                        :min="0"
-                                        :max="7200"
-                                />
-                            </nut-cell>
-                        </nut-cell-group>
                     </view>
                 </nut-tab-pane>
 
