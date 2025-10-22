@@ -80,6 +80,7 @@ import { getFeedingRecordsByBabyId, deleteFeedingRecord } from '@/store/feeding'
 import { getDiaperRecordsByBabyId, deleteDiaperRecord } from '@/store/diaper'
 import { getSleepRecordsByBabyId, deleteSleepRecord } from '@/store/sleep'
 import { formatDate, isToday, getTodayStart, getWeekStart, getMonthStart } from '@/utils/date'
+import { formatDuration } from '@/utils/common'
 import type { FeedingRecord, DiaperRecord, SleepRecord } from '@/types'
 
 // 日期筛选
@@ -112,7 +113,7 @@ const allRecords = computed<TimelineRecord[]>(() => {
   feedingRecords.forEach(record => {
     let detail = ''
     if (record.detail.type === 'breast') {
-      detail = `母乳喂养 ${record.detail.duration}分钟`
+      detail = `母乳喂养 ${formatDuration(record.detail.duration)}`
       if (record.detail.side === 'left') detail += ' (左侧)'
       else if (record.detail.side === 'right') detail += ' (右侧)'
       else detail += ' (双侧)'
@@ -162,9 +163,8 @@ const allRecords = computed<TimelineRecord[]>(() => {
   sleepRecords.forEach(record => {
     let detail = record.type === 'nap' ? '小睡' : '夜间长睡'
     if (record.duration) {
-      const hours = Math.floor(record.duration / 60)
-      const minutes = record.duration % 60
-      detail += ` ${hours}小时${minutes}分钟`
+      // duration 是分钟数,转换为秒数后格式化
+      detail += ` ${formatDuration(record.duration * 60)}`
     } else {
       detail += ' (进行中)'
     }
