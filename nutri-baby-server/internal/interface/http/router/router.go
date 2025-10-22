@@ -64,7 +64,7 @@ func NewRouter(
 
 				// 疫苗计划管理
 				babies.POST("/:babyId/vaccine-plans/initialize", vaccinePlanHandler.InitializePlans)
-				babies.GET("/:babyId/vaccine-plans", vaccinePlanHandler.GetPlansForBaby)
+				babies.GET("/:babyId/vaccine-plans", vaccinePlanHandler.GetPlans)
 				babies.POST("/:babyId/vaccine-plans", vaccinePlanHandler.CreatePlan)
 
 				// 疫苗接种记录和提醒
