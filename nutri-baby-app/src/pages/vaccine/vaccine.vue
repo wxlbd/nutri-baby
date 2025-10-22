@@ -375,7 +375,7 @@ const handleSaveRecord = () => {
 }
 
 // 页面加载
-onMounted(() => {
+onMounted(async () => {
   if (!currentBaby.value) {
     uni.showToast({
       title: '请先选择宝宝',
