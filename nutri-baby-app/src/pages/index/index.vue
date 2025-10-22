@@ -12,7 +12,12 @@
         <view class="stat-item">
           <view class="stat-icon">🍼</view>
           <view class="stat-value">{{ todayStats.totalMilk }}ml</view>
-          <view class="stat-label">总奶量</view>
+          <view class="stat-label">奶瓶奶量</view>
+        </view>
+        <view class="stat-item">
+          <view class="stat-icon">🤱</view>
+          <view class="stat-value">{{ todayStats.breastfeedingCount }}次</view>
+          <view class="stat-label">母乳喂养</view>
         </view>
         <view class="stat-item">
           <view class="stat-icon">💤</view>
@@ -133,7 +138,7 @@
 import { computed, onMounted, ref } from 'vue'
 import { isLoggedIn, fetchUserInfo } from '@/store/user'
 import { currentBaby, fetchBabyList } from '@/store/baby'
-import { getTodayTotalMilk, getLastFeedingRecord } from '@/store/feeding'
+import { getTodayTotalMilk, getLastFeedingRecord, getTodayBreastfeedingStats } from '@/store/feeding'
 import { getTodayDiaperCount } from '@/store/diaper'
 import { getTodayTotalSleepDuration } from '@/store/sleep'
 import { getUpcomingReminders, initializeVaccinePlansFromServer, generateRemindersForBaby } from '@/store/vaccine'
@@ -149,13 +154,17 @@ const todayStats = computed(() => {
   if (!currentBaby.value) {
     return {
       totalMilk: 0,
+      breastfeedingCount: 0,
       sleepDuration: 0,
       diaperCount: 0
     }
   }
 
+  const breastfeedingStats = getTodayBreastfeedingStats(currentBaby.value.babyId)
+
   return {
     totalMilk: getTodayTotalMilk(currentBaby.value.babyId),
+    breastfeedingCount: breastfeedingStats.count,
     sleepDuration: getTodayTotalSleepDuration(currentBaby.value.babyId),
     diaperCount: getTodayDiaperCount(currentBaby.value.babyId)
   }
@@ -409,7 +418,7 @@ $spacing: 20rpx;  // 统一间距
 
 .stats-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(2, 1fr);
   gap: 20rpx;
 }
 
