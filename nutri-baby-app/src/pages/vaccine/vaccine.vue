@@ -114,85 +114,89 @@
     <nut-popup
       v-model:visible="showRecordDialog"
       position="bottom"
-      :style="{ height: '70%' }"
+      :style="{ height: '75%' }"
       round
       closeable
     >
-      <view class="dialog-content">
-        <view class="dialog-title">记录疫苗接种</view>
-
-        <view class="form-section">
-          <view class="form-item">
-            <view class="form-label">疫苗名称</view>
-            <nut-input
-              v-model="recordForm.vaccineName"
-              placeholder="疫苗名称"
-              readonly
-            />
-          </view>
-
-          <view class="form-item">
-            <view class="form-label">接种日期</view>
-            <nut-input
-              :model-value="formatDate(recordForm.vaccineDate, 'YYYY-MM-DD')"
-              readonly
-              @click="showDatePicker = true"
-            />
-          </view>
-
-          <view class="form-item">
-            <view class="form-label">接种医院</view>
-            <nut-input
-              v-model="recordForm.hospital"
-              placeholder="请输入医院名称"
-              clearable
-            />
-          </view>
-
-          <view class="form-item">
-            <view class="form-label">疫苗批号</view>
-            <nut-input
-              v-model="recordForm.batchNumber"
-              placeholder="请输入疫苗批号(可选)"
-              clearable
-            />
-          </view>
-
-          <view class="form-item">
-            <view class="form-label">不良反应</view>
-            <nut-textarea
-              v-model="recordForm.reaction"
-              placeholder="如有不良反应请记录(可选)"
-              :max-length="200"
-            />
-          </view>
-
-          <view class="form-item">
-            <view class="form-label">备注</view>
-            <nut-textarea
-              v-model="recordForm.note"
-              placeholder="其他备注信息(可选)"
-              :max-length="200"
-            />
-          </view>
+      <view class="dialog-container">
+        <view class="dialog-header">
+          <view class="dialog-title">记录疫苗接种</view>
         </view>
+
+        <scroll-view class="dialog-body" scroll-y>
+          <view class="form-section">
+            <view class="form-item">
+              <view class="form-label">疫苗名称</view>
+              <nut-input
+                v-model="recordForm.vaccineName"
+                placeholder="疫苗名称"
+                readonly
+              />
+            </view>
+
+            <view class="form-item">
+              <view class="form-label">接种日期</view>
+              <nut-input
+                :model-value="formatDate(recordForm.vaccineDate, 'YYYY-MM-DD')"
+                readonly
+                @click="showDatePicker = true"
+              />
+            </view>
+
+            <view class="form-item">
+              <view class="form-label">接种医院 <text class="required">*</text></view>
+              <nut-input
+                v-model="recordForm.hospital"
+                placeholder="请输入医院名称"
+                clearable
+              />
+            </view>
+
+            <view class="form-item">
+              <view class="form-label">疫苗批号</view>
+              <nut-input
+                v-model="recordForm.batchNumber"
+                placeholder="请输入疫苗批号(可选)"
+                clearable
+              />
+            </view>
+
+            <view class="form-item">
+              <view class="form-label">不良反应</view>
+              <nut-textarea
+                v-model="recordForm.reaction"
+                placeholder="如有不良反应请记录(可选)"
+                :max-length="200"
+                :rows="2"
+              />
+            </view>
+
+            <view class="form-item">
+              <view class="form-label">备注</view>
+              <nut-textarea
+                v-model="recordForm.note"
+                placeholder="其他备注信息(可选)"
+                :max-length="200"
+                :rows="2"
+              />
+            </view>
+          </view>
+        </scroll-view>
 
         <view class="dialog-footer">
           <nut-button
-            type="default"
-            size="large"
-            block
-            @click="showRecordDialog = false"
-          >
-            取消
-          </nut-button>
-          <nut-button
             type="primary"
             size="large"
-            block
             @click="handleSaveRecord"
           >
             保存
+          </nut-button>
+          <nut-button
+            type="default"
+            size="large"
+            @click="showRecordDialog = false"
+          >
+            取消
           </nut-button>
         </view>
       </view>
@@ -216,7 +220,8 @@ import { userInfo } from '@/store/user'
 import {
   vaccinePlans,
   vaccineRecords,
-  initializeVaccinePlansFromServer,
+  fetchVaccinePlans,
+  initializeVaccinePlans,
   generateRemindersForBaby,
   getVaccineRemindersByBabyId,
   getUpcomingReminders,
@@ -387,11 +392,22 @@ onMounted(async () => {
     return
   }
 
-  // 为当前宝宝初始化疫苗计划（使用服务器API）
-  await initializeVaccinePlansFromServer(currentBaby.value.babyId)
+  try {
+    // 从服务器获取疫苗计划
+    const result = await fetchVaccinePlans(currentBaby.value.babyId)
 
-  // 生成提醒
-  generateRemindersForBaby(currentBaby.value.babyId, currentBaby.value.birthDate)
+    // 如果服务器返回空数据，且本地也没有数据，则进行本地初始化
+    if (result.plans.length === 0) {
+      console.log('[Vaccine] 服务器和本地都没有疫苗计划，进行本地初始化')
+      initializeVaccinePlans(currentBaby.value.babyId)
+    }
+
+    // 生成提醒
+    generateRemindersForBaby(currentBaby.value.babyId, currentBaby.value.birthDate)
+  } catch (error) {
+    console.error('加载疫苗数据失败:', error)
+    // fetchVaccinePlans 内部已经做了降级处理，这里只记录错误
+  }
 })
 
 // 跳转到疫苗计划管理页面
@@ -605,23 +621,34 @@ const goToManage = () => {
   color: #999;
 }
 
-.dialog-content {
-  padding: 30rpx;
+.dialog-container {
   height: 100%;
   display: flex;
   flex-direction: column;
+  background: #fff;
+}
+
+.dialog-header {
+  flex-shrink: 0;
+  padding: 30rpx;
+  border-bottom: 1rpx solid #f0f0f0;
 }
 
 .dialog-title {
   font-size: 36rpx;
   font-weight: bold;
   text-align: center;
-  margin-bottom: 30rpx;
+  color: #333;
+}
+
+.dialog-body {
+  flex: 1;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .form-section {
-  flex: 1;
-  overflow-y: auto;
+  padding: 30rpx;
 }
 
 .form-item {
@@ -635,9 +662,23 @@ const goToManage = () => {
   color: #333;
 }
 
+.form-label .required {
+  color: #fa2c19;
+  margin-left: 4rpx;
+}
+
 .dialog-footer {
+  flex-shrink: 0;
   display: flex;
+  flex-direction: column;
   gap: 20rpx;
-  margin-top: 20rpx;
+  padding: 30rpx;
+  background: #fff;
+  border-top: 1rpx solid #f0f0f0;
+  box-shadow: 0 -2rpx 8rpx rgba(0, 0, 0, 0.05);
+}
+
+.dialog-footer .nut-button {
+  width: 100%;
 }
 </style>
