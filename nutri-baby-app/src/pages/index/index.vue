@@ -136,7 +136,7 @@ import { currentBaby, fetchBabyList } from '@/store/baby'
 import { getTodayTotalMilk, getLastFeedingRecord } from '@/store/feeding'
 import { getTodayDiaperCount } from '@/store/diaper'
 import { getTodayTotalSleepDuration } from '@/store/sleep'
-import { getUpcomingReminders, initializeVaccinePlans, generateRemindersForBaby } from '@/store/vaccine'
+import { getUpcomingReminders, initializeVaccinePlansFromServer, generateRemindersForBaby } from '@/store/vaccine'
 import { formatRelativeTime, formatDuration, formatDate } from '@/utils/date'
 
 // 导航栏引用
@@ -244,11 +244,11 @@ const calculatePagePadding = () => {
 }
 
 // 初始化疫苗计划
-const initializeVaccines = () => {
+const initializeVaccines = async () => {
   if (!currentBaby.value) return
 
-  // 为当前宝宝初始化疫苗计划
-  initializeVaccinePlans(currentBaby.value.babyId)
+  // 为当前宝宝从服务器初始化疫苗计划
+  await initializeVaccinePlansFromServer(currentBaby.value.babyId)
 
   // 生成提醒
   generateRemindersForBaby(currentBaby.value.babyId, currentBaby.value.birthDate)
