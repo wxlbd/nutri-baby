@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/google/uuid"
 
@@ -124,7 +125,7 @@ func (s *VaccinePlanService) CreatePlan(ctx context.Context, babyID, openID stri
 	// 1. 验证宝宝是否存在
 	_, err := s.babyRepo.FindByID(ctx, babyID)
 	if err != nil {
-		return nil, errs.ErrNotFound.WithMessage("宝宝不存在")
+		return nil, errs.New(errs.NotFound, "宝宝不存在")
 	}
 
 	// 2. 创建计划
@@ -155,7 +156,7 @@ func (s *VaccinePlanService) UpdatePlan(ctx context.Context, planID string, req 
 	// 1. 查找计划
 	plan, err := s.babyVaccinePlanRepo.FindByID(ctx, planID)
 	if err != nil {
-		return nil, errs.ErrNotFound.WithMessage("疫苗计划不存在")
+		return nil, errs.New(errs.NotFound, "疫苗计划不存在")
 	}
 
 	// 2. 更新字段
@@ -190,13 +191,13 @@ func (s *VaccinePlanService) DeletePlan(ctx context.Context, planID string) erro
 	// 1. 查找计划
 	plan, err := s.babyVaccinePlanRepo.FindByID(ctx, planID)
 	if err != nil {
-		return errs.ErrNotFound.WithMessage("疫苗计划不存在")
+		return errs.New(errs.NotFound, "疫苗计划不存在")
 	}
 
 	// 2. 检查是否已有接种记录
 	record, err := s.vaccineRecordRepo.FindByBabyAndPlan(ctx, plan.BabyID, planID)
 	if err == nil && record != nil {
-		return errs.ErrConflict.WithMessage("该疫苗计划已有接种记录,无法删除")
+		return errs.New(errs.Conflict, "该疫苗计划已有接种记录,无法删除")
 	}
 
 	// 3. 删除计划
@@ -205,12 +206,18 @@ func (s *VaccinePlanService) DeletePlan(ctx context.Context, planID string) erro
 
 // generateRemindersForBaby 为宝宝生成疫苗提醒
 func (s *VaccinePlanService) generateRemindersForBaby(ctx context.Context, baby *entity.Baby, plans []*entity.BabyVaccinePlan) error {
-	birthDate := baby.BirthDate
+	// 解析出生日期 (YYYY-MM-DD)
+	birthTime, err := time.Parse("2006-01-02", baby.BirthDate)
+	if err != nil {
+		return fmt.Errorf("解析出生日期失败: %w", err)
+	}
+	birthTimestamp := birthTime.UnixMilli()
+
 	reminders := make([]*entity.VaccineReminder, 0, len(plans))
 
 	for _, plan := range plans {
 		// 计算预定接种日期
-		scheduledDate := birthDate + int64(plan.AgeInMonths)*30*24*60*60*1000
+		scheduledDate := birthTimestamp + int64(plan.AgeInMonths)*30*24*60*60*1000
 
 		// 检查是否已有记录
 		record, _ := s.vaccineRecordRepo.FindByBabyAndPlan(ctx, baby.BabyID, plan.PlanID)
