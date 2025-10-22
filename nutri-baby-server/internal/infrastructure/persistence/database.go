@@ -66,7 +66,6 @@ func autoMigrate(db *gorm.DB) error {
 		&entity.SleepRecord{},
 		&entity.DiaperRecord{},
 		&entity.GrowthRecord{},
-		&entity.VaccinePlan{},
 		&entity.VaccineRecord{},
 		&entity.VaccineReminder{},
 		&entity.VaccinePlanTemplate{},
