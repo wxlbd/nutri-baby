@@ -2,6 +2,14 @@ package entity
 
 import "time"
 
+// 疫苗提醒状态常量
+const (
+	ReminderStatusUpcoming  = "upcoming"  // 即将到期
+	ReminderStatusDue       = "due"       // 应接种
+	ReminderStatusOverdue   = "overdue"   // 已逾期
+	ReminderStatusCompleted = "completed" // 已完成
+)
+
 // VaccinePlanTemplate 疫苗计划模板(国家免疫规划标准)
 type VaccinePlanTemplate struct {
 	TemplateID   string     `gorm:"primaryKey;column:template_id;type:varchar(64)" json:"templateId"`
@@ -51,26 +59,6 @@ func (BabyVaccinePlan) TableName() string {
 	return "baby_vaccine_plans"
 }
 
-// VaccinePlan 疫苗计划实体(系统预设) - @deprecated 使用 VaccinePlanTemplate 替代
-type VaccinePlan struct {
-	PlanID       string     `gorm:"primaryKey;column:plan_id;type:varchar(64)" json:"planId"`
-	VaccineType  string     `gorm:"column:vaccine_type;type:varchar(32)" json:"vaccineType"`
-	VaccineName  string     `gorm:"column:vaccine_name;type:varchar(64)" json:"vaccineName"`
-	Description  string     `gorm:"column:description;type:text" json:"description"`
-	AgeInMonths  int        `gorm:"column:age_in_months" json:"ageInMonths"`
-	DoseNumber   int        `gorm:"column:dose_number" json:"doseNumber"`
-	IsRequired   bool       `gorm:"column:is_required" json:"isRequired"`
-	ReminderDays int        `gorm:"column:reminder_days" json:"reminderDays"`
-	CreateTime   int64      `gorm:"column:create_time;autoCreateTime:milli" json:"createTime"`
-	UpdateTime   int64      `gorm:"column:update_time;autoUpdateTime:milli" json:"updateTime"`
-	DeletedAt    *time.Time `gorm:"column:deleted_at;index" json:"-"`
-}
-
-// TableName 指定表名
-func (VaccinePlan) TableName() string {
-	return "vaccine_plans"
-}
-
 // VaccineRecord 疫苗接种记录实体
 type VaccineRecord struct {
 	RecordID       string     `gorm:"primaryKey;column:record_id;type:varchar(64)" json:"recordId"`
@@ -86,14 +74,14 @@ type VaccineRecord struct {
 	Reaction       *string    `gorm:"column:reaction;type:text" json:"reaction"`
 	Note           *string    `gorm:"column:note;type:text" json:"note"`
 	CreateBy       string     `gorm:"column:create_by;type:varchar(64)" json:"createBy"`
-	CreateByName   string     `gorm:"column:create_by_name;type:varchar(64)" json:"createByName"`     // 冗余:创建者昵称
+	CreateByName   string     `gorm:"column:create_by_name;type:varchar(64)" json:"createByName"`      // 冗余:创建者昵称
 	CreateByAvatar string     `gorm:"column:create_by_avatar;type:varchar(512)" json:"createByAvatar"` // 冗余:创建者头像
 	CreateTime     int64      `gorm:"column:create_time;autoCreateTime:milli" json:"createTime"`
 	UpdateTime     int64      `gorm:"column:update_time;autoUpdateTime:milli" json:"updateTime"`
 	DeletedAt      *time.Time `gorm:"column:deleted_at;index" json:"-"`
 
 	// 关联
-	Plan *VaccinePlan `gorm:"foreignKey:PlanID;references:PlanID" json:"plan,omitempty"`
+	Plan *BabyVaccinePlan `gorm:"foreignKey:PlanID;references:PlanID" json:"plan,omitempty"`
 }
 
 // TableName 指定表名
@@ -103,22 +91,22 @@ func (VaccineRecord) TableName() string {
 
 // VaccineReminder 疫苗提醒实体
 type VaccineReminder struct {
-	ReminderID    string    `gorm:"primaryKey;column:reminder_id;type:varchar(64)" json:"reminderId"`
-	BabyID        string    `gorm:"column:baby_id;type:varchar(64);index" json:"babyId"`
-	PlanID        string    `gorm:"column:plan_id;type:varchar(64);index" json:"planId"`
-	VaccineName   string    `gorm:"column:vaccine_name;type:varchar(64)" json:"vaccineName"`
-	DoseNumber    int       `gorm:"column:dose_number" json:"doseNumber"`
-	ScheduledDate int64     `gorm:"column:scheduled_date;index" json:"scheduledDate"`
-	Status        string    `gorm:"column:status;type:varchar(16);index" json:"status"` // upcoming, due, overdue, completed
-	ReminderSent  bool      `gorm:"column:reminder_sent" json:"reminderSent"`
-	SentTime      *int64    `gorm:"column:sent_time" json:"sentTime"`
-	CreateTime    int64     `gorm:"column:create_time;autoCreateTime:milli" json:"createTime"`
-	UpdateTime    int64     `gorm:"column:update_time;autoUpdateTime:milli" json:"updateTime"`
+	ReminderID    string     `gorm:"primaryKey;column:reminder_id;type:varchar(64)" json:"reminderId"`
+	BabyID        string     `gorm:"column:baby_id;type:varchar(64);index" json:"babyId"`
+	PlanID        string     `gorm:"column:plan_id;type:varchar(64);index" json:"planId"`
+	VaccineName   string     `gorm:"column:vaccine_name;type:varchar(64)" json:"vaccineName"`
+	DoseNumber    int        `gorm:"column:dose_number" json:"doseNumber"`
+	ScheduledDate int64      `gorm:"column:scheduled_date;index" json:"scheduledDate"`
+	Status        string     `gorm:"column:status;type:varchar(16);index" json:"status"` // upcoming, due, overdue, completed
+	ReminderSent  bool       `gorm:"column:reminder_sent" json:"reminderSent"`
+	SentTime      *int64     `gorm:"column:sent_time" json:"sentTime"`
+	CreateTime    int64      `gorm:"column:create_time;autoCreateTime:milli" json:"createTime"`
+	UpdateTime    int64      `gorm:"column:update_time;autoUpdateTime:milli" json:"updateTime"`
 	DeletedAt     *time.Time `gorm:"column:deleted_at;index" json:"-"`
 
 	// 关联
-	Plan *VaccinePlan `gorm:"foreignKey:PlanID;references:PlanID" json:"plan,omitempty"`
-	Baby *Baby        `gorm:"foreignKey:BabyID;references:BabyID" json:"baby,omitempty"`
+	Plan *BabyVaccinePlan `gorm:"foreignKey:PlanID;references:PlanID" json:"plan,omitempty"`
+	Baby *Baby            `gorm:"foreignKey:BabyID;references:BabyID" json:"baby,omitempty"`
 }
 
 // TableName 指定表名
@@ -137,15 +125,15 @@ func (v *VaccineReminder) DaysUntilDue() int {
 func (v *VaccineReminder) UpdateStatus() {
 	days := v.DaysUntilDue()
 
-	if v.Status == "completed" {
+	if v.Status == ReminderStatusCompleted {
 		return
 	}
 
 	if days > 7 {
-		v.Status = "upcoming"
+		v.Status = ReminderStatusUpcoming
 	} else if days >= 0 {
-		v.Status = "due"
+		v.Status = ReminderStatusDue
 	} else {
-		v.Status = "overdue"
+		v.Status = ReminderStatusOverdue
 	}
 }
