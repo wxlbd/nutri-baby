@@ -46,19 +46,19 @@
                         </view>
 
                         <!-- 手动输入时长 -->
-                        <nut-cell-group v-if="breastForm.side === 'both'">
-                            <nut-cell title="左侧时长(分钟)">
+                        <nut-cell-group>
+                            <nut-cell title="左侧时长(秒)" desc="或使用计时器">
                                 <nut-input-number
                                         v-model="breastForm.leftDuration"
                                         :min="0"
-                                        :max="60"
+                                        :max="7200"
                                 />
                             </nut-cell>
-                            <nut-cell title="右侧时长(分钟)">
+                            <nut-cell title="右侧时长(秒)" desc="或使用计时器">
                                 <nut-input-number
                                         v-model="breastForm.rightDuration"
                                         :min="0"
-                                        :max="60"
+                                        :max="7200"
                                 />
                             </nut-cell>
                         </nut-cell-group>
@@ -204,8 +204,8 @@ const stopTimer = () => {
         timerInterval = null
     }
 
-    // 计算时长(分钟)
-    const duration = Math.floor(timerSeconds.value / 60)
+    // 使用秒数,不再转换为分钟
+    const duration = timerSeconds.value
     if (breastForm.value.side === 'both') {
         // 两侧时平均分配
         breastForm.value.leftDuration = Math.floor(duration / 2)
@@ -214,7 +214,9 @@ const stopTimer = () => {
         // 单侧时全部计入
         if (breastForm.value.side === 'left') {
             breastForm.value.leftDuration = duration
+            breastForm.value.rightDuration = 0
         } else {
+            breastForm.value.leftDuration = 0
             breastForm.value.rightDuration = duration
         }
     }
@@ -289,9 +291,9 @@ const handleSubmit = async () => {
         detail = {
             type: 'breast',
             side: breastForm.value.side,
-            duration: totalDuration,
-            leftDuration: breastForm.value.leftDuration,
-            rightDuration: breastForm.value.rightDuration,
+            duration: totalDuration, // 总时长(秒)
+            leftDuration: breastForm.value.leftDuration, // 左侧时长(秒)
+            rightDuration: breastForm.value.rightDuration, // 右侧时长(秒)
         }
     } else if (feedingType.value === 'bottle') {
         detail = {
