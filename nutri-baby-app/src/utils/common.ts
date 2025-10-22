@@ -163,3 +163,47 @@ export function validatePhone(phone: string): boolean {
 export function validateEmail(email: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
 }
+
+/**
+ * 格式化时长(秒) 为 "n小时n分钟n秒"
+ * @param seconds 总秒数
+ * @returns 格式化的时长字符串
+ */
+export function formatDuration(seconds: number): string {
+  if (seconds <= 0) {
+    return '0秒'
+  }
+
+  const hours = Math.floor(seconds / 3600)
+  const minutes = Math.floor((seconds % 3600) / 60)
+  const secs = seconds % 60
+
+  const parts: string[] = []
+  if (hours > 0) {
+    parts.push(`${hours}小时`)
+  }
+  if (minutes > 0) {
+    parts.push(`${minutes}分钟`)
+  }
+  if (secs > 0 || parts.length === 0) {
+    parts.push(`${secs}秒`)
+  }
+
+  return parts.join('')
+}
+
+/**
+ * 格式化时长(秒) 为简短格式 "HH:MM:SS"
+ * @param seconds 总秒数
+ * @returns 格式化的时长字符串
+ */
+export function formatDurationShort(seconds: number): string {
+  const hours = Math.floor(seconds / 3600)
+  const minutes = Math.floor((seconds % 3600) / 60)
+  const secs = seconds % 60
+
+  if (hours > 0) {
+    return `${padZero(hours)}:${padZero(minutes)}:${padZero(secs)}`
+  }
+  return `${padZero(minutes)}:${padZero(secs)}`
+}
