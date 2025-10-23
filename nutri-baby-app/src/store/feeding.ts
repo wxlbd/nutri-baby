@@ -15,10 +15,19 @@ import { StorageKeys, getStorage, setStorage } from '@/utils/storage'
 import { get, post } from '@/utils/request'
 import { getTodayStart, getTodayEnd } from '@/utils/date'
 
-// 喂养记录列表
-const feedingRecords = ref<FeedingRecord[]>(
-  getStorage<FeedingRecord[]>(StorageKeys.FEEDING_RECORDS) || []
-)
+// 喂养记录列表 - 延迟初始化,避免模块加载时同步读取存储
+const feedingRecords = ref<FeedingRecord[]>([])
+
+// 初始化标记
+let isInitialized = false
+
+// 延迟初始化函数
+function initializeIfNeeded() {
+  if (!isInitialized) {
+    feedingRecords.value = getStorage<FeedingRecord[]>(StorageKeys.FEEDING_RECORDS) || []
+    isInitialized = true
+  }
+}
 
 /**
  * 从服务器获取喂养记录列表
@@ -152,6 +161,7 @@ function mapFeedingDetailToAPI(detail: FeedingRecord['detail']): any {
  * 本地查询方法
  */
 export function getFeedingRecords(): FeedingRecord[] {
+  initializeIfNeeded()
   return feedingRecords.value
 }
 
@@ -171,23 +181,47 @@ export function getTodayFeedingRecords(babyId: string): FeedingRecord[] {
   )
 }
 
+/**
+ * 获取今日总奶量（仅统计奶瓶喂养的实际奶量，不包含母乳喂养）
+ * 注：母乳喂养只记录时间，无法准确测量毫升数，因此不计入总奶量
+ */
 export function getTodayTotalMilk(babyId: string): number {
+  initializeIfNeeded()
   const todayRecords = getTodayFeedingRecords(babyId)
   let total = 0
 
   todayRecords.forEach((record) => {
+    // 只统计奶瓶喂养的奶量
     if (record.detail.type === 'bottle') {
       const amount =
         record.detail.unit === 'oz'
           ? record.detail.amount * 29.5735
           : record.detail.amount
       total += amount
-    } else if (record.detail.type === 'breast') {
-      total += record.detail.duration * 5
     }
+    // 母乳喂养不计入奶量统计
   })
 
   return Math.round(total)
+}
+
+/**
+ * 获取今日母乳喂养统计
+ * 返回：{ count: 次数, totalDuration: 总时长(秒) }
+ */
+export function getTodayBreastfeedingStats(babyId: string): { count: number; totalDuration: number } {
+  const todayRecords = getTodayFeedingRecords(babyId)
+  let count = 0
+  let totalDuration = 0
+
+  todayRecords.forEach((record) => {
+    if (record.detail.type === 'breast') {
+      count++
+      totalDuration += record.detail.duration
+    }
+  })
+
+  return { count, totalDuration }
 }
 
 export function getLastFeedingRecord(babyId: string): FeedingRecord | null {
