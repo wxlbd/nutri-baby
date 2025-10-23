@@ -65,3 +65,23 @@ func (h *AuthHandler) GetUserInfo(c *gin.Context) {
 
 	response.Success(c, userInfo)
 }
+
+// SetDefaultBaby 设置默认宝宝
+// @Router /auth/default-baby [put]
+func (h *AuthHandler) SetDefaultBaby(c *gin.Context) {
+	// 从context获取当前用户openid
+	openID := c.GetString("openid")
+
+	var req dto.SetDefaultBabyRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.ErrorWithMessage(c, 1001, "参数错误: "+err.Error())
+		return
+	}
+
+	if err := h.authService.SetDefaultBaby(c.Request.Context(), openID, &req); err != nil {
+		response.Error(c, err)
+		return
+	}
+
+	response.Success(c, nil)
+}

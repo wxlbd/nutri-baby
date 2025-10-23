@@ -19,6 +19,7 @@ type UserInfoDTO struct {
 	OpenID        string `json:"openid"`
 	NickName      string `json:"nickName"`
 	AvatarURL     string `json:"avatarUrl"`
+	DefaultBabyID string `json:"defaultBabyId"`
 	CreateTime    int64  `json:"createTime"`
 	LastLoginTime int64  `json:"lastLoginTime"`
 }
@@ -36,4 +37,9 @@ type FamilyDTO struct {
 type RefreshTokenResponse struct {
 	Token     string `json:"token"`
 	ExpiresIn int    `json:"expiresIn"`
+}
+
+// SetDefaultBabyRequest 设置默认宝宝请求
+type SetDefaultBabyRequest struct {
+	BabyID string `json:"babyId" binding:"required"`
 }
