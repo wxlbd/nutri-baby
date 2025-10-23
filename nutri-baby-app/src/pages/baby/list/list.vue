@@ -1,71 +1,103 @@
 <template>
   <view class="baby-list-page">
     <!-- 头部 -->
-    <view class="header">
-      <text class="title">选择宝宝</text>
-    </view>
 
     <!-- 宝宝列表 -->
     <view class="baby-list">
       <view
         v-for="baby in babyList"
         :key="baby.babyId"
-        class="baby-item"
-        :class="{ active: baby.babyId === currentBabyId }"
-        @click="handleSelectBaby(baby.babyId)"
+        class="baby-card"
+        :class="{ active: baby.babyId === currentBabyId, 'is-default': baby.babyId === userInfo?.defaultBabyId }"
       >
-        <!-- 头像 -->
-        <view class="baby-avatar">
-          <image
-            v-if="baby.avatarUrl"
-            :src="baby.avatarUrl"
-            mode="aspectFill"
-          />
-          <view v-else class="avatar-placeholder">
-            {{ baby.name.charAt(0) }}
+        <!-- 默认标签 -->
+        <view v-if="baby.babyId === userInfo?.defaultBabyId" class="default-badge">
+          <nut-icon name="star-fill" size="12" color="#ff9800" />
+          <text>默认</text>
+        </view>
+
+        <!-- 卡片头部 - 点击切换宝宝 -->
+        <view class="card-header" @click="handleSelectBaby(baby.babyId)">
+          <!-- 头像 -->
+          <view class="baby-avatar">
+            <image
+              v-if="baby.avatarUrl"
+              :src="baby.avatarUrl"
+              mode="aspectFill"
+            />
+            <view v-else class="avatar-placeholder">
+              {{ baby.name.charAt(0) }}
+            </view>
+          </view>
+
+          <!-- 信息 -->
+          <view class="baby-info">
+            <view class="name-row">
+              <text class="baby-name">{{ baby.name }}</text>
+              <text v-if="baby.nickname" class="nickname">{{ baby.nickname }}</text>
+            </view>
+            <view class="baby-meta">
+              <text class="gender">{{ baby.gender === 'male' ? '👦 男宝' : '👧 女宝' }}</text>
+              <text class="divider">|</text>
+              <text class="age">{{ calculateAge(baby.birthDate) }}</text>
+            </view>
+          </view>
+
+          <!-- 选中标记 -->
+          <view v-if="baby.babyId === currentBabyId" class="check-icon">
+            <nut-icon name="check-circle-fill" size="24" color="#fa2c19" />
           </view>
         </view>
 
-        <!-- 信息 -->
-        <view class="baby-info">
-          <view class="baby-name">
-            {{ baby.name }}
-            <text v-if="baby.nickname" class="nickname">({{ baby.nickname }})</text>
-          </view>
-          <view class="baby-meta">
-            <text class="gender">{{ baby.gender === 'male' ? '👦' : '👧' }}</text>
-            <text class="age">{{ calculateAge(baby.birthDate) }}</text>
-          </view>
-        </view>
+        <!-- 分割线 -->
+        <view class="divider-line" />
 
-        <!-- 选中标记 -->
-        <view v-if="baby.babyId === currentBabyId" class="check-icon">
-          <nut-icon name="checked" size="20" color="#fa2c19" />
-        </view>
+        <!-- 操作按钮区域 -->
+        <view class="card-actions" @click.stop>
+          <!-- 第一行按钮 -->
+          <view class="action-row">
+            <nut-button
+              v-if="baby.babyId !== userInfo?.defaultBabyId"
+              size="small"
+              plain
+              type="warning"
+              @click="handleSetDefault(baby.babyId, baby.name)"
+            >
+              <nut-icon name="star" size="14" />
+              设为默认
+            </nut-button>
+            <nut-button
+              size="small"
+              plain
+              type="primary"
+              @click="handleInvite(baby.babyId, baby.name)"
+            >
+              <nut-icon name="share" size="14" />
+              邀请协作
+            </nut-button>
+          </view>
 
-        <!-- 操作按钮 -->
-        <view class="baby-actions" @click.stop>
-          <nut-button
-            size="small"
-            type="primary"
-            @click="handleInvite(baby.babyId, baby.name)"
-          >
-            邀请
-          </nut-button>
-          <nut-button
-            size="small"
-            type="default"
-            @click="handleEdit(baby.babyId)"
-          >
-            编辑
-          </nut-button>
-          <nut-button
-            size="small"
-            type="default"
-            @click="handleDelete(baby.babyId)"
-          >
-            删除
-          </nut-button>
+          <!-- 第二行按钮 -->
+          <view class="action-row">
+            <nut-button
+              size="small"
+              plain
+              type="info"
+              @click="handleEdit(baby.babyId)"
+            >
+              <nut-icon name="edit" size="14" />
+              编辑
+            </nut-button>
+            <nut-button
+              size="small"
+              plain
+              type="danger"
+              @click="handleDelete(baby.babyId)"
+            >
+              <nut-icon name="del" size="14" />
+              删除
+            </nut-button>
+          </view>
         </view>
       </view>
 
@@ -74,7 +106,11 @@
         v-if="babyList.length === 0"
         description="还没有添加宝宝"
         image="empty"
-      />
+      >
+        <template #description>
+          <text class="empty-text">还没有添加宝宝哦~</text>
+        </template>
+      </nut-empty>
     </view>
 
     <!-- 添加按钮 -->
@@ -85,7 +121,7 @@
         block
         @click="handleAdd"
       >
-        <nut-icon name="plus" />
+        <nut-icon name="plus" size="18" />
         添加宝宝
       </nut-button>
     </view>
@@ -95,6 +131,7 @@
 <script setup lang="ts">
 import { computed, onMounted } from 'vue'
 import { babyList, currentBabyId, setCurrentBaby, deleteBaby } from '@/store/baby'
+import { userInfo, setDefaultBaby } from '@/store/user'
 import { calculateAge } from '@/utils/date'
 
 // 页面加载时初始化
@@ -120,6 +157,16 @@ const handleSelectBaby = (id: string) => {
   setTimeout(() => {
     uni.navigateBack()
   }, 1000)
+}
+
+// 设置为默认宝宝
+const handleSetDefault = async (id: string, name: string) => {
+  try {
+    await setDefaultBaby(id)
+    console.log('[BabyList] 设置默认宝宝:', name)
+  } catch (error) {
+    console.error('[BabyList] 设置默认宝宝失败:', error)
+  }
 }
 
 // 添加宝宝
@@ -166,14 +213,15 @@ const handleDelete = (id: string) => {
 <style lang="scss" scoped>
 .baby-list-page {
   min-height: 100vh;
-  background: #f5f5f5;
-  padding-bottom: 120rpx;
+  background: linear-gradient(180deg, #f8f9fa 0%, #e9ecef 100%);
+  padding-bottom: 140rpx;
 }
 
 .header {
   background: white;
   padding: 40rpx 30rpx;
   text-align: center;
+  box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.06);
 }
 
 .title {
@@ -183,31 +231,76 @@ const handleDelete = (id: string) => {
 }
 
 .baby-list {
-  padding: 20rpx;
+  padding: 24rpx;
 }
 
-.baby-item {
+/* 卡片样式 */
+.baby-card {
   background: white;
-  border-radius: 16rpx;
-  padding: 30rpx;
-  margin-bottom: 20rpx;
-  display: flex;
-  align-items: center;
+  border-radius: 20rpx;
+  margin-bottom: 24rpx;
+  overflow: hidden;
+  box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.08);
+  transition: all 0.3s ease;
   position: relative;
-  transition: all 0.3s;
 
   &.active {
+    box-shadow: 0 4rpx 20rpx rgba(250, 44, 25, 0.25);
     border: 2px solid #fa2c19;
+  }
+
+  &.is-default {
+    background: linear-gradient(135deg, #fff8e1 0%, #ffffff 20%);
+  }
+}
+
+/* 默认标签 */
+.default-badge {
+  position: absolute;
+  top: 16rpx;
+  right: 16rpx;
+  background: linear-gradient(135deg, #ffd54f 0%, #ffb300 100%);
+  color: white;
+  font-size: 22rpx;
+  padding: 8rpx 16rpx;
+  border-radius: 20rpx;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 6rpx;
+  font-weight: bold;
+  box-shadow: 0 2rpx 8rpx rgba(255, 152, 0, 0.3);
+  z-index: 10;
+
+  text {
+    line-height: 1;
+  }
+
+  .nut-icon {
+    line-height: 1;
+  }
+}
+
+/* 卡片头部 */
+.card-header {
+  padding: 30rpx;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  transition: background 0.2s;
+
+  &:active {
+    background: rgba(0, 0, 0, 0.02);
   }
 }
 
 .baby-avatar {
-  width: 100rpx;
-  height: 100rpx;
+  width: 120rpx;
+  height: 120rpx;
   border-radius: 50%;
-  margin-right: 24rpx;
   overflow: hidden;
   flex-shrink: 0;
+  box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.1);
 
   image {
     width: 100%;
@@ -221,7 +314,7 @@ const handleDelete = (id: string) => {
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 40rpx;
+    font-size: 48rpx;
     font-weight: bold;
     color: white;
   }
@@ -229,46 +322,148 @@ const handleDelete = (id: string) => {
 
 .baby-info {
   flex: 1;
+  margin-left: 24rpx;
+  overflow: hidden;
+}
+
+.name-row {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+  margin-bottom: 12rpx;
+  flex-wrap: wrap;
 }
 
 .baby-name {
-  font-size: 32rpx;
+  font-size: 34rpx;
   font-weight: bold;
   color: #1a1a1a;
-  margin-bottom: 12rpx;
+  line-height: 1.2;
 }
 
 .nickname {
-  font-size: 28rpx;
-  color: #666;
+  font-size: 26rpx;
+  color: #999;
+  background: #f5f5f5;
+  padding: 4rpx 12rpx;
+  border-radius: 12rpx;
   font-weight: normal;
 }
 
 .baby-meta {
-  font-size: 28rpx;
-  color: #808080;
+  font-size: 26rpx;
+  color: #666;
   display: flex;
   align-items: center;
-  gap: 16rpx;
+  gap: 12rpx;
+
+  .divider {
+    color: #ddd;
+  }
+
+  .gender {
+    font-weight: 500;
+  }
+
+  .age {
+    color: #999;
+  }
 }
 
 .check-icon {
-  margin-left: 20rpx;
+  margin-left: 16rpx;
+  flex-shrink: 0;
+  animation: scaleIn 0.3s ease;
 }
 
-.baby-actions {
+@keyframes scaleIn {
+  from {
+    transform: scale(0);
+  }
+  to {
+    transform: scale(1);
+  }
+}
+
+/* 分割线 */
+.divider-line {
+  height: 1rpx;
+  background: linear-gradient(90deg, transparent 0%, #e0e0e0 50%, transparent 100%);
+  margin: 0 30rpx;
+}
+
+/* 操作按钮区域 */
+.card-actions {
+  padding: 20rpx 30rpx 30rpx;
   display: flex;
-  gap: 12rpx;
-  margin-left: 20rpx;
+  flex-direction: column;
+  gap: 16rpx;
 }
 
+.action-row {
+  display: flex;
+  gap: 16rpx;
+  justify-content: space-between;
+
+  :deep(.nut-button) {
+    flex: 1;
+    height: 64rpx;
+    font-size: 26rpx;
+    border-radius: 12rpx;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    gap: 8rpx;
+    transition: all 0.2s;
+
+    &:active {
+      transform: scale(0.96);
+    }
+
+    // 确保图标和文字垂直居中对齐
+    .nut-icon {
+      line-height: 1;
+      vertical-align: middle;
+    }
+  }
+}
+
+/* 空状态 */
+.empty-text {
+  color: #999;
+  font-size: 28rpx;
+}
+
+/* 添加按钮 */
 .add-button {
   position: fixed;
   bottom: 0;
   left: 0;
   right: 0;
-  padding: 20rpx;
-  background: white;
-  box-shadow: 0 -2rpx 10rpx rgba(0, 0, 0, 0.05);
+  padding: 24rpx;
+  background: linear-gradient(180deg, transparent 0%, white 20%);
+  backdrop-filter: blur(10rpx);
+
+  :deep(.nut-button) {
+    height: 88rpx;
+    font-size: 32rpx;
+    border-radius: 16rpx;
+    box-shadow: 0 4rpx 16rpx rgba(250, 44, 25, 0.3);
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    gap: 12rpx;
+
+    &:active {
+      transform: scale(0.98);
+    }
+
+    // 图标文字对齐
+    .nut-icon {
+      line-height: 1;
+    }
+  }
 }
 </style>
