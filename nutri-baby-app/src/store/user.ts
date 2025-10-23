@@ -4,19 +4,32 @@
 import { ref } from 'vue'
 import type { UserInfo } from '@/types'
 import { StorageKeys, getStorage, setStorage, removeStorage } from '@/utils/storage'
-import { post, get } from '@/utils/request'
+import { post, get, put } from '@/utils/request'
 
-// 用户信息
-const userInfo = ref<UserInfo | null>(getStorage<UserInfo>(StorageKeys.USER_INFO))
+// 用户信息 - 延迟初始化
+const userInfo = ref<UserInfo | null>(null)
+
+// Token - 延迟初始化
+const token = ref<string | null>(null)
 
 // 是否已登录
-const isLoggedIn = ref<boolean>(!!userInfo.value)
-
-// Token
-const token = ref<string | null>(getStorage<string>(StorageKeys.TOKEN))
+const isLoggedIn = ref<boolean>(false)
 
 // 是否为新用户 (首次登录且无宝宝)
 const isNewUser = ref<boolean>(false)
+
+// 初始化标记
+let isInitialized = false
+
+// 延迟初始化 - 仅在首次访问时从存储读取
+function initializeIfNeeded() {
+  if (!isInitialized) {
+    userInfo.value = getStorage<UserInfo>(StorageKeys.USER_INFO) || null
+    token.value = getStorage<string>(StorageKeys.TOKEN) || null
+    isLoggedIn.value = !!userInfo.value
+    isInitialized = true
+  }
+}
 
 /**
  * 设置用户信息
@@ -39,6 +52,7 @@ export function setToken(newToken: string) {
  * 获取用户信息
  */
 export function getUserInfo() {
+  initializeIfNeeded()
   return userInfo.value
 }
 
@@ -169,7 +183,7 @@ export async function refreshToken(): Promise<string> {
  *
  * API: GET /auth/user-info
  * Headers: Authorization: Bearer {token}
- * 响应: { openid, nickName, avatarUrl, createTime, lastLoginTime }
+ * 响应: { openid, nickName, avatarUrl, defaultBabyId, createTime, lastLoginTime }
  */
 export async function fetchUserInfo(): Promise<UserInfo> {
   try {
@@ -183,6 +197,42 @@ export async function fetchUserInfo(): Promise<UserInfo> {
     }
   } catch (error: any) {
     console.error('fetch user info error:', error)
+    throw error
+  }
+}
+
+/**
+ * 设置默认宝宝
+ *
+ * API: PUT /auth/default-baby
+ * Headers: Authorization: Bearer {token}
+ * 请求: { babyId }
+ * 响应: { code: 0, message: "success", data: null }
+ */
+export async function setDefaultBaby(babyId: string): Promise<void> {
+  try {
+    const response = await put('/auth/default-baby', { babyId })
+
+    if (response.code === 0) {
+      // 更新本地用户信息中的默认宝宝ID
+      if (userInfo.value) {
+        userInfo.value.defaultBabyId = babyId
+        setStorage(StorageKeys.USER_INFO, userInfo.value)
+      }
+
+      uni.showToast({
+        title: '设置成功',
+        icon: 'success',
+      })
+    } else {
+      throw new Error(response.message || '设置默认宝宝失败')
+    }
+  } catch (error: any) {
+    console.error('set default baby error:', error)
+    uni.showToast({
+      title: error.message || '设置失败',
+      icon: 'none',
+    })
     throw error
   }
 }
@@ -220,3 +270,9 @@ export function setIsNewUser(value: boolean) {
 }
 
 export { userInfo, isLoggedIn, token, isNewUser }
+
+// 确保导出时也触发初始化检查
+if (typeof window !== 'undefined') {
+  // 浏览器环境下,在模块加载完成后立即初始化
+  setTimeout(() => initializeIfNeeded(), 0)
+}
