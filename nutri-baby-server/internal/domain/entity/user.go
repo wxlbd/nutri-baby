@@ -7,6 +7,7 @@ type User struct {
 	OpenID        string     `gorm:"primaryKey;column:openid;type:varchar(64)" json:"openid"`
 	NickName      string     `gorm:"column:nick_name;type:varchar(64)" json:"nickName"`
 	AvatarURL     string     `gorm:"column:avatar_url;type:varchar(512)" json:"avatarUrl"`
+	DefaultBabyID string     `gorm:"column:default_baby_id;type:varchar(64);default:''" json:"defaultBabyId"` // 默认宝宝ID
 	CreateTime    int64      `gorm:"column:create_time;autoCreateTime:milli" json:"createTime"`
 	LastLoginTime int64      `gorm:"column:last_login_time" json:"lastLoginTime"`
 	UpdateTime    int64      `gorm:"column:update_time;autoUpdateTime:milli" json:"updateTime"`
