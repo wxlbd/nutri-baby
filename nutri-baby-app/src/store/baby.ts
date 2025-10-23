@@ -5,15 +5,29 @@ import { ref, computed } from 'vue'
 import type { BabyProfile } from '@/types'
 import { StorageKeys, getStorage, setStorage } from '@/utils/storage'
 import { get, post, put, del } from '@/utils/request'
+import { getUserInfo } from './user'
 
-// 宝宝列表
-const babyList = ref<BabyProfile[]>(getStorage<BabyProfile[]>(StorageKeys.BABY_LIST) || [])
+// 宝宝列表 - 延迟初始化
+const babyList = ref<BabyProfile[]>([])
 
-// 当前选中的宝宝 ID
-const currentBabyId = ref<string>(getStorage<string>(StorageKeys.CURRENT_BABY_ID) || '')
+// 当前选中的宝宝 ID - 延迟初始化
+const currentBabyId = ref<string>('')
+
+// 初始化标记
+let isInitialized = false
+
+// 延迟初始化 - 仅在首次访问时从存储读取
+function initializeIfNeeded() {
+  if (!isInitialized) {
+    babyList.value = getStorage<BabyProfile[]>(StorageKeys.BABY_LIST) || []
+    currentBabyId.value = getStorage<string>(StorageKeys.CURRENT_BABY_ID) || ''
+    isInitialized = true
+  }
+}
 
 // 当前宝宝信息
 const currentBaby = computed(() => {
+  initializeIfNeeded() // 确保数据已加载
   return babyList.value.find(baby => baby.babyId === currentBabyId.value) || null
 })
 
@@ -21,6 +35,7 @@ const currentBaby = computed(() => {
  * 获取宝宝列表(本地)
  */
 export function getBabyList() {
+  initializeIfNeeded()
   return babyList.value
 }
 
@@ -38,6 +53,7 @@ export function getCurrentBaby() {
  * 响应: [ { babyId, babyName, nickname, gender, birthDate, avatarUrl, creatorId, familyGroup, height, weight, createTime, updateTime } ]
  */
 export async function fetchBabyList(): Promise<BabyProfile[]> {
+  initializeIfNeeded()
   try {
     const response = await get<any[]>('/babies')
 
@@ -59,9 +75,18 @@ export async function fetchBabyList(): Promise<BabyProfile[]> {
       babyList.value = babies
       setStorage(StorageKeys.BABY_LIST, babies)
 
-      // 如果没有当前宝宝且列表不为空,选中第一个
+      // 设置当前宝宝的逻辑优化：
+      // 1. 如果用户设置了默认宝宝且该宝宝在列表中,使用默认宝宝
+      // 2. 如果没有默认宝宝或默认宝宝不在列表中,选中第一个
+      const userInfo = getUserInfo()
+      const defaultBabyId = userInfo?.defaultBabyId
+
       if (!currentBabyId.value && babies.length > 0) {
-        setCurrentBaby(babies[0].babyId)
+        if (defaultBabyId && babies.some(b => b.babyId === defaultBabyId)) {
+          setCurrentBaby(defaultBabyId)
+        } else {
+          setCurrentBaby(babies[0].babyId)
+        }
       }
 
       return babies
