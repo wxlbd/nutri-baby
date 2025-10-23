@@ -100,9 +100,10 @@ func (s *AuthService) WechatLogin(ctx context.Context, req *dto.WechatLoginReque
 	return &dto.LoginResponse{
 		Token: token,
 		UserInfo: dto.UserInfoDTO{
-			OpenID:    user.OpenID,
-			NickName:  user.NickName,
-			AvatarURL: user.AvatarURL,
+			OpenID:        user.OpenID,
+			NickName:      user.NickName,
+			AvatarURL:     user.AvatarURL,
+			DefaultBabyID: user.DefaultBabyID,
 		},
 		IsNewUser: isNewUser, // 前端根据此字段判断是否需要引导创建宝宝
 	}, nil
@@ -135,10 +136,29 @@ func (s *AuthService) GetUserInfo(ctx context.Context, openID string) (*dto.User
 	}
 
 	return &dto.UserInfoDTO{
-		OpenID:    user.OpenID,
-		NickName:  user.NickName,
-		AvatarURL: user.AvatarURL,
+		OpenID:        user.OpenID,
+		NickName:      user.NickName,
+		AvatarURL:     user.AvatarURL,
+		DefaultBabyID: user.DefaultBabyID,
+		CreateTime:    user.CreateTime,
+		LastLoginTime: user.LastLoginTime,
 	}, nil
+}
+
+// SetDefaultBaby 设置默认宝宝
+func (s *AuthService) SetDefaultBaby(ctx context.Context, openID string, req *dto.SetDefaultBabyRequest) error {
+	// 验证用户存在
+	_, err := s.userRepo.FindByOpenID(ctx, openID)
+	if err != nil {
+		return err
+	}
+
+	// 更新默认宝宝ID
+	if err := s.userRepo.UpdateDefaultBabyID(ctx, openID, req.BabyID); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // getWechatSession 获取微信会话
