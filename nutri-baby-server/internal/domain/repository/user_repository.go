@@ -16,6 +16,8 @@ type UserRepository interface {
 	Update(ctx context.Context, user *entity.User) error
 	// UpdateLastLoginTime 更新最后登录时间
 	UpdateLastLoginTime(ctx context.Context, openID string) error
+	// UpdateDefaultBabyID 更新默认宝宝ID
+	UpdateDefaultBabyID(ctx context.Context, openID string, babyID string) error
 }
 
 // InvitationRepository 邀请码仓储接口

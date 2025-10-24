@@ -72,3 +72,17 @@ func (r *userRepositoryImpl) UpdateLastLoginTime(ctx context.Context, openID str
 
 	return nil
 }
+
+// UpdateDefaultBabyID 更新默认宝宝ID
+func (r *userRepositoryImpl) UpdateDefaultBabyID(ctx context.Context, openID string, babyID string) error {
+	err := r.db.WithContext(ctx).
+		Model(&entity.User{}).
+		Where("openid = ? AND deleted_at IS NULL", openID).
+		Update("default_baby_id", babyID).Error
+
+	if err != nil {
+		return errors.Wrap(errors.DatabaseError, "failed to update default baby id", err)
+	}
+
+	return nil
+}
