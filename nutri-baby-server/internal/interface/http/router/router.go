@@ -44,6 +44,7 @@ func NewRouter(
 			// 认证相关（需要token）
 			authRequired.POST("/auth/refresh-token", authHandler.RefreshToken)
 			authRequired.GET("/auth/user-info", authHandler.GetUserInfo)
+			authRequired.PUT("/auth/default-baby", authHandler.SetDefaultBaby)
 
 			// 宝宝管理 (去家庭化架构)
 			babies := authRequired.Group("/babies")
