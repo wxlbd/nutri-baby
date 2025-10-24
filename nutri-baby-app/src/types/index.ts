@@ -5,6 +5,7 @@ export interface UserInfo {
   openid: string
   nickName: string
   avatarUrl: string
+  defaultBabyId?: string // 默认宝宝ID
   babies?: BabyProfile[] // 用户可访问的宝宝列表
   createTime: number
 }
