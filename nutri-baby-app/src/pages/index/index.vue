@@ -136,12 +136,13 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
+import { onShow } from '@dcloudio/uni-app'
 import { isLoggedIn, fetchUserInfo } from '@/store/user'
 import { currentBaby, fetchBabyList } from '@/store/baby'
 import { getTodayTotalMilk, getLastFeedingRecord, getTodayBreastfeedingStats } from '@/store/feeding'
 import { getTodayDiaperCount } from '@/store/diaper'
 import { getTodayTotalSleepDuration } from '@/store/sleep'
-import { getUpcomingReminders, initializeVaccinePlansFromServer, generateRemindersForBaby } from '@/store/vaccine'
+import { getUpcomingReminders } from '@/store/vaccine'
 import { formatRelativeTime, formatDuration, formatDate } from '@/utils/date'
 
 // 导航栏引用
@@ -234,40 +235,51 @@ const formatVaccineDate = (timestamp: number): string => {
   return formatDate(timestamp, 'MM-DD')
 }
 
-// 页面加载
-onMounted(async () => {
-  await checkLoginAndBaby()
-  initializeVaccines()
+// 页面加载 (仅在首次挂载时执行)
+onMounted(() => {
+  console.log('[Index] onMounted')
+  // 延迟计算页面内容区域的 padding-top,确保导航栏组件已初始化
+  setTimeout(() => {
+    calculatePagePadding()
+  }, 100)
+})
 
-  // 计算页面内容区域的 padding-top
-  calculatePagePadding()
+// 页面显示 (每次页面显示时执行,包括 switchTab)
+onShow(async () => {
+  console.log('[Index] onShow - 开始检查登录和宝宝信息')
+
+  // 检查登录和宝宝信息
+  await checkLoginAndBaby()
 })
 
 // 计算页面内容的 padding-top
 const calculatePagePadding = () => {
+  console.log('[Index] calculatePagePadding - navbarRef:', navbarRef.value)
+
   if (navbarRef.value && navbarRef.value.navbarTotalHeight) {
-    const totalHeight = navbarRef.value.navbarTotalHeight
+    // navbarTotalHeight 是一个 computed,需要 .value 访问
+    const totalHeight = navbarRef.value.navbarTotalHeight.value || navbarRef.value.navbarTotalHeight
+    console.log('[Index] 导航栏总高度:', totalHeight, 'rpx')
     // 导航栏总高度 + 间距 20rpx
     pageContentPaddingTop.value = `${totalHeight + 20}rpx`
+  } else {
+    console.warn('[Index] 导航栏引用未就绪,使用默认高度')
+    // 如果导航栏未就绪,使用默认值
+    // 默认: 状态栏44px=88rpx + 内容88rpx + 间距20rpx = 196rpx
+    pageContentPaddingTop.value = '196rpx'
   }
-}
 
-// 初始化疫苗计划
-const initializeVaccines = async () => {
-  if (!currentBaby.value) return
-
-  // 为当前宝宝从服务器初始化疫苗计划
-  await initializeVaccinePlansFromServer(currentBaby.value.babyId)
-
-  // 生成提醒
-  generateRemindersForBaby(currentBaby.value.babyId, currentBaby.value.birthDate)
+  console.log('[Index] 最终 paddingTop:', pageContentPaddingTop.value)
 }
 
 // 检查登录和宝宝信息
 const checkLoginAndBaby = async () => {
+  console.log('[Index] checkLoginAndBaby - 登录状态:', isLoggedIn.value)
+
   // 1. 检查登录状态
   if (!isLoggedIn.value) {
-    // 未登录,跳转到登录页
+    console.log('[Index] 未登录,跳转到登录页')
+    // 未登录,使用 switchTab 跳转到登录页(如果登录页不是 tabBar,则降级使用 reLaunch)
     uni.reLaunch({
       url: '/pages/user/login'
     })
@@ -279,11 +291,15 @@ const checkLoginAndBaby = async () => {
     await fetchUserInfo()
 
     // 3. 获取宝宝列表
-    await fetchBabyList()
+    const babies = await fetchBabyList()
 
-    // 4. 检查是否有宝宝
-    if (!currentBaby.value) {
+    console.log('[Index] 宝宝列表:', babies)
+    console.log('[Index] 当前宝宝:', currentBaby.value)
+
+    // 4. 检查是否有宝宝 - 使用 babies 数组判断而不是 currentBaby
+    if (!babies || babies.length === 0) {
       // 没有宝宝,跳转到添加宝宝页面
+      console.log('[Index] 没有宝宝,提示添加')
       uni.showModal({
         title: '提示',
         content: '请先添加宝宝信息',
