@@ -18,5 +18,16 @@ export default defineConfig({
         additionalData: `@import "nutui-uniapp/styles/variables.scss";`,
       }
     }
+  },
+  build: {
+    rollupOptions: {
+      // 检测循环依赖
+      onwarn(warning, warn) {
+        if (warning.code === 'CIRCULAR_DEPENDENCY') {
+          console.error('检测到循环依赖:', warning.message);
+        }
+        warn(warning);
+      }
+    }
   }
 });
