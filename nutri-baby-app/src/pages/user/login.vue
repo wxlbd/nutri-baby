@@ -42,11 +42,25 @@ const loading = ref(false)
  * 登录后重定向逻辑
  *
  * 流程: 登录成功 -> 首页
+ *
+ * 防止无限重定向:
+ * 1. 使用 switchTab 代替 reLaunch (因为首页是 tabBar 页面)
+ * 2. 设置延迟确保登录状态完全保存
  */
 const redirectAfterLogin = () => {
   console.log('[Login] 登录成功,跳转到首页')
-  uni.reLaunch({
-    url: '/pages/index/index'
+
+  // 对于 tabBar 页面,应该使用 switchTab 而不是 reLaunch
+  // 这样可以避免页面重新加载和生命周期冲突
+  uni.switchTab({
+    url: '/pages/index/index',
+    fail: (err) => {
+      console.error('[Login] 跳转失败,使用 reLaunch 降级:', err)
+      // 如果 switchTab 失败,降级使用 reLaunch
+      uni.reLaunch({
+        url: '/pages/index/index'
+      })
+    }
   })
 }
 
@@ -103,7 +117,6 @@ const handleLogin = async () => {
   margin-bottom: 40rpx;
   border-radius: 40rpx;
   background: white;
-  padding: 20rpx;
 }
 
 .app-name {
