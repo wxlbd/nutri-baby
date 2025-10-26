@@ -123,19 +123,51 @@
                 保存记录
             </nut-button>
         </view>
+
+        <!-- 订阅消息引导(母乳) -->
+        <SubscribeGuide
+          v-model="showBreastFeedingGuide"
+          type="breast_feeding_reminder"
+          :context-message="breastFeedingGuideContext"
+          @confirm="handleSubscribeResult"
+        />
+
+        <!-- 订阅消息引导(奶瓶) -->
+        <SubscribeGuide
+          v-model="showBottleFeedingGuide"
+          type="bottle_feeding_reminder"
+          :context-message="bottleFeedingGuideContext"
+          @confirm="handleSubscribeResult"
+        />
     </view>
 </template>
 
 <script setup lang="ts">
 import {computed, onUnmounted, ref} from 'vue'
 import {currentBaby, currentBabyId} from '@/store/baby'
-import {addFeedingRecord} from '@/store/feeding'
+import {addFeedingRecord, feedingRecords} from '@/store/feeding'
 import {getUserInfo} from '@/store/user'
 import {padZero} from '@/utils/common'
 import type {FeedingDetail} from '@/types'
+import SubscribeGuide from '@/components/SubscribeGuide.vue'
+import { getAuthStatus } from '@/store/subscribe'
 
 // 喂养类型
 const feedingType = ref<'breast' | 'bottle' | 'food'>('breast')
+
+// 订阅消息引导状态
+const showBreastFeedingGuide = ref(false)
+const showBottleFeedingGuide = ref(false)
+
+// 母乳喂养引导文案
+const breastFeedingGuideContext = computed(() => {
+  return '设置提醒,定时通知您该给宝宝喂奶了,不错过每次喂养时间'
+})
+
+// 奶瓶喂养引导文案
+const bottleFeedingGuideContext = computed(() => {
+  return '开启提醒,智能提示您宝宝的喂养时间,让喂养更有规律'
+})
 
 // 母乳喂养表单
 const breastForm = ref({
@@ -294,6 +326,7 @@ const handleSubmit = async () => {
     }
 
     try {
+        console.log('[Feeding] 开始保存喂养记录...')
         await addFeedingRecord({
             babyId: currentBabyId.value,
             time: Date.now(),
@@ -302,14 +335,58 @@ const handleSubmit = async () => {
             createByAvatar: user.avatarUrl,
             createByName: user.nickName
         })
+        console.log('[Feeding] 喂养记录保存成功')
 
+        // 每次保存成功后都直接询问授权(除非被Ban)
+        const messageType = feedingType.value === 'breast' ? 'breast_feeding_reminder' : 'bottle_feeding_reminder'
+        console.log('[Feeding] 检查订阅授权状态, messageType:', messageType)
+
+        const authStatus = getAuthStatus(messageType)
+        console.log('[Feeding] authStatus:', authStatus)
+
+        // 只有被Ban时才不显示
+        if (authStatus !== 'ban') {
+          console.log('[Feeding] 准备显示订阅引导 (authStatus !== ban)')
+
+          if (feedingType.value === 'breast') {
+            console.log('[Feeding] 母乳喂养,1.5秒后显示引导')
+            setTimeout(() => {
+              console.log('[Feeding] 显示母乳喂养订阅引导')
+              showBreastFeedingGuide.value = true
+            }, 1500) // 延迟1.5秒显示,让用户看到保存成功的提示
+            return // 等待用户处理引导,不立即返回上一页
+          }
+
+          if (feedingType.value === 'bottle') {
+            console.log('[Feeding] 奶瓶喂养,1.5秒后显示引导')
+            setTimeout(() => {
+              console.log('[Feeding] 显示奶瓶喂养订阅引导')
+              showBottleFeedingGuide.value = true
+            }, 1500)
+            return
+          }
+        } else {
+          console.log('[Feeding] authStatus === ban, 不显示订阅引导')
+        }
+
+        // 被Ban或不需要引导,直接返回上一页
+        console.log('[Feeding] 1秒后返回上一页')
         setTimeout(() => {
             uni.navigateBack()
         }, 1000)
     } catch (error) {
         // 错误已在 store 中处理
-        console.error('Failed to add feeding record:', error)
+        console.error('[Feeding] 保存喂养记录失败:', error)
     }
+}
+
+// 处理订阅消息结果
+const handleSubscribeResult = (result: 'accept' | 'reject') => {
+  console.log('订阅结果:', result)
+  // 返回上一页
+  setTimeout(() => {
+    uni.navigateBack()
+  }, 500)
 }
 </script>
 
