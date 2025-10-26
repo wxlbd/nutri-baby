@@ -131,7 +131,6 @@ func (s *SubscribeService) SendSubscribeMessage(
 ) error {
 	s.logger.Info("📤 [SendSubscribeMessage] START - 开始发送订阅消息",
 		zap.String("openid", req.OpenID),
-		zap.String("templateType", req.TemplateType),
 		zap.String("page", req.Page),
 		zap.Any("data", req.Data),
 	)
@@ -139,7 +138,7 @@ func (s *SubscribeService) SendSubscribeMessage(
 	// 1. 查找可用的授权记录(按授权时间倒序,取最新的一条)
 	s.logger.Info("🔍 [SendSubscribeMessage] STEP 1 - 查询可用授权记录",
 		zap.String("openid", req.OpenID),
-		zap.String("templateType", req.TemplateType),
+		zap.String("templateID", req.TemplateID),
 	)
 
 	//record, err := s.subscribeRepo.GetAvailableSubscribeRecord(ctx, req.OpenID, req.TemplateType)
@@ -195,7 +194,7 @@ func (s *SubscribeService) SendSubscribeMessage(
 
 	err := s.wechatService.SendSubscribeMessage(
 		req.OpenID,
-		"ssttSBSWM_IXh5zVOu9GBeuabX8NFcwM2IG-VK-RXNY",
+		req.TemplateID,
 		req.Data,
 		req.Page,
 		"developer",
@@ -204,7 +203,7 @@ func (s *SubscribeService) SendSubscribeMessage(
 	// 4. 标记授权为已使用(无论发送成功或失败,授权都会被消耗)
 	s.logger.Info("🔄 [SendSubscribeMessage] STEP 4 - 标记授权为已使用",
 		zap.String("openid", req.OpenID),
-		zap.String("templateType", req.TemplateType),
+		zap.String("templateID", req.TemplateID),
 	)
 
 	//record.MarkAsUsed()
@@ -224,8 +223,7 @@ func (s *SubscribeService) SendSubscribeMessage(
 	dataJSON, _ := json.Marshal(req.Data)
 	log := &entity.MessageSendLog{
 		OpenID:           req.OpenID,
-		TemplateID:       "ssttSBSWM_IXh5zVOu9GBeuabX8NFcwM2IG-VK-RXNY",
-		TemplateType:     req.TemplateType,
+		TemplateID:       req.TemplateID,
 		Data:             string(dataJSON),
 		Page:             req.Page,
 		MiniprogramState: "formal",
@@ -237,7 +235,7 @@ func (s *SubscribeService) SendSubscribeMessage(
 		log.ErrMsg = err.Error()
 		s.logger.Error("❌ [SendSubscribeMessage] 发送订阅消息失败",
 			zap.String("openid", req.OpenID),
-			zap.String("templateType", req.TemplateType),
+			zap.String("templateID", req.TemplateID),
 			//zap.String("templateID", record.TemplateID),
 			zap.Error(err),
 		)
@@ -246,7 +244,7 @@ func (s *SubscribeService) SendSubscribeMessage(
 		log.SendTime = &now
 		s.logger.Info("✅ [SendSubscribeMessage] 订阅消息发送成功",
 			zap.String("openid", req.OpenID),
-			zap.String("templateType", req.TemplateType),
+			zap.String("templateID", req.TemplateID),
 			//zap.String("templateID", record.TemplateID),
 		)
 	}
@@ -262,7 +260,7 @@ func (s *SubscribeService) SendSubscribeMessage(
 
 	s.logger.Info("🏁 [SendSubscribeMessage] END - 订阅消息发送流程结束",
 		zap.String("openid", req.OpenID),
-		zap.String("templateType", req.TemplateType),
+		zap.String("templateID", req.TemplateID),
 		zap.Bool("success", err == nil),
 	)
 
@@ -283,11 +281,10 @@ func (s *SubscribeService) GetMessageLogs(ctx context.Context, openid string, of
 	items := make([]dto.MessageLogItem, 0, len(logs))
 	for _, log := range logs {
 		item := dto.MessageLogItem{
-			ID:           log.ID,
-			TemplateType: log.TemplateType,
-			SendStatus:   log.SendStatus,
-			ErrMsg:       log.ErrMsg,
-			CreatedAt:    log.CreatedAt.Unix(),
+			ID:         log.ID,
+			SendStatus: log.SendStatus,
+			ErrMsg:     log.ErrMsg,
+			CreatedAt:  log.CreatedAt.Unix(),
 		}
 		if log.SendTime != nil {
 			item.SendTime = log.SendTime.Unix()

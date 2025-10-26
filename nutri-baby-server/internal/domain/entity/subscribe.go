@@ -62,7 +62,6 @@ type MessageSendLog struct {
 	ID               uint       `gorm:"primarykey" json:"id"`
 	OpenID           string     `gorm:"column:openid;type:varchar(64);not null;index" json:"openid"`
 	TemplateID       string     `gorm:"column:template_id;type:varchar(128);not null" json:"templateId"`
-	TemplateType     string     `gorm:"column:template_type;type:varchar(32);not null;index" json:"templateType"`
 	Data             string     `gorm:"column:data;type:jsonb;not null" json:"data"` // JSONB存储
 	Page             string     `gorm:"column:page;type:varchar(256)" json:"page,omitempty"`
 	MiniprogramState string     `gorm:"column:miniprogram_state;size:32;default:'formal'" json:"miniprogramState"`
