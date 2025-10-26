@@ -113,6 +113,12 @@
 			"style": {
 				"navigationBarTitleText": "疫苗计划管理"
 			}
+		},
+		{
+			"path": "pages/settings/subscribe/subscribe",
+			"style": {
+				"navigationBarTitleText": "消息提醒设置"
+			}
 		}
 	],
 	"tabBar": {
