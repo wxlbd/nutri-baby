@@ -16,6 +16,7 @@ func NewRouter(
 	recordHandler *handler.RecordHandler,
 	vaccineHandler *handler.VaccineHandler,
 	vaccinePlanHandler *handler.VaccinePlanHandler,
+	subscribeHandler *handler.SubscribeHandler,
 	syncHandler *handler.SyncHandler,
 ) *gin.Engine {
 	// 设置Gin运行模式
@@ -107,6 +108,15 @@ func NewRouter(
 			{
 				growthRecords.POST("", recordHandler.CreateGrowthRecord)
 				growthRecords.GET("", recordHandler.GetGrowthRecords)
+			}
+
+			// 订阅消息管理
+			subscribe := authRequired.Group("/subscribe")
+			{
+				subscribe.POST("/auth", subscribeHandler.UploadAuth)
+				subscribe.GET("/status", subscribeHandler.GetStatus)
+				subscribe.DELETE("/cancel", subscribeHandler.Cancel)
+				subscribe.GET("/logs", subscribeHandler.GetLogs)
 			}
 
 			// WebSocket同步
