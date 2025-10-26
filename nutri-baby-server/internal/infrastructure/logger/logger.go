@@ -12,6 +12,14 @@ import (
 
 var Logger *zap.Logger
 
+// NewLogger 创建Logger实例(Wire Provider)
+func NewLogger(cfg *config.Config) (*zap.Logger, error) {
+	if err := Init(cfg.Log); err != nil {
+		return nil, err
+	}
+	return Logger, nil
+}
+
 // Init 初始化日志
 func Init(cfg config.LogConfig) error {
 	// 日志级别
