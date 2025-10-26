@@ -7,7 +7,9 @@ import (
 	"github.com/google/wire"
 	"github.com/wxlbd/nutri-baby-server/internal/application/service"
 	"github.com/wxlbd/nutri-baby-server/internal/infrastructure/config"
+	"github.com/wxlbd/nutri-baby-server/internal/infrastructure/logger"
 	"github.com/wxlbd/nutri-baby-server/internal/infrastructure/persistence"
+	"github.com/wxlbd/nutri-baby-server/internal/infrastructure/wechat"
 	"github.com/wxlbd/nutri-baby-server/internal/interface/http/handler"
 	"github.com/wxlbd/nutri-baby-server/internal/interface/http/router"
 )
@@ -16,8 +18,10 @@ import (
 func InitApp(cfg *config.Config) (*App, error) {
 	wire.Build(
 		// 基础设施层
+		logger.NewLogger, // 日志系统
 		persistence.NewDatabase,
-		// persistence.NewRedis, // TODO: Redis未使用，暂时注释
+		persistence.NewRedis, // Redis 客户端
+		wechat.NewClient,     // 微信 SDK 客户端
 
 		// 仓储层
 		persistence.NewUserRepository,
@@ -34,14 +38,18 @@ func InitApp(cfg *config.Config) (*App, error) {
 		persistence.NewVaccineRecordRepository,
 		persistence.NewBabyVaccinePlanRepository, // 宝宝疫苗计划仓储
 		persistence.NewVaccineReminderRepository, // 疫苗提醒仓储
+		persistence.NewSubscribeRepository,       // 订阅消息仓储
 
 		// 应用服务层
+		service.NewWechatService,    // 微信服务
+		service.NewSubscribeService, // 订阅消息服务
 		service.NewAuthService,
 		// service.NewFamilyService, // 已废弃：去家庭化架构
 		service.NewBabyService,
 		service.NewRecordService,
 		service.NewVaccineService,
 		service.NewVaccinePlanService, // 疫苗计划管理服务
+		service.NewSchedulerService,   // 定时任务服务
 		// service.NewSyncService, // TODO: WebSocket同步未实现，暂时注释
 
 		// HTTP处理器
@@ -51,6 +59,7 @@ func InitApp(cfg *config.Config) (*App, error) {
 		handler.NewRecordHandler,
 		handler.NewVaccineHandler,
 		handler.NewVaccinePlanHandler, // 疫苗计划管理处理器
+		handler.NewSubscribeHandler,   // 订阅消息处理器
 		handler.NewSyncHandler,
 
 		// 路由
