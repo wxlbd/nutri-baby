@@ -114,11 +114,41 @@
     "openid": "用户openid",
     "nickName": "昵称",
     "avatarUrl": "头像URL",
+    "defaultBabyId": "默认宝宝ID (可选,如未设置则为空字符串)",
     "createTime": 1234567890,
     "lastLoginTime": 1234567890
   }
 }
 ```
+
+### 1.4 设置默认宝宝
+
+**接口**: `PUT /auth/default-baby`
+
+**Headers**: `Authorization: Bearer {token}`
+
+**说明**: 设置用户的默认宝宝,每次进入应用时自动选中该宝宝
+
+**请求参数**:
+```json
+{
+  "babyId": "宝宝ID"
+}
+```
+
+**响应**:
+```json
+{
+  "code": 0,
+  "message": "success",
+  "data": null
+}
+```
+
+**错误响应**:
+- `1001`: babyId参数错误或为空
+- `1003`: 指定的宝宝不存在
+- `1005`: 当前用户无权访问该宝宝
 
 ---
 
