@@ -25,5 +25,6 @@ declare module 'vue' {
     NutTabPane: typeof import('nutui-uniapp/components/tabpane/tabpane.vue')['default']
     NutTabs: typeof import('nutui-uniapp/components/tabs/tabs.vue')['default']
     NutTextarea: typeof import('nutui-uniapp/components/textarea/textarea.vue')['default']
+    SubscribeGuide: typeof import('./src/components/SubscribeGuide.vue')['default']
   }
 }
