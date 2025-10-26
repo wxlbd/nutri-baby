@@ -364,6 +364,75 @@ export interface VaccineReminder {
 }
 
 /**
+ * 订阅消息模板类型
+ */
+export type SubscribeMessageType =
+  | 'vaccine_reminder'       // 疫苗接种提醒
+  | 'breast_feeding_reminder' // 母乳喂养提醒
+  | 'bottle_feeding_reminder' // 奶瓶喂养提醒
+  | 'pump_reminder'          // 吸奶器吸奶提醒
+  | 'feeding_duration_alert' // 喂奶时间过长提醒
+
+/**
+ * 订阅消息模板配置
+ */
+export interface SubscribeMessageTemplate {
+  type: SubscribeMessageType
+  templateId: string         // 微信模板ID
+  title: string              // 模板标题
+  keywords: string[]         // 关键词列表
+  description?: string       // 模板说明
+  icon?: string              // 模板图标(本地路径)
+  priority: number           // 优先级(1-5,5最高)
+}
+
+/**
+ * 订阅消息授权状态
+ */
+export type SubscribeAuthStatus =
+  | 'unknown'     // 未知(未申请过)
+  | 'accept'      // 用户同意
+  | 'reject'      // 用户拒绝
+  | 'ban'         // 用户永久拒绝(拒绝3次后)
+
+/**
+ * 订阅消息授权记录
+ */
+export interface SubscribeAuthRecord {
+  type: SubscribeMessageType
+  templateId: string
+  status: SubscribeAuthStatus
+  lastRequestTime: number    // 上次申请时间
+  requestCount: number       // 累计申请次数
+  rejectCount: number        // 累计拒绝次数
+  acceptCount: number        // 累计同意次数
+  updateTime: number
+}
+
+/**
+ * 订阅消息提醒配置
+ */
+export interface SubscribeReminderConfig {
+  type: SubscribeMessageType
+  enabled: boolean           // 是否启用提醒
+  advanceDays?: number       // 提前天数(疫苗提醒)
+  intervalMinutes?: number   // 间隔分钟数(喂养提醒)
+  startTime?: string         // 提醒开始时间 HH:mm
+  endTime?: string           // 提醒结束时间 HH:mm
+}
+
+/**
+ * 订阅消息引导显示记录
+ */
+export interface SubscribeGuideRecord {
+  type: SubscribeMessageType
+  showCount: number          // 显示次数
+  lastShowTime: number       // 上次显示时间
+  nextShowTime: number       // 下次可显示时间
+  isDismissedForever: boolean // 是否永久不再显示
+}
+
+/**
  * API 响应基础接口
  */
 export interface ApiResponse<T = any> {
