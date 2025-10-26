@@ -56,6 +56,12 @@ func (r *feedingRecordRepositoryImpl) FindByBabyID(
 		Model(&entity.FeedingRecord{}).
 		Where("baby_id = ? AND deleted_at IS NULL", babyID)
 
+	// 如果是查询最近一条记录(page=1, pageSize=1),且没有时间范围限制,则只查询未提醒的记录
+	// 这是为了支持定时任务查询未提醒的最近喂养记录
+	if page == 1 && pageSize == 1 && startTime > 0 && endTime > 0 {
+		query = query.Where("reminder_sent = ?", false)
+	}
+
 	if startTime > 0 {
 		query = query.Where("time >= ?", startTime)
 	}
@@ -76,6 +82,46 @@ func (r *feedingRecordRepositoryImpl) FindByBabyID(
 
 	if err != nil {
 		return nil, 0, errors.Wrap(errors.DatabaseError, "failed to find feeding records", err)
+	}
+
+	return records, total, nil
+}
+
+// FindByBabyIDAndType 根据宝宝ID和喂养类型查找记录(分页)
+func (r *feedingRecordRepositoryImpl) FindByBabyIDAndType(
+	ctx context.Context,
+	babyID string,
+	feedingType string,
+	startTime, endTime int64,
+	page, pageSize int,
+) ([]*entity.FeedingRecord, int64, error) {
+	var records []*entity.FeedingRecord
+	var total int64
+
+	query := r.db.WithContext(ctx).
+		Model(&entity.FeedingRecord{}).
+		Where("baby_id = ? AND feeding_type = ? AND deleted_at IS NULL", babyID, feedingType)
+
+	if startTime > 0 {
+		query = query.Where("time >= ?", startTime)
+	}
+	if endTime > 0 {
+		query = query.Where("time <= ?", endTime)
+	}
+
+	if err := query.Count(&total).Error; err != nil {
+		return nil, 0, errors.Wrap(errors.DatabaseError, "failed to count feeding records by type", err)
+	}
+
+	offset := (page - 1) * pageSize
+	err := query.
+		Order("time DESC").
+		Limit(pageSize).
+		Offset(offset).
+		Find(&records).Error
+
+	if err != nil {
+		return nil, 0, errors.Wrap(errors.DatabaseError, "failed to find feeding records by type", err)
 	}
 
 	return records, total, nil
@@ -123,4 +169,54 @@ func (r *feedingRecordRepositoryImpl) FindUpdatedAfter(
 	}
 
 	return records, nil
+}
+
+// UpdateReminderStatus 更新提醒状态
+func (r *feedingRecordRepositoryImpl) UpdateReminderStatus(
+	ctx context.Context,
+	recordID string,
+	sent bool,
+	reminderTime int64,
+) error {
+	err := r.db.WithContext(ctx).
+		Model(&entity.FeedingRecord{}).
+		Where("record_id = ? AND deleted_at IS NULL", recordID).
+		Updates(map[string]interface{}{
+			"reminder_sent": sent,
+			"reminder_time": reminderTime,
+		}).Error
+
+	if err != nil {
+		return errors.Wrap(errors.DatabaseError, "failed to update reminder status", err)
+	}
+
+	return nil
+}
+
+// GetTodayStatsByType 获取今日按类型的统计数据
+func (r *feedingRecordRepositoryImpl) GetTodayStatsByType(
+	ctx context.Context,
+	babyID string,
+	feedingType string,
+	todayStart, todayEnd int64,
+) (count int64, totalAmount float64, totalDuration int, err error) {
+	type Result struct {
+		Count         int64
+		TotalAmount   float64
+		TotalDuration int64
+	}
+
+	var result Result
+	err = r.db.WithContext(ctx).
+		Model(&entity.FeedingRecord{}).
+		Select("COUNT(*) as count, COALESCE(SUM(amount), 0) as total_amount, COALESCE(SUM(duration), 0) as total_duration").
+		Where("baby_id = ? AND feeding_type = ? AND time >= ? AND time <= ? AND deleted_at IS NULL",
+			babyID, feedingType, todayStart, todayEnd).
+		Scan(&result).Error
+
+	if err != nil {
+		return 0, 0, 0, errors.Wrap(errors.DatabaseError, "failed to get stats by type", err)
+	}
+
+	return result.Count, result.TotalAmount, int(result.TotalDuration), nil
 }
