@@ -92,6 +92,16 @@
       <view class="section-title">设置</view>
       <nut-cell-group>
         <nut-cell
+          title="消息提醒设置"
+          desc="管理订阅消息"
+          is-link
+          @click="goToSubscribeSettings"
+        >
+          <template #icon>
+            <text class="cell-icon">🔔</text>
+          </template>
+        </nut-cell>
+        <nut-cell
           title="关于我们"
           is-link
           @click="showAbout"
@@ -171,6 +181,13 @@ const goToFamily = () => {
 const goToVaccine = () => {
   uni.navigateTo({
     url: '/pages/vaccine/vaccine'
+  })
+}
+
+// 跳转到订阅消息设置
+const goToSubscribeSettings = () => {
+  uni.navigateTo({
+    url: '/pages/settings/subscribe/subscribe'
   })
 }
 
