@@ -1,10 +1,15 @@
 /**
- * 用户状态管理 - 去家庭化架构
+ * 用户状态管理
+ * 职责: 状态管理 + 本地计算,API 调用委托给 api 层
+ *
+ * ⚠️ 向后兼容: 所有导出函数的签名保持不变,页面组件无需修改
  */
 import { ref } from 'vue'
 import type { UserInfo } from '@/types'
 import { StorageKeys, getStorage, setStorage, removeStorage } from '@/utils/storage'
-import { post, get, put } from '@/utils/request'
+import * as authApi from '@/api/auth'
+
+// ============ 状态定义 ============
 
 // 用户信息 - 延迟初始化
 const userInfo = ref<UserInfo | null>(null)
@@ -31,8 +36,12 @@ function initializeIfNeeded() {
   }
 }
 
+// ============ 本地操作函数 ============
+
 /**
  * 设置用户信息
+ *
+ * ⚠️ 向后兼容: 函数签名保持不变
  */
 export function setUserInfo(info: UserInfo) {
   userInfo.value = info
@@ -42,6 +51,8 @@ export function setUserInfo(info: UserInfo) {
 
 /**
  * 设置 Token
+ *
+ * ⚠️ 向后兼容: 函数签名保持不变
  */
 export function setToken(newToken: string) {
   token.value = newToken
@@ -50,6 +61,8 @@ export function setToken(newToken: string) {
 
 /**
  * 获取用户信息
+ *
+ * ⚠️ 向后兼容: 函数签名保持不变
  */
 export function getUserInfo() {
   initializeIfNeeded()
@@ -58,6 +71,8 @@ export function getUserInfo() {
 
 /**
  * 获取 Token
+ *
+ * ⚠️ 向后兼容: 函数签名保持不变
  */
 export function getToken() {
   return token.value
@@ -65,6 +80,8 @@ export function getToken() {
 
 /**
  * 清除用户信息(退出登录)
+ *
+ * ⚠️ 向后兼容: 函数签名保持不变
  */
 export function clearUserInfo() {
   userInfo.value = null
@@ -76,17 +93,39 @@ export function clearUserInfo() {
 
 /**
  * 检查登录状态
+ *
+ * ⚠️ 向后兼容: 函数签名保持不变
  */
 export function checkLoginStatus(): boolean {
   return isLoggedIn.value && !!token.value
 }
 
 /**
+ * 获取是否为新用户
+ *
+ * ⚠️ 向后兼容: 函数签名保持不变
+ */
+export function getIsNewUser() {
+  return isNewUser.value
+}
+
+/**
+ * 设置是否为新用户
+ *
+ * ⚠️ 向后兼容: 函数签名保持不变
+ */
+export function setIsNewUser(value: boolean) {
+  isNewUser.value = value
+}
+
+// ============ API 调用函数(委托给 api 层) ============
+
+/**
  * 微信登录 - 集成后端 API (去家庭化架构)
  *
  * API: POST /auth/wechat-login
- * 请求: { code, nickName?, avatarUrl? }
- * 响应: { token, userInfo, isNewUser }
+ *
+ * ⚠️ 向后兼容: 函数签名保持不变
  */
 export async function wxLogin(): Promise<UserInfo> {
   return new Promise((resolve, reject) => {
@@ -98,11 +137,7 @@ export async function wxLogin(): Promise<UserInfo> {
 
         try {
           // 2. 调用后端登录接口
-          const response = await post<{
-            token: string
-            userInfo: UserInfo
-            isNewUser: boolean
-          }>('/auth/wechat-login', {
+          const response = await authApi.apiWechatLogin({
             code: loginRes.code,
             // 注意: 由于 getUserProfile 已废弃,nickName 和 avatarUrl 可以不传
             // 或者使用头像昵称填写组件获取
@@ -110,24 +145,20 @@ export async function wxLogin(): Promise<UserInfo> {
 
           console.log('API login response:', response)
 
-          if (response.code === 0 && response.data) {
-            const { token: newToken, userInfo: user, isNewUser: newUser } = response.data
+          const { token: newToken, userInfo: user, isNewUser: newUser } = response
 
-            // 3. 保存 Token 和用户信息
-            setToken(newToken)
-            setUserInfo(user)
-            isNewUser.value = newUser
+          // 3. 保存 Token 和用户信息
+          setToken(newToken)
+          setUserInfo(user)
+          isNewUser.value = newUser
 
-            uni.showToast({
-              title: '登录成功',
-              icon: 'success',
-              duration: 1500,
-            })
+          uni.showToast({
+            title: '登录成功',
+            icon: 'success',
+            duration: 1500,
+          })
 
-            resolve(user)
-          } else {
-            throw new Error(response.message || '登录失败')
-          }
+          resolve(user)
         } catch (error: any) {
           console.error('login API error:', error)
           uni.showToast({
@@ -153,23 +184,16 @@ export async function wxLogin(): Promise<UserInfo> {
  * 刷新 Token
  *
  * API: POST /auth/refresh-token
- * Headers: Authorization: Bearer {token}
- * 响应: { token, expiresIn }
+ *
+ * ⚠️ 向后兼容: 函数签名保持不变
  */
 export async function refreshToken(): Promise<string> {
   try {
-    const response = await post<{
-      token: string
-      expiresIn: number
-    }>('/auth/refresh-token')
+    const response = await authApi.apiRefreshToken()
 
-    if (response.code === 0 && response.data) {
-      const newToken = response.data.token
-      setToken(newToken)
-      return newToken
-    } else {
-      throw new Error(response.message || 'Token 刷新失败')
-    }
+    const newToken = response.token
+    setToken(newToken)
+    return newToken
   } catch (error: any) {
     console.error('refresh token error:', error)
     // Token 刷新失败,清除登录状态
@@ -182,19 +206,15 @@ export async function refreshToken(): Promise<string> {
  * 从服务器获取用户信息
  *
  * API: GET /auth/user-info
- * Headers: Authorization: Bearer {token}
- * 响应: { openid, nickName, avatarUrl, defaultBabyId, createTime, lastLoginTime }
+ *
+ * ⚠️ 向后兼容: 函数签名保持不变
  */
 export async function fetchUserInfo(): Promise<UserInfo> {
   try {
-    const response = await get<UserInfo>('/auth/user-info')
+    const response = await authApi.apiFetchUserInfo()
 
-    if (response.code === 0 && response.data) {
-      setUserInfo(response.data)
-      return response.data
-    } else {
-      throw new Error(response.message || '获取用户信息失败')
-    }
+    setUserInfo(response)
+    return response
   } catch (error: any) {
     console.error('fetch user info error:', error)
     throw error
@@ -205,28 +225,23 @@ export async function fetchUserInfo(): Promise<UserInfo> {
  * 设置默认宝宝
  *
  * API: PUT /auth/default-baby
- * Headers: Authorization: Bearer {token}
- * 请求: { babyId }
- * 响应: { code: 0, message: "success", data: null }
+ *
+ * ⚠️ 向后兼容: 函数签名保持不变
  */
 export async function setDefaultBaby(babyId: string): Promise<void> {
   try {
-    const response = await put('/auth/default-baby', { babyId })
+    await authApi.apiSetDefaultBaby(babyId)
 
-    if (response.code === 0) {
-      // 更新本地用户信息中的默认宝宝ID
-      if (userInfo.value) {
-        userInfo.value.defaultBabyId = babyId
-        setStorage(StorageKeys.USER_INFO, userInfo.value)
-      }
-
-      uni.showToast({
-        title: '设置成功',
-        icon: 'success',
-      })
-    } else {
-      throw new Error(response.message || '设置默认宝宝失败')
+    // 更新本地用户信息中的默认宝宝ID
+    if (userInfo.value) {
+      userInfo.value.defaultBabyId = babyId
+      setStorage(StorageKeys.USER_INFO, userInfo.value)
     }
+
+    uni.showToast({
+      title: '设置成功',
+      icon: 'success',
+    })
   } catch (error: any) {
     console.error('set default baby error:', error)
     uni.showToast({
@@ -239,6 +254,8 @@ export async function setDefaultBaby(babyId: string): Promise<void> {
 
 /**
  * 退出登录
+ *
+ * ⚠️ 向后兼容: 函数签名保持不变
  */
 export async function logout() {
   // 清除本地存储的用户信息和 Token
@@ -255,19 +272,7 @@ export async function logout() {
   })
 }
 
-/**
- * 获取是否为新用户
- */
-export function getIsNewUser() {
-  return isNewUser.value
-}
-
-/**
- * 设置是否为新用户
- */
-export function setIsNewUser(value: boolean) {
-  isNewUser.value = value
-}
+// ============ 导出 ============
 
 export { userInfo, isLoggedIn, token, isNewUser }
 
