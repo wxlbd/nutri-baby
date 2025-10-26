@@ -20,7 +20,8 @@ import { ref, computed } from 'vue'
 import type { VaccinePlan, VaccineRecord, VaccineReminder, VaccineType, VaccineReminderStatus } from '@/types'
 import { StorageKeys, getStorage, setStorage } from '@/utils/storage'
 import { generateId } from '@/utils/common'
-import { getCurrentBaby, currentBabyId } from '@/store/baby'
+// 使用相对路径导入,避免通过 @/store/index.ts 产生循环依赖
+import { getCurrentBaby, currentBabyId } from './baby'
 import { get, post } from '@/utils/request'
 
 // 默认疫苗计划(国家免疫规划疫苗)
