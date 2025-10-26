@@ -14,12 +14,18 @@ type FeedingRecordRepository interface {
 	FindByID(ctx context.Context, recordID string) (*entity.FeedingRecord, error)
 	// FindByBabyID 查找宝宝的喂养记录(分页)
 	FindByBabyID(ctx context.Context, babyID string, startTime, endTime int64, page, pageSize int) ([]*entity.FeedingRecord, int64, error)
+	// FindByBabyIDAndType 根据宝宝ID和喂养类型查找记录(分页)
+	FindByBabyIDAndType(ctx context.Context, babyID string, feedingType string, startTime, endTime int64, page, pageSize int) ([]*entity.FeedingRecord, int64, error)
 	// Update 更新记录
 	Update(ctx context.Context, record *entity.FeedingRecord) error
 	// Delete 删除记录
 	Delete(ctx context.Context, recordID string) error
 	// FindUpdatedAfter 查找指定时间后更新的记录(用于同步)
 	FindUpdatedAfter(ctx context.Context, familyID string, timestamp int64) ([]*entity.FeedingRecord, error)
+	// UpdateReminderStatus 更新提醒状态
+	UpdateReminderStatus(ctx context.Context, recordID string, sent bool, reminderTime int64) error
+	// GetTodayStatsByType 获取今日按类型的统计数据
+	GetTodayStatsByType(ctx context.Context, babyID string, feedingType string, todayStart, todayEnd int64) (count int64, totalAmount float64, totalDuration int, err error)
 }
 
 // SleepRecordRepository 睡眠记录仓储接口

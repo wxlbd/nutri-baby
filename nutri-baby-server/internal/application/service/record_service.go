@@ -77,13 +77,16 @@ func (s *RecordService) CreateFeedingRecord(ctx context.Context, openID string, 
 	}
 
 	record := &entity.FeedingRecord{
-		RecordID:   uuid.New().String(),
-		BabyID:     req.BabyID,
-		Time:       feedingTime,
-		Detail:     detail,
-		CreateBy:   openID,
-		CreateTime: now,
-		UpdateTime: now,
+		RecordID:    uuid.New().String(),
+		FeedingType: req.FeedingType,
+		Amount:      req.Amount,
+		Duration:    req.Duration,
+		BabyID:      req.BabyID,
+		Time:        feedingTime,
+		Detail:      detail,
+		CreateBy:    openID,
+		CreateTime:  now,
+		UpdateTime:  now,
 	}
 
 	if err := s.feedingRecordRepo.Create(ctx, record); err != nil {
@@ -125,16 +128,6 @@ func (s *RecordService) GetFeedingRecords(ctx context.Context, openID string, qu
 
 	result := make([]dto.FeedingRecordDTO, 0, len(records))
 	for _, record := range records {
-		// 从Detail map中提取各个字段
-		feedingType, _ := record.Detail["feedingType"].(string)
-		amount := 0
-		if v, ok := record.Detail["amount"].(float64); ok {
-			amount = int(v)
-		}
-		duration := 0
-		if v, ok := record.Detail["duration"].(float64); ok {
-			duration = int(v)
-		}
 		note, _ := record.Detail["note"].(string)
 
 		// 构建FeedingDetail
@@ -155,9 +148,9 @@ func (s *RecordService) GetFeedingRecords(ctx context.Context, openID string, qu
 		result = append(result, dto.FeedingRecordDTO{
 			RecordID:    record.RecordID,
 			BabyID:      record.BabyID,
-			FeedingType: feedingType,
-			Amount:      amount,
-			Duration:    duration,
+			FeedingType: record.FeedingType,
+			Amount:      record.Amount,
+			Duration:    record.Duration,
 			Detail:      detail,
 			Note:        note,
 			FeedingTime: record.Time,
