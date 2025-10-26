@@ -2,19 +2,26 @@ package wire
 
 import (
 	"github.com/gin-gonic/gin"
+	"github.com/wxlbd/nutri-baby-server/internal/application/service"
 	"github.com/wxlbd/nutri-baby-server/internal/infrastructure/config"
 )
 
 // App 应用程序
 type App struct {
-	Config *config.Config
-	Router *gin.Engine
+	Config    *config.Config
+	Router    *gin.Engine
+	Scheduler *service.SchedulerService
 }
 
 // NewApp 创建应用实例
-func NewApp(cfg *config.Config, router *gin.Engine) *App {
+func NewApp(
+	cfg *config.Config,
+	router *gin.Engine,
+	scheduler *service.SchedulerService,
+) *App {
 	return &App{
-		Config: cfg,
-		Router: router,
+		Config:    cfg,
+		Router:    router,
+		Scheduler: scheduler,
 	}
 }
