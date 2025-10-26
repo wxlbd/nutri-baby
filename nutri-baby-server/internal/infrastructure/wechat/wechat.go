@@ -2,6 +2,7 @@ package wechat
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/redis/go-redis/v9"
 	"github.com/silenceper/wechat/v2"
@@ -20,8 +21,14 @@ type Client struct {
 // NewClient 创建微信客户端
 func NewClient(cfg *config.Config, redisClient *redis.Client) *Client {
 	// 创建 Redis 缓存适配器
+	// Host 需要包含端口号，格式为 "host:port"
+	redisHost := cfg.Redis.Host
+	if cfg.Redis.Port != 0 {
+		redisHost = fmt.Sprintf("%s:%d", cfg.Redis.Host, cfg.Redis.Port)
+	}
+
 	redisCache := cache.NewRedis(context.Background(), &cache.RedisOpts{
-		Host:     cfg.Redis.Host,
+		Host:     redisHost,
 		Password: cfg.Redis.Password,
 		Database: cfg.Redis.DB,
 	})
