@@ -1,14 +1,16 @@
 /**
- * Store 统一导出 - 去家庭化架构
+ * Store 统一导出 - 临时禁用以排查循环依赖
+ *
+ * CRITICAL: 此文件已临时禁用
+ * 所有页面应该直接从具体模块导入:
+ * - import { xxx } from '@/store/user'
+ * - import { xxx } from '@/store/baby'
+ *
+ * 不要使用: import { xxx } from '@/store'
  */
 
-export * from './user'
-export * from './baby'
-export * from './collaborator' // 新增: 协作者管理 (替代 family)
-export * from './feeding'
-export * from './diaper'
-export * from './sleep'
-export * from './growth'
-export * from './vaccine'
+// 临时导出空对象,防止编译错误
+export {}
 
-// family.ts 已废弃，不再导出
+console.warn('[Store] index.ts 已禁用,请使用直接导入: @/store/user, @/store/baby 等')
+
