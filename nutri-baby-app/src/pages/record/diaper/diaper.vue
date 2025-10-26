@@ -105,7 +105,7 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
-import { currentBabyId } from '@/store/baby'
+import { currentBabyId, getCurrentBaby } from '@/store/baby'
 import { addDiaperRecord } from '@/store/diaper'
 import { getUserInfo } from '@/store/user'
 import type { DiaperType, PoopColor, PoopTexture } from '@/types'
@@ -143,7 +143,8 @@ const poopTextures = [
 
 // 快速记录
 const quickRecord = (type: DiaperType) => {
-  if (!currentBaby.value) {
+  const currentBaby = getCurrentBaby()
+  if (!currentBaby) {
     uni.showToast({
       title: '请先选择宝宝',
       icon: 'none'
