@@ -37,6 +37,11 @@ export const StorageKeys = {
   // 设置
   SETTINGS: `${STORAGE_PREFIX}settings`,
 
+  // 订阅消息相关
+  SUBSCRIBE_AUTH_RECORDS: `${STORAGE_PREFIX}subscribe_auth_records`,      // 授权记录
+  SUBSCRIBE_GUIDE_RECORDS: `${STORAGE_PREFIX}subscribe_guide_records`,    // 引导显示记录
+  SUBSCRIBE_REMINDER_CONFIGS: `${STORAGE_PREFIX}subscribe_reminder_configs`, // 提醒配置
+
   // 离线数据队列
   OFFLINE_QUEUE: `${STORAGE_PREFIX}offline_queue`,
 
