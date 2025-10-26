@@ -2,18 +2,31 @@ package dto
 
 // FeedingDetail 喂养详情
 type FeedingDetail struct {
-	BreastSide  string `json:"breastSide,omitempty"`  // left, right, both
-	LeftTime    int    `json:"leftTime,omitempty"`    // 左侧时长(分钟)
-	RightTime   int    `json:"rightTime,omitempty"`   // 右侧时长(分钟)
-	FormulaType string `json:"formulaType,omitempty"` // 奶粉类型
+	// 母乳喂养相关
+	BreastSide string `json:"breastSide,omitempty"` // left, right, both
+	LeftTime   int    `json:"leftTime,omitempty"`   // 左侧时长(秒)
+	RightTime  int    `json:"rightTime,omitempty"`  // 右侧时长(秒)
+	Duration   int    `json:"duration,omitempty"`   // 总时长(秒)
+
+	// 奶瓶喂养相关
+	BottleType string  `json:"bottleType,omitempty"` // formula, breast-milk
+	Unit       string  `json:"unit,omitempty"`       // ml, oz
+	Remaining  float64 `json:"remaining,omitempty"`  // 剩余量
+
+	// 辅食相关
+	FoodName string `json:"foodName,omitempty"` // 辅食名称
+
+	// 通用
+	Note        string `json:"note,omitempty"`        // 备注
+	FormulaType string `json:"formulaType,omitempty"` // 兼容旧数据
 }
 
 // CreateFeedingRecordRequest 创建喂养记录请求
 type CreateFeedingRecordRequest struct {
 	BabyID      string        `json:"babyId" binding:"required"`
-	FeedingType string        `json:"feedingType" binding:"required,oneof=breast formula mixed"`
-	Amount      int           `json:"amount"`      // ml
-	Duration    int           `json:"duration"`    // 分钟
+	FeedingType string        `json:"feedingType" binding:"required,oneof=breast bottle food"`
+	Amount      int64         `json:"amount"`   // ml
+	Duration    int           `json:"duration"` // 秒
 	Detail      FeedingDetail `json:"detail"`
 	Note        string        `json:"note"`
 	FeedingTime int64         `json:"feedingTime"` // 毫秒时间戳
@@ -24,7 +37,7 @@ type FeedingRecordDTO struct {
 	RecordID    string        `json:"recordId"`
 	BabyID      string        `json:"babyId"`
 	FeedingType string        `json:"feedingType"`
-	Amount      int           `json:"amount"`
+	Amount      int64         `json:"amount"`
 	Duration    int           `json:"duration"`
 	Detail      FeedingDetail `json:"detail"`
 	Note        string        `json:"note"`
@@ -77,12 +90,12 @@ type DiaperRecordDTO struct {
 
 // CreateGrowthRecordRequest 创建生长记录请求
 type CreateGrowthRecordRequest struct {
-	BabyID      string `json:"babyId" binding:"required"`
-	Height      int    `json:"height" binding:"required"` // cm
-	Weight      int    `json:"weight" binding:"required"` // g
-	HeadCircum  int    `json:"headCircum"`                // cm
-	Note        string `json:"note"`
-	RecordTime  int64  `json:"recordTime"` // 毫秒时间戳
+	BabyID     string `json:"babyId" binding:"required"`
+	Height     int    `json:"height" binding:"required"` // cm
+	Weight     int    `json:"weight" binding:"required"` // g
+	HeadCircum int    `json:"headCircum"`                // cm
+	Note       string `json:"note"`
+	RecordTime int64  `json:"recordTime"` // 毫秒时间戳
 }
 
 // GrowthRecordDTO 生长记录DTO

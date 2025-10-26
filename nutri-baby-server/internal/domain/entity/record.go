@@ -6,15 +6,27 @@ import (
 	"time"
 )
 
+// 喂养类型常量 (与前端保持一致)
+const (
+	FeedingTypeBreast = "breast" // 母乳喂养
+	FeedingTypeBottle = "bottle" // 奶瓶喂养
+	FeedingTypeFood   = "food"   // 辅食
+)
+
 // FeedingRecord 喂养记录实体
 type FeedingRecord struct {
 	RecordID       string        `gorm:"primaryKey;column:record_id;type:varchar(64)" json:"recordId"`
 	BabyID         string        `gorm:"column:baby_id;type:varchar(64);index" json:"babyId"`
 	Time           int64         `gorm:"column:time;index" json:"time"`
-	Detail         FeedingDetail `gorm:"column:detail;type:jsonb" json:"detail"`
+	FeedingType    string        `gorm:"column:feeding_type;type:varchar(16);not null" json:"feedingType"` // 喂养类型: breast/bottle/food
+	Amount         int64         `gorm:"column:amount" json:"amount,omitempty"`                            // 奶量(ml)，bottle类型时使用
+	Duration       int           `gorm:"column:duration" json:"duration,omitempty"`                        // 时长(秒)，breast类型时使用
+	Detail         FeedingDetail `gorm:"column:detail;type:jsonb" json:"detail"`                           // 完整详情(向后兼容)
 	CreateBy       string        `gorm:"column:create_by;type:varchar(64)" json:"createBy"`
 	CreateByName   string        `gorm:"column:create_by_name;type:varchar(64)" json:"createByName"`      // 冗余:创建者昵称
 	CreateByAvatar string        `gorm:"column:create_by_avatar;type:varchar(512)" json:"createByAvatar"` // 冗余:创建者头像
+	ReminderSent   bool          `gorm:"column:reminder_sent;default:false;index" json:"reminderSent"`    // 是否已发送提醒
+	ReminderTime   *int64        `gorm:"column:reminder_time" json:"reminderTime,omitempty"`              // 提醒发送时间戳(毫秒)
 	CreateTime     int64         `gorm:"column:create_time;autoCreateTime:milli" json:"createTime"`
 	UpdateTime     int64         `gorm:"column:update_time;autoUpdateTime:milli" json:"updateTime"`
 	DeletedAt      *time.Time    `gorm:"column:deleted_at;index" json:"-"`
