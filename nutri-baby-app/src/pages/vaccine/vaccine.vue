@@ -212,6 +212,14 @@
       title="选择接种日期"
       @confirm="handleDateConfirm"
     />
+
+    <!-- 订阅消息引导 -->
+    <SubscribeGuide
+      v-model="showVaccineGuide"
+      type="vaccine_reminder"
+      :context-message="vaccineGuideContext"
+      @confirm="handleSubscribeResult"
+    />
   </view>
 </template>
 
@@ -233,6 +241,8 @@ import {
 } from '@/store/vaccine'
 import { formatDate } from '@/utils/date'
 import type { VaccinePlan, VaccineReminder } from '@/types'
+import SubscribeGuide from '@/components/SubscribeGuide.vue'
+import { shouldShowGuide } from '@/store/subscribe'
 
 // Tab状态
 const activeTab = ref('all')
@@ -241,6 +251,9 @@ const activeTab = ref('all')
 const showRecordDialog = ref(false)
 const showDatePicker = ref(false)
 const selectedDate = ref(new Date())
+
+// 订阅消息引导状态
+const showVaccineGuide = ref(false)
 
 // 表单数据
 const recordForm = ref({
@@ -265,6 +278,16 @@ const completionStats = computed(() => {
 const upcomingReminders = computed(() => {
   if (!currentBaby.value) return []
   return getUpcomingReminders(currentBaby.value.babyId).slice(0, 3) // 只显示前3个
+})
+
+// 疫苗引导的场景化文案
+const vaccineGuideContext = computed(() => {
+  if (upcomingReminders.value.length > 0) {
+    const nextReminder = upcomingReminders.value[0]
+    const daysLeft = Math.ceil((nextReminder.scheduledDate - Date.now()) / (1000 * 60 * 60 * 24))
+    return `宝宝下次需要接种「${nextReminder.vaccineName}第${nextReminder.doseNumber}针」,距离接种日期还有 ${daysLeft}天`
+  }
+  return '下次接种前我们会提前3天提醒您哦~'
 })
 
 // 过滤后的计划列表
@@ -359,6 +382,9 @@ const handleSaveRecord = () => {
     return
   }
 
+  // 保存前记录当前记录数
+  const recordCountBefore = vaccineRecords.value.length
+
   addVaccineRecord({
     babyId: currentBaby.value.babyId,
     planId: recordForm.value.planId,
@@ -379,6 +405,23 @@ const handleSaveRecord = () => {
   })
 
   showRecordDialog.value = false
+
+  // 检查是否是首次添加疫苗记录
+  const isFirstRecord = recordCountBefore === 0
+
+  // 首次记录后,延迟显示订阅引导
+  if (isFirstRecord && shouldShowGuide('vaccine_reminder')) {
+    setTimeout(() => {
+      showVaccineGuide.value = true
+    }, 1500) // 延迟1.5秒,让用户看到成功提示
+  }
+}
+
+// 处理订阅消息结果
+const handleSubscribeResult = (result: 'accept' | 'reject') => {
+  if (result === 'accept') {
+    console.log('用户同意订阅疫苗提醒')
+  }
 }
 
 // 页面加载
