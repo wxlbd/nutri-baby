@@ -37,6 +37,10 @@ func main() {
 		logger.Fatal("Failed to init app", zap.Error(err))
 	}
 
+	// 启动定时任务服务
+	app.Scheduler.Start()
+	defer app.Scheduler.Stop()
+
 	// 启动HTTP服务器
 	server := &http.Server{
 		Addr:         fmt.Sprintf(":%d", cfg.Server.Port),
