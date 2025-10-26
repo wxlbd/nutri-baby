@@ -122,3 +122,22 @@ func (r *babyRepositoryImpl) FindByCreator(ctx context.Context, creatorID string
 
 	return babies, nil
 }
+
+// FindAll 查找所有宝宝
+func (r *babyRepositoryImpl) FindAll(ctx context.Context) ([]*entity.Baby, error) {
+	var babies []*entity.Baby
+
+	err := r.db.WithContext(ctx).
+		Where("deleted_at IS NULL").
+		Order("create_time DESC").
+		Find(&babies).Error
+
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, errors.Wrap(errors.DatabaseError, "failed to find all babies", err)
+	}
+
+	return babies, nil
+}
