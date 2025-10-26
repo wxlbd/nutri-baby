@@ -48,4 +48,6 @@ type BabyRepository interface {
 	Delete(ctx context.Context, babyID string) error
 	// FindByCreator 查找用户创建的宝宝列表
 	FindByCreator(ctx context.Context, creatorID string) ([]*entity.Baby, error)
+	// FindAll 查找所有宝宝
+	FindAll(ctx context.Context) ([]*entity.Baby, error)
 }
