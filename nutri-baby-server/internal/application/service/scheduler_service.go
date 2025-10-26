@@ -23,6 +23,7 @@ type SchedulerService struct {
 	babyRepo             repository.BabyRepository
 	babyCollaboratorRepo repository.BabyCollaboratorRepository
 	subscribeService     *SubscribeService
+	strategyFactory      *FeedingReminderStrategyFactory
 	logger               *zap.Logger
 }
 
@@ -49,6 +50,7 @@ func NewSchedulerService(
 		babyRepo:             babyRepo,
 		babyCollaboratorRepo: babyCollaboratorRepo,
 		subscribeService:     subscribeService,
+		strategyFactory:      NewFeedingReminderStrategyFactory(),
 		logger:               logger,
 	}
 }
@@ -135,10 +137,10 @@ func (s *SchedulerService) CheckVaccineReminders() error {
 
 		// 直接发送订阅消息
 		sendReq := &dto.SendMessageRequest{
-			OpenID:       "", // TODO: 获取用户 OpenID
-			TemplateType: "vaccine_reminder",
-			Data:         messageData,
-			Page:         "pages/vaccine/vaccine",
+			OpenID:     "", // TODO: 获取用户 OpenID
+			TemplateID: "vaccine_reminder",
+			Data:       messageData,
+			Page:       "pages/vaccine/vaccine",
 		}
 
 		if err := s.subscribeService.SendSubscribeMessage(ctx, sendReq); err != nil {
@@ -233,7 +235,7 @@ func (s *SchedulerService) CheckFeedingReminders() error {
 		lastFeeding := records[0]
 		lastFeedingTime := time.UnixMilli(lastFeeding.Time)
 		hoursSinceLastFeeding := now.Sub(lastFeedingTime).Hours()
-		// TODO：根据喂养类型构造选择模版并构造模板数据
+
 		s.logger.Info("📊 [CheckFeedingReminders] 上次喂养时间分析",
 			zap.String("babyId", baby.BabyID),
 			zap.String("babyName", baby.Name),
@@ -283,7 +285,16 @@ func (s *SchedulerService) CheckFeedingReminders() error {
 				zap.Int("collaboratorCount", len(collaborators)),
 			)
 
-			// 4. 检查每个协作者的授权状态并发送提醒
+			// 4. 根据喂养类型获取策略
+			strategy := s.strategyFactory.GetStrategy(lastFeeding)
+			templateType := strategy.GetTemplateType()
+
+			s.logger.Info("🎯 [CheckFeedingReminders] 获取喂养提醒策略",
+				zap.String("babyId", baby.BabyID),
+				zap.String("templateType", templateType),
+			)
+
+			// 5. 检查每个协作者的授权状态并发送提醒
 			for j, collaborator := range collaborators {
 				s.logger.Info("👤 [CheckFeedingReminders] 处理协作者",
 					zap.Int("collaboratorIndex", j+1),
@@ -293,12 +304,12 @@ func (s *SchedulerService) CheckFeedingReminders() error {
 				)
 
 				// 检查用户是否有可用的授权
-				s.logger.Info("🔍 [CheckFeedingReminders] STEP 4 - 检查用户授权状态",
+				s.logger.Info("🔍 [CheckFeedingReminders] STEP 5 - 检查用户授权状态",
 					zap.String("openid", collaborator.OpenID),
-					zap.String("templateType", "breast_feeding_reminder"),
+					zap.String("templateType", templateType),
 				)
 
-				hasAuth, err := s.subscribeService.CheckAuthorizationStatus(ctx, collaborator.OpenID, "breast_feeding_reminder")
+				hasAuth, err := s.subscribeService.CheckAuthorizationStatus(ctx, collaborator.OpenID, templateType)
 				if err != nil {
 					s.logger.Error("❌ [CheckFeedingReminders] 检查授权状态失败",
 						zap.String("openid", collaborator.OpenID),
@@ -316,33 +327,32 @@ func (s *SchedulerService) CheckFeedingReminders() error {
 				s.logger.Info("✅ [CheckFeedingReminders] 用户有可用授权,准备发送提醒",
 					zap.String("openid", collaborator.OpenID))
 
-				// 5. 构造消息数据
-				// 微信订阅消息模板字段: time1(上次时间), time2(距离上次), thing3(上次位置), thing4(温馨提示)
-				messageData := map[string]interface{}{
-					"time1":             lastFeedingTime.Format("2006-01-02 15:04"), // 上次时间
-					"thing2":            time.Now().Sub(lastFeedingTime).Seconds(),  // 距离上次(也填时间)
-					"character_string3": fmt.Sprintf("%dml", lastFeeding.Detail["amount"]),
-					"phrase4":           "奶粉",               // 上次位置
-					"thing5":            "该喂奶啦，注意观察宝宝的饥饿信号", // 温馨提示
-				}
-
-				s.logger.Info("📦 [CheckFeedingReminders] STEP 5 - 构造消息数据",
+				// 6. 使用策略模式构造消息数据
+				s.logger.Info("📦 [CheckFeedingReminders] STEP 6 - 使用策略模式构造消息数据",
 					zap.String("openid", collaborator.OpenID),
+				)
+
+				// 使用之前获取的策略构造消息数据
+				messageData := strategy.BuildMessageData(lastFeeding, lastFeedingTime, hoursSinceLastFeeding)
+
+				s.logger.Info("📦 [CheckFeedingReminders] 消息数据构造完成",
+					zap.String("openid", collaborator.OpenID),
+					zap.String("templateType", templateType),
 					zap.Any("messageData", messageData),
 				)
 
-				// 6. 直接发送订阅消息
-				s.logger.Info("📤 [CheckFeedingReminders] STEP 6 - 发送订阅消息",
+				// 7. 直接发送订阅消息
+				s.logger.Info("📤 [CheckFeedingReminders] STEP 7 - 发送订阅消息",
 					zap.String("openid", collaborator.OpenID),
-					zap.String("templateType", "breast_feeding_reminder"),
+					zap.String("templateType", templateType),
 					zap.String("page", "pages/record/feeding/feeding"),
 				)
 
 				sendReq := &dto.SendMessageRequest{
-					OpenID:       collaborator.OpenID,
-					TemplateType: "breast_feeding_reminder",
-					Data:         messageData,
-					Page:         "pages/record/feeding/feeding",
+					OpenID:     collaborator.OpenID,
+					TemplateID: strategy.GetTemplateID(),
+					Data:       messageData,
+					Page:       "pages/record/feeding/feeding",
 				}
 
 				if err := s.subscribeService.SendSubscribeMessage(ctx, sendReq); err != nil {
@@ -358,6 +368,18 @@ func (s *SchedulerService) CheckFeedingReminders() error {
 					zap.String("babyName", baby.Name),
 					zap.String("openid", collaborator.OpenID),
 					zap.Float64("hoursSinceLastFeeding", hoursSinceLastFeeding))
+			}
+
+			// 8. 更新提醒标记 (循环结束后统一更新，避免多个协作者时重复更新)
+			reminderTime := time.Now().UnixMilli()
+			if err := s.feedingRecordRepo.UpdateReminderStatus(ctx, lastFeeding.RecordID, true, reminderTime); err != nil {
+				s.logger.Error("❌ [CheckFeedingReminders] 更新提醒标记失败",
+					zap.String("recordID", lastFeeding.RecordID),
+					zap.Error(err))
+			} else {
+				s.logger.Info("✅ [CheckFeedingReminders] 提醒标记已更新",
+					zap.String("recordID", lastFeeding.RecordID),
+					zap.Int64("reminderTime", reminderTime))
 			}
 		} else {
 			s.logger.Info("ℹ️ [CheckFeedingReminders] 距离上次喂养时间未达到提醒阈值,跳过",
