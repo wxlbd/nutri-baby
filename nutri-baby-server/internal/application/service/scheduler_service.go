@@ -286,7 +286,13 @@ func (s *SchedulerService) CheckFeedingReminders() error {
 			)
 
 			// 4. 根据喂养类型获取策略
-			strategy := s.strategyFactory.GetStrategy(lastFeeding)
+			strategy, err := s.strategyFactory.GetStrategy(lastFeeding)
+			if err != nil {
+				s.logger.Error("❌ [CheckFeedingReminders] 获取喂养提醒策略失败",
+					zap.String("babyId", baby.BabyID),
+					zap.Error(err))
+				continue
+			}
 			templateType := strategy.GetTemplateType()
 
 			s.logger.Info("🎯 [CheckFeedingReminders] 获取喂养提醒策略",

@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"time"
 
+	"errors"
+
 	"github.com/wxlbd/nutri-baby-server/internal/domain/entity"
 )
 
@@ -16,7 +18,7 @@ type FeedingReminderStrategy interface {
 	GetTemplateID() string
 
 	// BuildMessageData 构建消息数据
-	BuildMessageData(record *entity.FeedingRecord, lastFeedingTime time.Time, hoursSinceLastFeeding float64) map[string]interface{}
+	BuildMessageData(record *entity.FeedingRecord, lastFeedingTime time.Time, hoursSinceLastFeeding float64) map[string]any
 
 	// CanHandle 判断是否能处理该类型的喂养记录
 	CanHandle(record *entity.FeedingRecord) bool
@@ -37,7 +39,7 @@ func (s *BreastFeedingReminderStrategy) GetTemplateType() string {
 	return "breast_feeding_reminder"
 }
 
-func (s *BreastFeedingReminderStrategy) BuildMessageData(record *entity.FeedingRecord, lastFeedingTime time.Time, hoursSinceLastFeeding float64) map[string]interface{} {
+func (s *BreastFeedingReminderStrategy) BuildMessageData(record *entity.FeedingRecord, lastFeedingTime time.Time, hoursSinceLastFeeding float64) map[string]any {
 	// 微信订阅消息模板字段: time1(上次时间), thing2(距离上次), character_string3(喂养量), phrase4(喂养类型), thing5(温馨提示)
 
 	// 获取喂养侧
@@ -53,7 +55,7 @@ func (s *BreastFeedingReminderStrategy) BuildMessageData(record *entity.FeedingR
 		}
 	}
 
-	return map[string]interface{}{
+	return map[string]any{
 		"time1":   lastFeedingTime.Format(time.DateTime),  // 上次时间
 		"thing2":  formatTimeSince(hoursSinceLastFeeding), // 距离上次
 		"phrase3": side,                                   // 喂养位置
@@ -164,13 +166,12 @@ func NewFeedingReminderStrategyFactory() *FeedingReminderStrategyFactory {
 }
 
 // GetStrategy 根据喂养记录获取对应的策略
-func (f *FeedingReminderStrategyFactory) GetStrategy(record *entity.FeedingRecord) FeedingReminderStrategy {
+func (f *FeedingReminderStrategyFactory) GetStrategy(record *entity.FeedingRecord) (FeedingReminderStrategy, error) {
 	strategy, ok := f.strategies[record.FeedingType]
 	if ok {
-		return strategy
+		return strategy, nil
 	}
-	// 默认返回母乳喂养策略（向后兼容）
-	return NewBreastFeedingReminderStrategy()
+	return nil, errors.New("unsupported feeding type")
 }
 
 // formatTimeSince 格式化距离上次的时间
