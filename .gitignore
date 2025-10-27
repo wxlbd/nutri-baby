@@ -17,3 +17,5 @@
 /nutri-baby-app/dist
 /nutri-baby-server/PROJECT_SUMMARY.md
 /nutri-baby-server/logs/
+/nutri-baby-server/server
+/nutri-baby-server/wire/wire_gen.go
