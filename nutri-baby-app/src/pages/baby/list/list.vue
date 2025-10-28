@@ -129,18 +129,40 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted } from 'vue'
-import { babyList, currentBabyId, setCurrentBaby, deleteBaby } from '@/store/baby'
+import { ref, onMounted } from 'vue'
+import { currentBabyId, setCurrentBaby } from '@/store/baby'
 import { userInfo, setDefaultBaby } from '@/store/user'
 import { calculateAge } from '@/utils/date'
 
+// 直接调用 API 层
+import * as babyApi from '@/api/baby'
+
+// 宝宝列表(从 API 获取)
+const babyList = ref<babyApi.BabyProfileResponse[]>([])
+
+// 加载宝宝列表
+const loadBabyList = async () => {
+  try {
+    const data = await babyApi.apiFetchBabyList()
+    babyList.value = data.babies
+
+    // 如果只有一个宝宝且没有选中任何宝宝,默认选中这个宝宝
+    if (babyList.value.length === 1 && !currentBabyId.value) {
+      setCurrentBaby(babyList.value[0].babyId)
+      console.log('[BabyList] 自动选中唯一的宝宝:', babyList.value[0].name)
+    }
+  } catch (error) {
+    console.error('[BabyList] 加载宝宝列表失败:', error)
+    uni.showToast({
+      title: '加载失败',
+      icon: 'none'
+    })
+  }
+}
+
 // 页面加载时初始化
 onMounted(() => {
-  // 如果只有一个宝宝且没有选中任何宝宝，默认选中这个宝宝
-  if (babyList.value.length === 1 && !currentBabyId.value) {
-    setCurrentBaby(babyList.value[0].babyId)
-    console.log('[BabyList] 自动选中唯一的宝宝:', babyList.value[0].name)
-  }
+  loadBabyList()
 })
 
 // 选择宝宝
@@ -195,13 +217,27 @@ const handleDelete = (id: string) => {
   uni.showModal({
     title: '确认删除',
     content: '删除后无法恢复,确定要删除这个宝宝吗?',
-    success: (res) => {
+    success: async (res) => {
       if (res.confirm) {
-        const success = deleteBaby(id)
-        if (success) {
+        try {
+          await babyApi.apiDeleteBaby(id)
+
           uni.showToast({
             title: '删除成功',
             icon: 'success'
+          })
+
+          // 重新加载宝宝列表
+          await loadBabyList()
+
+          // 如果删除的是当前选中的宝宝,需要清除选中状态
+          if (id === currentBabyId.value) {
+            setCurrentBaby('')
+          }
+        } catch (error: any) {
+          uni.showToast({
+            title: error.message || '删除失败',
+            icon: 'none'
           })
         }
       }
