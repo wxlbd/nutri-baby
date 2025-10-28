@@ -91,10 +91,11 @@ export async function fetchBabyList(): Promise<BabyProfile[]> {
     // 设置当前宝宝的逻辑优化：
     // 1. 如果用户设置了默认宝宝且该宝宝在列表中,使用默认宝宝
     // 2. 如果没有默认宝宝或默认宝宝不在列表中,选中第一个
+    // 3. 每次调用 fetchBabyList 都会重新设置 currentBabyId（用户手动切换除外）
     const userInfo = getUserInfo()
     const defaultBabyId = userInfo?.defaultBabyId
 
-    if (!currentBabyId.value && babies.length > 0) {
+    if (babies.length > 0) {
       if (defaultBabyId && babies.some(b => b.babyId === defaultBabyId)) {
         setCurrentBaby(defaultBabyId)
       } else {
