@@ -73,12 +73,17 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
-import { currentBabyId } from '@/store/baby'
-import { startSleepRecord, endSleepRecord, getOngoingSleepRecord, getLastSleepRecord } from '@/store/sleep'
+import { currentBabyId, currentBaby } from '@/store/baby'
 import { getUserInfo } from '@/store/user'
 import { formatDate, formatDuration } from '@/utils/date'
 import { padZero } from '@/utils/common'
 import type { SleepRecord } from '@/types'
+
+// 直接调用 API 层
+import * as sleepApi from '@/api/sleep'
+
+// ⚠️ 注意: 睡眠计时器功能需要本地状态管理,暂时简化为手动输入时间
+// TODO: 后续可以考虑使用 localStorage 或独立的计时器状态管理
 
 // 睡眠类型
 const sleepType = ref<'nap' | 'night'>('nap')
@@ -120,17 +125,8 @@ onMounted(() => {
     return
   }
 
-  // 检查是否有进行中的睡眠
-  ongoingRecord.value = getOngoingSleepRecord(currentBaby.value.babyId)
-
-  if (ongoingRecord.value) {
-    // 启动定时器更新时长
-    updateDuration()
-    durationTimer = setInterval(updateDuration, 1000) as unknown as number
-  } else {
-    // 获取最后一次睡眠记录
-    lastRecord.value = getLastSleepRecord(currentBaby.value.babyId)
-  }
+  // TODO: 加载进行中的睡眠记录(需要从后端或 localStorage 获取)
+  // ongoingRecord.value = ...
 })
 
 // 组件卸载
@@ -141,7 +137,7 @@ onUnmounted(() => {
 })
 
 // 开始睡觉
-const startSleep = () => {
+const startSleep = async () => {
   const user = getUserInfo()
   if (!user) {
     uni.showToast({
@@ -152,19 +148,20 @@ const startSleep = () => {
   }
 
   try {
-    const record = startSleepRecord(
-      currentBabyId.value,
-      sleepType.value,
-      user.openid
-    )
-
-    ongoingRecord.value = record
+    // 直接创建睡眠记录(开始时间)
+    const record = await sleepApi.apiCreateSleepRecord({
+      babyId: currentBabyId.value,
+      sleepType: sleepType.value,
+      startTime: Date.now()
+      // endTime 在结束时更新
+    })
 
     uni.showToast({
       title: '开始记录睡眠',
       icon: 'success'
     })
 
+    // TODO: 保存进行中的记录到 localStorage
     // 启动定时器
     updateDuration()
     durationTimer = setInterval(updateDuration, 1000) as unknown as number
@@ -178,14 +175,17 @@ const startSleep = () => {
 }
 
 // 结束睡觉
-const endSleep = () => {
+const endSleep = async () => {
   if (!ongoingRecord.value) return
 
-  const success = endSleepRecord(ongoingRecord.value.id)
+  try {
+    // 更新睡眠记录(结束时间)
+    await sleepApi.apiUpdateSleepRecord(ongoingRecord.value.id, {
+      endTime: Date.now()
+    })
 
-  if (success) {
     uni.showToast({
-      title: '睡眠记录已保存',
+      title: '保存成功',
       icon: 'success'
     })
 
@@ -198,6 +198,12 @@ const endSleep = () => {
     setTimeout(() => {
       uni.navigateBack()
     }, 1000)
+
+  } catch (error: any) {
+    uni.showToast({
+      title: error.message || '保存失败',
+      icon: 'none'
+    })
   }
 }
 
