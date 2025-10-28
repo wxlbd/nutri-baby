@@ -107,7 +107,7 @@ export interface FeedingRecord {
 /**
  * 排泄类型
  */
-export type DiaperType = 'wet' | 'dirty' | 'both'
+export type DiaperType = 'pee' | 'poop' | 'both'
 
 /**
  * 大便颜色
