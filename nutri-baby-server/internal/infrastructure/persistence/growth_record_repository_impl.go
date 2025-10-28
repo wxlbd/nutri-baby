@@ -57,10 +57,10 @@ func (r *growthRecordRepositoryImpl) FindByBabyID(
 		Where("baby_id = ? AND deleted_at IS NULL", babyID)
 
 	if startTime > 0 {
-		query = query.Where("record_time >= ?", startTime)
+		query = query.Where("time >= ?", startTime)
 	}
 	if endTime > 0 {
-		query = query.Where("record_time <= ?", endTime)
+		query = query.Where("time <= ?", endTime)
 	}
 
 	if err := query.Count(&total).Error; err != nil {
@@ -69,7 +69,7 @@ func (r *growthRecordRepositoryImpl) FindByBabyID(
 
 	offset := (page - 1) * pageSize
 	err := query.
-		Order("record_time DESC").
+		Order("time DESC").
 		Limit(pageSize).
 		Offset(offset).
 		Find(&records).Error
@@ -129,7 +129,7 @@ func (r *growthRecordRepositoryImpl) GetLatestRecord(ctx context.Context, babyID
 	var record entity.GrowthRecord
 	err := r.db.WithContext(ctx).
 		Where("baby_id = ? AND deleted_at IS NULL", babyID).
-		Order("record_time DESC").
+		Order("time DESC").
 		First(&record).Error
 
 	if errors.Is(err, gorm.ErrRecordNotFound) {
