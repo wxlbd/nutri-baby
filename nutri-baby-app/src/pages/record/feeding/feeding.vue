@@ -145,12 +145,14 @@
 <script setup lang="ts">
 import {computed, onUnmounted, ref} from 'vue'
 import {currentBaby, currentBabyId} from '@/store/baby'
-import {addFeedingRecord, feedingRecords} from '@/store/feeding'
 import {getUserInfo} from '@/store/user'
 import {padZero} from '@/utils/common'
 import type {FeedingDetail} from '@/types'
 import SubscribeGuide from '@/components/SubscribeGuide.vue'
 import { getAuthStatus } from '@/store/subscribe'
+
+// 直接调用 API 层
+import * as feedingApi from '@/api/feeding'
 
 // 喂养类型
 const feedingType = ref<'breast' | 'bottle' | 'food'>('breast')
@@ -327,15 +329,46 @@ const handleSubmit = async () => {
 
     try {
         console.log('[Feeding] 开始保存喂养记录...')
-        await addFeedingRecord({
+
+        // 直接调用 API 层创建记录
+        const requestData: feedingApi.CreateFeedingRecordRequest = {
             babyId: currentBabyId.value,
-            time: Date.now(),
-            detail: detail,
-            createBy: user.openid,
-            createByAvatar: user.avatarUrl,
-            createByName: user.nickName
-        })
+            feedingType: detail.type,
+            feedingTime: Date.now(),
+            detail: {}
+        }
+
+        // 根据类型填充 detail
+        if (detail.type === 'breast') {
+            requestData.duration = detail.duration
+            requestData.detail = {
+                breastSide: detail.side,
+                leftTime: detail.leftDuration,
+                rightTime: detail.rightDuration,
+                duration: detail.duration
+            }
+        } else if (detail.type === 'bottle') {
+            requestData.amount = detail.amount
+            requestData.detail = {
+                bottleType: detail.bottleType,
+                unit: detail.unit,
+                remaining: detail.remaining
+            }
+        } else {
+            // food
+            requestData.detail = {
+                foodName: detail.foodName,
+                note: detail.note
+            }
+        }
+
+        await feedingApi.apiCreateFeedingRecord(requestData)
         console.log('[Feeding] 喂养记录保存成功')
+
+        uni.showToast({
+            title: '记录成功',
+            icon: 'success'
+        })
 
         // 每次保存成功后都直接询问授权(除非被Ban)
         const messageType = feedingType.value === 'breast' ? 'breast_feeding_reminder' : 'bottle_feeding_reminder'
@@ -374,9 +407,12 @@ const handleSubmit = async () => {
         setTimeout(() => {
             uni.navigateBack()
         }, 1000)
-    } catch (error) {
-        // 错误已在 store 中处理
+    } catch (error: any) {
         console.error('[Feeding] 保存喂养记录失败:', error)
+        uni.showToast({
+            title: error.message || '记录失败',
+            icon: 'none'
+        })
     }
 }
 
