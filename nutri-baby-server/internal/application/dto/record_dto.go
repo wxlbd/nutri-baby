@@ -51,7 +51,7 @@ type CreateSleepRecordRequest struct {
 	BabyID    string `json:"babyId" binding:"required"`
 	StartTime int64  `json:"startTime" binding:"required"`
 	EndTime   int64  `json:"endTime"`
-	Duration  int    `json:"duration"` // 分钟
+	Duration  int    `json:"duration"` // 秒
 	Quality   string `json:"quality" binding:"omitempty,oneof=good fair poor"`
 	Note      string `json:"note"`
 }
@@ -90,25 +90,25 @@ type DiaperRecordDTO struct {
 
 // CreateGrowthRecordRequest 创建生长记录请求
 type CreateGrowthRecordRequest struct {
-	BabyID     string `json:"babyId" binding:"required"`
-	Height     int    `json:"height" binding:"required"` // cm
-	Weight     int    `json:"weight" binding:"required"` // g
-	HeadCircum int    `json:"headCircum"`                // cm
-	Note       string `json:"note"`
-	RecordTime int64  `json:"recordTime"` // 毫秒时间戳
+	BabyID            string  `json:"babyId" binding:"required"`
+	Height            float64 `json:"height"`            // cm
+	Weight            float64 `json:"weight"`            // kg
+	HeadCircumference float64 `json:"headCircumference"` // cm
+	Note              string  `json:"note"`
+	MeasureTime       int64   `json:"measureTime"` // 毫秒时间戳
 }
 
 // GrowthRecordDTO 生长记录DTO
 type GrowthRecordDTO struct {
-	RecordID   string `json:"recordId"`
-	BabyID     string `json:"babyId"`
-	Height     int    `json:"height"`
-	Weight     int    `json:"weight"`
-	HeadCircum int    `json:"headCircum"`
-	Note       string `json:"note"`
-	RecordTime int64  `json:"recordTime"`
-	CreateBy   string `json:"createBy"`
-	CreateTime int64  `json:"createTime"`
+	RecordID          string   `json:"recordId"`
+	BabyID            string   `json:"babyId"`
+	Height            *float64 `json:"height,omitempty"`            // cm, 仅当有值时返回
+	Weight            *float64 `json:"weight,omitempty"`            // kg, 仅当有值时返回
+	HeadCircumference *float64 `json:"headCircumference,omitempty"` // cm, 仅当有值时返回
+	Note              string   `json:"note,omitempty"`
+	MeasureTime       int64    `json:"measureTime"`
+	CreateBy          string   `json:"createBy"`
+	CreateTime        int64    `json:"createTime"`
 }
 
 // RecordListQuery 记录列表查询参数
