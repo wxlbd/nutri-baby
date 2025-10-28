@@ -202,13 +202,10 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { currentBaby } from '@/store/baby'
-import {
-  addGrowthRecord,
-  getGrowthRecordsByBabyId,
-  getLatestGrowthRecord,
-  deleteGrowthRecord
-} from '@/store/growth'
 import { formatDate } from '@/utils/date'
+
+// 直接调用 API 层
+import * as growthApi from '@/api/growth'
 
 // 对话框显示状态
 const showAddDialog = ref(false)
@@ -224,16 +221,37 @@ const formData = ref({
   note: ''
 })
 
+// 成长记录列表(从 API 获取)
+const records = ref<growthApi.GrowthRecordResponse[]>([])
+
 // 最新记录
 const latestRecord = computed(() => {
-  if (!currentBaby.value) return null
-  return getLatestGrowthRecord(currentBaby.value.babyId)
+  return records.value.length > 0 ? records.value[0] : null
 })
 
 // 历史记录列表
 const recordList = computed(() => {
-  if (!currentBaby.value) return []
-  return getGrowthRecordsByBabyId(currentBaby.value.babyId)
+  return records.value
+})
+
+// 加载成长记录
+const loadRecords = async () => {
+  if (!currentBaby.value) return
+
+  try {
+    const data = await growthApi.apiFetchGrowthRecords({
+      babyId: currentBaby.value.babyId,
+      pageSize: 100
+    })
+    records.value = data.records
+  } catch (error) {
+    console.error('加载成长记录失败:', error)
+  }
+}
+
+// 页面加载
+onMounted(() => {
+  loadRecords()
 })
 
 // 日期选择确认
@@ -244,7 +262,7 @@ const handleDateConfirm = ({ selectedValue }: any) => {
 }
 
 // 提交表单
-const handleSubmit = () => {
+const handleSubmit = async () => {
   if (!currentBaby.value) {
     uni.showToast({
       title: '请先选择宝宝',
@@ -292,63 +310,67 @@ const handleSubmit = () => {
   }
 
   // 添加记录
-  addGrowthRecord({
-    babyId: currentBaby.value.babyId,
-    time: formData.value.time,
-    height: formData.value.height ? height : undefined,
-    weight: formData.value.weight ? weight : undefined,
-    headCircumference: formData.value.headCircumference ? headCircumference : undefined,
-    note: formData.value.note || undefined
-  })
+  try {
+    await growthApi.apiCreateGrowthRecord({
+      babyId: currentBaby.value.babyId,
+      measureTime: formData.value.time,
+      height: formData.value.height ? height : undefined,
+      weight: formData.value.weight ? weight : undefined,
+      headCircumference: formData.value.headCircumference ? headCircumference : undefined,
+      note: formData.value.note || undefined
+    })
 
-  uni.showToast({
-    title: '添加成功',
-    icon: 'success'
-  })
+    uni.showToast({
+      title: '添加成功',
+      icon: 'success'
+    })
 
-  // 重置表单
-  formData.value = {
-    height: '',
-    weight: '',
-    headCircumference: '',
-    time: Date.now(),
-    note: ''
+    // 重新加载记录
+    await loadRecords()
+
+    // 重置表单
+    formData.value = {
+      height: '',
+      weight: '',
+      headCircumference: '',
+      time: Date.now(),
+      note: ''
+    }
+
+    showAddDialog.value = false
+  } catch (error: any) {
+    uni.showToast({
+      title: error.message || '添加失败',
+      icon: 'none'
+    })
   }
-
-  showAddDialog.value = false
 }
 
 // 删除记录
-const handleDelete = (id: string) => {
+const handleDelete = async (id: string) => {
   uni.showModal({
     title: '确认删除',
     content: '确定要删除这条成长记录吗?',
-    success: (res) => {
+    success: async (res) => {
       if (res.confirm) {
-        const success = deleteGrowthRecord(id)
-        if (success) {
+        try {
+          await growthApi.apiDeleteGrowthRecord(id)
           uni.showToast({
             title: '删除成功',
             icon: 'success'
+          })
+          // 重新加载记录
+          await loadRecords()
+        } catch (error: any) {
+          uni.showToast({
+            title: error.message || '删除失败',
+            icon: 'none'
           })
         }
       }
     }
   })
 }
-
-// 页面加载
-onMounted(() => {
-  if (!currentBaby.value) {
-    uni.showToast({
-      title: '请先选择宝宝',
-      icon: 'none'
-    })
-    setTimeout(() => {
-      uni.navigateBack()
-    }, 1500)
-  }
-})
 </script>
 
 <style lang="scss" scoped>
