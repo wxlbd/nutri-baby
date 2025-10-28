@@ -364,9 +364,9 @@ func (s *RecordService) CreateGrowthRecord(ctx context.Context, openID string, r
 	}
 
 	now := time.Now().UnixMilli()
-	recordTime := req.RecordTime
-	if recordTime == 0 {
-		recordTime = now
+	measureTime := req.MeasureTime
+	if measureTime == 0 {
+		measureTime = now
 	}
 
 	var height *float64
@@ -381,10 +381,10 @@ func (s *RecordService) CreateGrowthRecord(ctx context.Context, openID string, r
 		weight = &w
 	}
 
-	var headCirc *float64
-	if req.HeadCircum > 0 {
-		hc := float64(req.HeadCircum)
-		headCirc = &hc
+	var headCircumference *float64
+	if req.HeadCircumference > 0 {
+		hc := req.HeadCircumference
+		headCircumference = &hc
 	}
 
 	var note *string
@@ -395,10 +395,10 @@ func (s *RecordService) CreateGrowthRecord(ctx context.Context, openID string, r
 	record := &entity.GrowthRecord{
 		RecordID:          uuid.New().String(),
 		BabyID:            req.BabyID,
-		Time:              recordTime,
+		Time:              measureTime,
 		Height:            height,
 		Weight:            weight,
-		HeadCircumference: headCirc,
+		HeadCircumference: headCircumference,
 		Note:              note,
 		CreateBy:          openID,
 		CreateTime:        now,
@@ -418,36 +418,21 @@ func (s *RecordService) CreateGrowthRecord(ctx context.Context, openID string, r
 		_ = s.babyRepo.Update(ctx, baby)
 	}
 
-	resultHeight := 0
-	if record.Height != nil {
-		resultHeight = int(*record.Height)
-	}
-
-	resultWeight := 0
-	if record.Weight != nil {
-		resultWeight = int(*record.Weight)
-	}
-
-	resultHeadCirc := 0
-	if record.HeadCircumference != nil {
-		resultHeadCirc = int(*record.HeadCircumference)
-	}
-
 	resultNote := ""
 	if record.Note != nil {
 		resultNote = *record.Note
 	}
 
 	return &dto.GrowthRecordDTO{
-		RecordID:   record.RecordID,
-		BabyID:     record.BabyID,
-		Height:     resultHeight,
-		Weight:     resultWeight,
-		HeadCircum: resultHeadCirc,
-		Note:       resultNote,
-		RecordTime: record.Time,
-		CreateBy:   record.CreateBy,
-		CreateTime: record.CreateTime,
+		RecordID:          record.RecordID,
+		BabyID:            record.BabyID,
+		Height:            record.Height,
+		Weight:            record.Weight,
+		HeadCircumference: record.HeadCircumference,
+		Note:              resultNote,
+		MeasureTime:       record.Time,
+		CreateBy:          record.CreateBy,
+		CreateTime:        record.CreateTime,
 	}, nil
 }
 
@@ -471,36 +456,21 @@ func (s *RecordService) GetGrowthRecords(ctx context.Context, openID string, que
 
 	result := make([]dto.GrowthRecordDTO, 0, len(records))
 	for _, record := range records {
-		height := 0
-		if record.Height != nil {
-			height = int(*record.Height)
-		}
-
-		weight := 0
-		if record.Weight != nil {
-			weight = int(*record.Weight)
-		}
-
-		headCirc := 0
-		if record.HeadCircumference != nil {
-			headCirc = int(*record.HeadCircumference)
-		}
-
 		note := ""
 		if record.Note != nil {
 			note = *record.Note
 		}
 
 		result = append(result, dto.GrowthRecordDTO{
-			RecordID:   record.RecordID,
-			BabyID:     record.BabyID,
-			Height:     height,
-			Weight:     weight,
-			HeadCircum: headCirc,
-			Note:       note,
-			RecordTime: record.Time,
-			CreateBy:   record.CreateBy,
-			CreateTime: record.CreateTime,
+			RecordID:          record.RecordID,
+			BabyID:            record.BabyID,
+			Height:            record.Height,
+			Weight:            record.Weight,
+			HeadCircumference: record.HeadCircumference,
+			Note:              note,
+			MeasureTime:       record.Time,
+			CreateBy:          record.CreateBy,
+			CreateTime:        record.CreateTime,
 		})
 	}
 
