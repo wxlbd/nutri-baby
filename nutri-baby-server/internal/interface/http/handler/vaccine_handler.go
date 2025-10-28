@@ -1,6 +1,8 @@
 package handler
 
 import (
+	"strconv"
+
 	"github.com/gin-gonic/gin"
 
 	"github.com/wxlbd/nutri-baby-server/internal/application/dto"
@@ -124,4 +126,26 @@ func (h *VaccineHandler) GetVaccineStatistics(c *gin.Context) {
 	}
 
 	response.Success(c, stats)
+}
+
+// GetVaccineRecords 获取疫苗接种记录
+// @Router /babies/:babyId/vaccine-records [get]
+func (h *VaccineHandler) GetVaccineRecords(c *gin.Context) {
+	babyID := c.Param("babyId")
+	page, err := strconv.Atoi(c.DefaultQuery("page", "1"))
+	if err != nil {
+		response.Error(c, err)
+		return
+	}
+	pageSize, err := strconv.Atoi(c.DefaultQuery("pageSize", "10"))
+	if err != nil {
+		response.Error(c, err)
+		return
+	}
+	records, err := h.vaccineService.GetVaccineRecords(c.Request.Context(), babyID, page, pageSize)
+	if err != nil {
+		response.Error(c, err)
+		return
+	}
+	response.Success(c, records)
 }
