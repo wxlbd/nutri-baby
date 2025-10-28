@@ -139,16 +139,34 @@ import { computed, onMounted, ref } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import { isLoggedIn, fetchUserInfo } from '@/store/user'
 import { currentBaby, fetchBabyList } from '@/store/baby'
-import { getTodayTotalMilk, getLastFeedingRecord, getTodayBreastfeedingStats } from '@/store/feeding'
-import { getTodayDiaperCount } from '@/store/diaper'
-import { getTodayTotalSleepDuration } from '@/store/sleep'
-import { getUpcomingReminders } from '@/store/vaccine'
-import { formatRelativeTime, formatDuration, formatDate } from '@/utils/date'
+import { formatRelativeTime, formatDuration, formatDate, getTodayStart, getTodayEnd } from '@/utils/date'
+
+// 直接调用 API 层
+import * as feedingApi from '@/api/feeding'
+import * as diaperApi from '@/api/diaper'
+import * as sleepApi from '@/api/sleep'
+import * as vaccineApi from '@/api/vaccine'
 
 // 导航栏引用
 const navbarRef = ref<any>(null)
 // 页面内容区域的 padding-top
 const pageContentPaddingTop = ref('152rpx') // 默认值（状态栏44px + 内容88rpx + 间距20rpx）
+
+// ============ 响应式数据 ============
+
+// 今日喂养记录
+const todayFeedingRecords = ref<feedingApi.FeedingRecordResponse[]>([])
+
+// 今日换尿布记录
+const todayDiaperRecords = ref<diaperApi.DiaperRecordResponse[]>([])
+
+// 今日睡眠记录
+const todaySleepRecords = ref<sleepApi.SleepRecordResponse[]>([])
+
+// 疫苗提醒
+const vaccineReminders = ref<vaccineApi.VaccineReminderResponse[]>([])
+
+// ============ 计算属性 ============
 
 // 今日数据统计
 const todayStats = computed(() => {
@@ -161,32 +179,49 @@ const todayStats = computed(() => {
     }
   }
 
-  const breastfeedingStats = getTodayBreastfeedingStats(currentBaby.value.babyId)
+  // 计算奶瓶奶量 (仅统计奶瓶喂养,母乳无法测量毫升数)
+  const totalMilk = todayFeedingRecords.value
+    .filter(r => r.feedingType === 'bottle')
+    .reduce((sum, r) => sum + (r.amount || 0), 0)
+
+  // 计算母乳喂养次数
+  const breastfeedingCount = todayFeedingRecords.value
+    .filter(r => r.feedingType === 'breast')
+    .length
+
+  // 计算睡眠总时长 (秒)
+  const sleepDuration = todaySleepRecords.value
+    .reduce((sum, r) => sum + (r.duration || 0), 0)
+
+  // 换尿布次数
+  const diaperCount = todayDiaperRecords.value.length
 
   return {
-    totalMilk: getTodayTotalMilk(currentBaby.value.babyId),
-    breastfeedingCount: breastfeedingStats.count,
-    sleepDuration: getTodayTotalSleepDuration(currentBaby.value.babyId),
-    diaperCount: getTodayDiaperCount(currentBaby.value.babyId)
+    totalMilk: Math.round(totalMilk),
+    breastfeedingCount,
+    sleepDuration,
+    diaperCount
   }
 })
 
 // 距上次喂奶时间
 const lastFeedingTime = computed(() => {
-  if (!currentBaby.value) return '-'
+  if (!currentBaby.value || todayFeedingRecords.value.length === 0) return '-'
 
-  const lastRecord = getLastFeedingRecord(currentBaby.value.babyId)
-  if (!lastRecord) return '-'
+  // 按时间倒序排列,取第一条
+  const sortedRecords = [...todayFeedingRecords.value].sort((a, b) => b.feedingTime - a.feedingTime)
+  const lastRecord = sortedRecords[0]
 
-  return formatRelativeTime(lastRecord.time)
+  return formatRelativeTime(lastRecord.feedingTime)
 })
 
 // 下次喂奶建议时间
 const nextFeedingTime = computed(() => {
-  if (!currentBaby.value) return ''
+  if (!currentBaby.value || todayFeedingRecords.value.length === 0) return ''
 
-  const lastRecord = getLastFeedingRecord(currentBaby.value.babyId)
-  if (!lastRecord) return ''
+  // 获取最后一次喂奶记录
+  const sortedRecords = [...todayFeedingRecords.value].sort((a, b) => b.feedingTime - a.feedingTime)
+  const lastRecord = sortedRecords[0]
 
   // 计算宝宝月龄
   const birthDate = new Date(currentBaby.value.birthDate)
@@ -206,7 +241,7 @@ const nextFeedingTime = computed(() => {
     intervalMinutes = 240 // 6个月以上: 4小时
   }
 
-  const nextTime = lastRecord.time + intervalMinutes * 60 * 1000
+  const nextTime = lastRecord.feedingTime + intervalMinutes * 60 * 1000
   const timeDiff = nextTime - Date.now()
 
   if (timeDiff <= 0) {
@@ -226,8 +261,10 @@ const nextFeedingTime = computed(() => {
 
 // 即将到期的疫苗(最多显示2个)
 const upcomingVaccines = computed(() => {
-  if (!currentBaby.value) return []
-  return getUpcomingReminders(currentBaby.value.babyId).slice(0, 2)
+  // 仅显示 due 和 overdue 状态的提醒
+  return vaccineReminders.value
+    .filter(r => r.status === 'due' || r.status === 'overdue')
+    .slice(0, 2)
 })
 
 // 格式化疫苗日期
@@ -310,6 +347,12 @@ const checkLoginAndBaby = async () => {
           })
         }
       })
+      return
+    }
+
+    // 5. 有宝宝,加载今日数据
+    if (currentBaby.value) {
+      await loadTodayData()
     }
   } catch (error) {
     console.error('[Index] 获取用户/宝宝信息失败:', error)
@@ -317,6 +360,63 @@ const checkLoginAndBaby = async () => {
       title: '加载数据失败',
       icon: 'none'
     })
+  }
+}
+
+// 加载今日数据
+const loadTodayData = async () => {
+  if (!currentBaby.value) return
+
+  const babyId = currentBaby.value.babyId
+  const todayStart = getTodayStart()
+  const todayEnd = getTodayEnd()
+
+  try {
+    // 并行加载所有数据
+    const [feedingData, diaperData, sleepData, vaccineData] = await Promise.all([
+      // 获取今日喂养记录
+      feedingApi.apiFetchFeedingRecords({
+        babyId,
+        startTime: todayStart,
+        endTime: todayEnd,
+        pageSize: 100
+      }),
+      // 获取今日换尿布记录
+      diaperApi.apiFetchDiaperRecords({
+        babyId,
+        startTime: todayStart,
+        endTime: todayEnd,
+        pageSize: 100
+      }),
+      // 获取今日睡眠记录
+      sleepApi.apiFetchSleepRecords({
+        babyId,
+        startTime: todayStart,
+        endTime: todayEnd,
+        pageSize: 100
+      }),
+      // 获取疫苗提醒
+      vaccineApi.apiFetchVaccineReminders({
+        babyId,
+        status: ['upcoming', 'due', 'overdue']
+      })
+    ])
+
+    // 更新响应式数据
+    todayFeedingRecords.value = feedingData.records
+    todayDiaperRecords.value = diaperData.records
+    todaySleepRecords.value = sleepData.records
+    vaccineReminders.value = vaccineData.reminders
+
+    console.log('[Index] 今日数据加载完成', {
+      feeding: feedingData.records.length,
+      diaper: diaperData.records.length,
+      sleep: sleepData.records.length,
+      vaccine: vaccineData.reminders.length
+    })
+  } catch (error) {
+    console.error('[Index] 加载今日数据失败:', error)
+    // 不显示错误提示,静默失败
   }
 }
 
