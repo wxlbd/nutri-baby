@@ -60,7 +60,7 @@ type SleepRecord struct {
 	BabyID         string     `gorm:"column:baby_id;type:varchar(64);index" json:"babyId"`
 	StartTime      int64      `gorm:"column:start_time;index" json:"startTime"`
 	EndTime        *int64     `gorm:"column:end_time" json:"endTime"`
-	Duration       *int       `gorm:"column:duration" json:"duration"`          // 分钟
+	Duration       *int       `gorm:"column:duration" json:"duration"`          // 时长(秒)
 	Type           string     `gorm:"column:type;type:varchar(16)" json:"type"` // nap, night
 	CreateBy       string     `gorm:"column:create_by;type:varchar(64)" json:"createBy"`
 	CreateByName   string     `gorm:"column:create_by_name;type:varchar(64)" json:"createByName"`      // 冗余:创建者昵称
