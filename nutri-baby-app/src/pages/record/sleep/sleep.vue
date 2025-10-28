@@ -151,9 +151,26 @@ const clearTempRecord = () => {
 
 // 恢复临时睡眠记录
 const restoreTempRecord = (tempRecord: TempSleepRecording) => {
+    const user = getUserInfo();
+    if (!user) {
+        return;
+    }
+
     sleepType.value = tempRecord.type;
     startTime.value = tempRecord.startTime;
     timerRunning.value = true;
+
+    // 创建本地睡眠记录对象以显示计时器
+    ongoingRecord.value = {
+        id: `temp_${Date.now()}`, // 临时ID
+        babyId: tempRecord.babyId,
+        startTime: tempRecord.startTime,
+        type: tempRecord.type,
+        createBy: user.openid,
+        createByName: user.nickName,
+        createByAvatar: user.avatarUrl,
+        createTime: Date.now(),
+    };
 
     // 启动定时器更新显示
     timerInterval = setInterval(() => {
@@ -191,6 +208,18 @@ const startSleep = async () => {
         // 使用本地时间戳开始计时
         startTime.value = Date.now();
         timerRunning.value = true;
+
+        // 创建本地睡眠记录对象以显示计时器
+        ongoingRecord.value = {
+            id: `temp_${Date.now()}`, // 临时ID
+            babyId: currentBabyId.value,
+            startTime: startTime.value,
+            type: sleepType.value,
+            createBy: user.openid,
+            createByName: user.nickName,
+            createByAvatar: user.avatarUrl,
+            createTime: Date.now(),
+        };
 
         // 保存临时记录到本地存储
         saveTempRecord();
@@ -239,13 +268,12 @@ const endSleep = async () => {
 
         timerRunning.value = false;
 
-        // 计算总时长(分钟)
+        // 计算总时长(秒)
         const elapsedSeconds = Math.floor(
             (Date.now() - startTime.value) / 1000,
         );
-        const durationMinutes = Math.floor(elapsedSeconds / 60);
 
-        console.log("[Sleep] 停止计时,总时长:", durationMinutes, "分钟");
+        console.log("[Sleep] 停止计时,总时长:", elapsedSeconds, "秒");
 
         // 调用 API 创建睡眠记录
         await sleepApi.apiCreateSleepRecord({
@@ -253,12 +281,14 @@ const endSleep = async () => {
             sleepType: sleepType.value,
             startTime: startTime.value,
             endTime: Date.now(),
+            duration: elapsedSeconds, // 添加时长字段
         });
 
         console.log("[Sleep] 睡眠记录保存成功");
 
-        // 清除临时记录
+        // 清除临时记录和进行中的记录
         clearTempRecord();
+        ongoingRecord.value = null;
 
         uni.showToast({
             title: "保存成功",
