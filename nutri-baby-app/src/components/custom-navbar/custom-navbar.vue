@@ -41,8 +41,7 @@
 
 <script setup lang="ts">
 import { computed, ref, onMounted } from 'vue'
-import { babyList } from '@/store/baby'
-import { getUserInfo } from '@/store/user'
+import { currentBaby } from '@/store/baby'
 import { calculateAge } from '@/utils/date'
 
 interface Props {
@@ -57,21 +56,6 @@ const props = withDefaults(defineProps<Props>(), {
 const statusBarHeight = ref(0)
 // 导航栏内容高度（rpx）
 const navbarContentHeight = ref(88)
-
-// 获取当前宝宝 - 通过 defaultBabyId 从列表中匹配
-// 注意: 这里使用 defaultBabyId 而不是 currentBabyId
-// 原因: 导航栏应该显示用户设置的默认宝宝,而不是当前操作的宝宝
-// currentBabyId 用于记录页面等地方记录数据时使用,可能与 defaultBabyId 不同
-const currentBaby = computed(() => {
-  const userInfo = getUserInfo()
-  const defaultBabyId = userInfo?.defaultBabyId
-
-  if (!defaultBabyId || !babyList.value) {
-    return null
-  }
-
-  return babyList.value.find(baby => baby.babyId === defaultBabyId) || null
-})
 
 // 宝宝年龄
 const babyAge = computed(() => {
