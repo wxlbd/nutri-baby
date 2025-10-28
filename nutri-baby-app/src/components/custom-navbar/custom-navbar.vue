@@ -41,7 +41,8 @@
 
 <script setup lang="ts">
 import { computed, ref, onMounted } from 'vue'
-import { currentBaby } from '@/store/baby'
+import { babyList } from '@/store/baby'
+import { getUserInfo } from '@/store/user'
 import { calculateAge } from '@/utils/date'
 
 interface Props {
@@ -56,6 +57,18 @@ const props = withDefaults(defineProps<Props>(), {
 const statusBarHeight = ref(0)
 // 导航栏内容高度（rpx）
 const navbarContentHeight = ref(88)
+
+// 获取当前宝宝 - 通过 defaultBabyId 从列表中匹配
+const currentBaby = computed(() => {
+  const userInfo = getUserInfo()
+  const defaultBabyId = userInfo?.defaultBabyId
+
+  if (!defaultBabyId || !babyList.value) {
+    return null
+  }
+
+  return babyList.value.find(baby => baby.babyId === defaultBabyId) || null
+})
 
 // 宝宝年龄
 const babyAge = computed(() => {
