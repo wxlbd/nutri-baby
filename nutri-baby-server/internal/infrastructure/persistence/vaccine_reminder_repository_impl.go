@@ -2,6 +2,7 @@ package persistence
 
 import (
 	"context"
+	"time"
 
 	"github.com/wxlbd/nutri-baby-server/internal/domain/entity"
 	"github.com/wxlbd/nutri-baby-server/internal/domain/repository"
@@ -51,7 +52,7 @@ func (r *vaccineReminderRepositoryImpl) FindByBabyID(ctx context.Context, babyID
 	err := r.db.WithContext(ctx).
 		Preload("Plan").
 		Where("baby_id = ? AND deleted_at IS NULL", babyID).
-		Order("remind_time ASC").
+		Order("scheduled_date ASC").
 		Find(&reminders).Error
 
 	if err != nil {
@@ -71,7 +72,7 @@ func (r *vaccineReminderRepositoryImpl) FindByStatus(
 	query := r.db.WithContext(ctx).
 		Preload("Plan").
 		Where("baby_id = ? AND status = ? AND deleted_at IS NULL", babyID, status).
-		Order("remind_time ASC")
+		Order("scheduled_date ASC")
 
 	if limit > 0 {
 		query = query.Limit(limit)
@@ -92,12 +93,12 @@ func (r *vaccineReminderRepositoryImpl) FindDueReminders(ctx context.Context) ([
 	// 查找状态为 upcoming、due 或 overdue 且未发送的提醒
 	err := r.db.WithContext(ctx).
 		Preload("Plan").
-		Where("status IN (?, ?, ?) AND is_sent = ? AND deleted_at IS NULL",
+		Where("status IN (?, ?, ?) AND reminder_sent = ? AND deleted_at IS NULL",
 			entity.ReminderStatusUpcoming,
 			entity.ReminderStatusDue,
 			entity.ReminderStatusOverdue,
 			false).
-		Order("remind_time ASC").
+		Order("scheduled_date ASC").
 		Find(&reminders).Error
 
 	if err != nil {
@@ -137,10 +138,14 @@ func (r *vaccineReminderRepositoryImpl) UpdateStatus(ctx context.Context, remind
 
 // MarkSent 标记提醒已发送
 func (r *vaccineReminderRepositoryImpl) MarkSent(ctx context.Context, reminderID string) error {
+	now := time.Now().UnixMilli()
 	err := r.db.WithContext(ctx).
 		Model(&entity.VaccineReminder{}).
 		Where("reminder_id = ? AND deleted_at IS NULL", reminderID).
-		Update("is_sent", true).Error
+		Updates(map[string]interface{}{
+			"reminder_sent": true,
+			"sent_time":     now,
+		}).Error
 
 	if err != nil {
 		return errors.Wrap(errors.DatabaseError, "failed to mark vaccine reminder as sent", err)

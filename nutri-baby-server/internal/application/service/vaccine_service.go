@@ -296,3 +296,32 @@ func (s *VaccineService) InitializeVaccineReminders(ctx context.Context, babyID 
 
 	return nil
 }
+
+// GetVaccineRecords 获取疫苗接种记录
+func (s *VaccineService) GetVaccineRecords(ctx context.Context, babyID string, page, pageSize int) ([]*dto.VaccineRecordDTO, error) {
+	records, _, err := s.vaccineRecordRepo.FindByBabyID(ctx, babyID, 0, 0, "", page, pageSize)
+	if err != nil {
+		return nil, err
+	}
+
+	result := make([]*dto.VaccineRecordDTO, 0, len(records))
+	for _, record := range records {
+		result = append(result, &dto.VaccineRecordDTO{
+			RecordID:    record.RecordID,
+			BabyID:      record.BabyID,
+			PlanID:      record.PlanID,
+			VaccineType: record.VaccineType,
+			VaccineName: record.VaccineName,
+			DoseNumber:  record.DoseNumber,
+			VaccineDate: record.VaccineDate,
+			Hospital:    record.Hospital,
+			BatchNumber: record.BatchNumber,
+			Doctor:      record.Doctor,
+			Reaction:    record.Reaction,
+			Note:        record.Note,
+			CreateBy:    record.CreateBy,
+			CreateTime:  record.CreateTime,
+		})
+	}
+	return result, nil
+}

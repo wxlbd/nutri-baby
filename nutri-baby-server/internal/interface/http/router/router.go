@@ -71,6 +71,7 @@ func NewRouter(
 
 				// 疫苗接种记录和提醒
 				babies.POST("/:babyId/vaccine-records", vaccineHandler.CreateVaccineRecord)
+				babies.GET("/:babyId/vaccine-records", vaccineHandler.GetVaccineRecords)
 				babies.GET("/:babyId/vaccine-reminders", vaccineHandler.GetVaccineReminders)
 				babies.GET("/:babyId/vaccine-statistics", vaccineHandler.GetVaccineStatistics)
 			}
