@@ -106,9 +106,11 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { currentBabyId, getCurrentBaby } from '@/store/baby'
-import { addDiaperRecord } from '@/store/diaper'
 import { getUserInfo } from '@/store/user'
 import type { DiaperType, PoopColor, PoopTexture } from '@/types'
+
+// 直接调用 API 层
+import * as diaperApi from '@/api/diaper'
 
 // 表单数据
 const form = ref({
@@ -165,7 +167,7 @@ const quickRecord = (type: DiaperType) => {
 }
 
 // 保存记录
-const saveRecord = () => {
+const saveRecord = async () => {
   const user = getUserInfo()
   if (!user) {
     uni.showToast({
@@ -175,25 +177,32 @@ const saveRecord = () => {
     return
   }
 
-  addDiaperRecord(
-    currentBabyId.value,
-    form.value.type,
-    user.openid,
-    {
-      poopColor: form.value.poopColor,
-      poopTexture: form.value.poopTexture,
+  try {
+    // 直接调用 API 层创建记录
+    await diaperApi.apiCreateDiaperRecord({
+      babyId: currentBabyId.value,
+      diaperType: form.value.type,
+      pooColor: form.value.poopColor,
+      pooTexture: form.value.poopTexture,
       note: form.value.note || undefined,
-    }
-  )
+      changeTime: Date.now()
+    })
 
-  uni.showToast({
-    title: '保存成功',
-    icon: 'success'
-  })
+    uni.showToast({
+      title: '保存成功',
+      icon: 'success'
+    })
 
-  setTimeout(() => {
-    uni.navigateBack()
-  }, 1000)
+    setTimeout(() => {
+      uni.navigateBack()
+    }, 1000)
+  } catch (error: any) {
+    console.error('[Diaper] 保存换尿布记录失败:', error)
+    uni.showToast({
+      title: error.message || '保存失败',
+      icon: 'none'
+    })
+  }
 }
 
 // 提交记录
