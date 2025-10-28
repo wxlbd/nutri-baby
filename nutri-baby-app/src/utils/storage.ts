@@ -2,7 +2,7 @@
  * 本地存储工具类
  */
 
-const STORAGE_PREFIX = 'nutri_baby_'
+const STORAGE_PREFIX = "nutri_baby_";
 
 /**
  * 存储键名 - 去家庭化架构
@@ -38,9 +38,13 @@ export const StorageKeys = {
   SETTINGS: `${STORAGE_PREFIX}settings`,
 
   // 订阅消息相关
-  SUBSCRIBE_AUTH_RECORDS: `${STORAGE_PREFIX}subscribe_auth_records`,      // 授权记录
-  SUBSCRIBE_GUIDE_RECORDS: `${STORAGE_PREFIX}subscribe_guide_records`,    // 引导显示记录
+  SUBSCRIBE_AUTH_RECORDS: `${STORAGE_PREFIX}subscribe_auth_records`, // 授权记录
+  SUBSCRIBE_GUIDE_RECORDS: `${STORAGE_PREFIX}subscribe_guide_records`, // 引导显示记录
   SUBSCRIBE_REMINDER_CONFIGS: `${STORAGE_PREFIX}subscribe_reminder_configs`, // 提醒配置
+
+  // 临时记录 (未完成的记录)
+  TEMP_BREAST_FEEDING: `${STORAGE_PREFIX}temp_breast_feeding`, // 临时母乳喂养记录
+  TEMP_SLEEP_RECORDING: `${STORAGE_PREFIX}temp_sleep_recording`, // 临时睡眠记录
 
   // 离线数据队列
   OFFLINE_QUEUE: `${STORAGE_PREFIX}offline_queue`,
@@ -54,16 +58,16 @@ export const StorageKeys = {
   FAMILY_MEMBERS: `${STORAGE_PREFIX}family_members`,
   // @deprecated
   INVITATIONS: `${STORAGE_PREFIX}invitations`,
-}
+};
 
 /**
  * 设置存储
  */
 export function setStorage<T>(key: string, value: T): void {
   try {
-    uni.setStorageSync(key, JSON.stringify(value))
+    uni.setStorageSync(key, JSON.stringify(value));
   } catch (e) {
-    console.error('setStorage error:', e)
+    console.error("setStorage error:", e);
   }
 }
 
@@ -72,11 +76,11 @@ export function setStorage<T>(key: string, value: T): void {
  */
 export function getStorage<T>(key: string): T | null {
   try {
-    const value = uni.getStorageSync(key)
-    return value ? JSON.parse(value) : null
+    const value = uni.getStorageSync(key);
+    return value ? JSON.parse(value) : null;
   } catch (e) {
-    console.error('getStorage error:', e)
-    return null
+    console.error("getStorage error:", e);
+    return null;
   }
 }
 
@@ -85,9 +89,9 @@ export function getStorage<T>(key: string): T | null {
  */
 export function removeStorage(key: string): void {
   try {
-    uni.removeStorageSync(key)
+    uni.removeStorageSync(key);
   } catch (e) {
-    console.error('removeStorage error:', e)
+    console.error("removeStorage error:", e);
   }
 }
 
@@ -96,9 +100,9 @@ export function removeStorage(key: string): void {
  */
 export function clearStorage(): void {
   try {
-    uni.clearStorageSync()
+    uni.clearStorageSync();
   } catch (e) {
-    console.error('clearStorage error:', e)
+    console.error("clearStorage error:", e);
   }
 }
 
@@ -107,10 +111,10 @@ export function clearStorage(): void {
  */
 export function getStorageInfo() {
   try {
-    return uni.getStorageInfoSync()
+    return uni.getStorageInfoSync();
   } catch (e) {
-    console.error('getStorageInfo error:', e)
-    return null
+    console.error("getStorageInfo error:", e);
+    return null;
   }
 }
 
@@ -119,12 +123,12 @@ export function getStorageInfo() {
  */
 export function clearDeprecatedFamilyData(): void {
   try {
-    removeStorage(StorageKeys.FAMILY_LIST)
-    removeStorage(StorageKeys.CURRENT_FAMILY_ID)
-    removeStorage(StorageKeys.FAMILY_MEMBERS)
-    removeStorage(StorageKeys.INVITATIONS)
-    console.log("Deprecated family data cleared")
+    removeStorage(StorageKeys.FAMILY_LIST);
+    removeStorage(StorageKeys.CURRENT_FAMILY_ID);
+    removeStorage(StorageKeys.FAMILY_MEMBERS);
+    removeStorage(StorageKeys.INVITATIONS);
+    console.log("Deprecated family data cleared");
   } catch (e) {
-    console.error("clearDeprecatedFamilyData error:", e)
+    console.error("clearDeprecatedFamilyData error:", e);
   }
 }
