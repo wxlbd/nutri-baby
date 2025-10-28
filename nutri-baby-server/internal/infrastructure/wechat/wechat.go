@@ -1,14 +1,11 @@
 package wechat
 
 import (
-	"context"
-	"fmt"
-
 	"github.com/redis/go-redis/v9"
 	"github.com/silenceper/wechat/v2"
-	"github.com/silenceper/wechat/v2/cache"
 	"github.com/silenceper/wechat/v2/miniprogram"
 	miniConfig "github.com/silenceper/wechat/v2/miniprogram/config"
+	"github.com/wxlbd/nutri-baby-server/internal/infrastructure/cache"
 	"github.com/wxlbd/nutri-baby-server/internal/infrastructure/config"
 )
 
@@ -20,18 +17,8 @@ type Client struct {
 
 // NewClient 创建微信客户端
 func NewClient(cfg *config.Config, redisClient *redis.Client) *Client {
-	// 创建 Redis 缓存适配器
-	// Host 需要包含端口号，格式为 "host:port"
-	redisHost := cfg.Redis.Host
-	if cfg.Redis.Port != 0 {
-		redisHost = fmt.Sprintf("%s:%d", cfg.Redis.Host, cfg.Redis.Port)
-	}
-
-	redisCache := cache.NewRedis(context.Background(), &cache.RedisOpts{
-		Host:     redisHost,
-		Password: cfg.Redis.Password,
-		Database: cfg.Redis.DB,
-	})
+	// 使用应用层注入的 Redis 客户端,而不是创建新的连接
+	redisCache := cache.NewRedisCache(redisClient)
 
 	// 创建微信实例
 	wc := wechat.NewWechat()
