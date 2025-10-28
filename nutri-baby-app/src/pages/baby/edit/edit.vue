@@ -82,9 +82,11 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { addBaby, updateBaby, getBabyById } from '@/store/baby'
-import { initializeVaccinePlansFromServer, generateRemindersForBaby } from '@/store/vaccine'
 import { formatDate } from '@/utils/date'
+
+// 直接调用 API 层
+import * as babyApi from '@/api/baby'
+import * as vaccineApi from '@/api/vaccine'
 
 // 表单数据
 const formData = ref({
@@ -106,7 +108,7 @@ const minDate = new Date(2020, 0, 1)
 const maxDate = new Date()
 
 // 页面加载
-onMounted(() => {
+onMounted(async () => {
   // 获取页面参数
   const pages = getCurrentPages()
   const currentPage = pages[pages.length - 1] as any
@@ -117,18 +119,26 @@ onMounted(() => {
     isEdit.value = true
     editId.value = options.id
 
-    const baby = getBabyById(options.id)
-    if (baby) {
-      formData.value = {
-        name: baby.name,
-        nickname: baby.nickname || '',
-        gender: baby.gender,
-        birthDate: baby.birthDate,
-        avatarUrl: baby.avatarUrl || '',
-      }
+    try {
+      const baby = await babyApi.apiFetchBabyDetail(options.id)
+      if (baby) {
+        formData.value = {
+          name: baby.babyName,
+          nickname: baby.nickname || '',
+          gender: baby.gender,
+          birthDate: baby.birthDate,
+          avatarUrl: baby.avatarUrl || '',
+        }
 
-      // 设置选中的日期
-      selectedDate.value = new Date(baby.birthDate)
+        // 设置选中的日期
+        selectedDate.value = new Date(baby.birthDate)
+      }
+    } catch (error) {
+      console.error('加载宝宝信息失败:', error)
+      uni.showToast({
+        title: '加载数据失败',
+        icon: 'none'
+      })
     }
   }
 })
@@ -183,12 +193,17 @@ const handleSubmit = async () => {
   try {
     if (isEdit.value) {
       // 更新
-      await updateBaby(editId.value, {
-        name: formData.value.name,
+      await babyApi.apiUpdateBaby(editId.value, {
+        babyName: formData.value.name,
         nickname: formData.value.nickname,
         gender: formData.value.gender,
         birthDate: formData.value.birthDate,
         avatarUrl: formData.value.avatarUrl,
+      })
+
+      uni.showToast({
+        title: '更新成功',
+        icon: 'success'
       })
 
       setTimeout(() => {
@@ -196,40 +211,54 @@ const handleSubmit = async () => {
       }, 1000)
     } else {
       // 添加（去家庭化架构 - 不需要传 familyId）
-      const newBaby = await addBaby({
-        name: formData.value.name,
+      const newBaby = await babyApi.apiCreateBaby({
+        babyName: formData.value.name,
         nickname: formData.value.nickname,
         gender: formData.value.gender,
         birthDate: formData.value.birthDate,
         avatarUrl: formData.value.avatarUrl,
       })
 
-      // ✨ 为新宝宝自动生成疫苗计划和提醒
-      console.log('[BabyEdit] 为新宝宝生成疫苗计划:', newBaby.name)
+      // ✨ 为新宝宝自动获取疫苗计划
+      console.log('[BabyEdit] 为新宝宝获取疫苗计划:', newBaby.babyName)
 
-      // 1. 为该宝宝从服务器初始化疫苗计划
-      await initializeVaccinePlansFromServer(newBaby.babyId)
+      try {
+        // 从服务器获取该宝宝的疫苗计划
+        await vaccineApi.apiFetchVaccinePlans({ babyId: newBaby.babyId })
 
-      // 2. 为新宝宝生成疫苗提醒
-      generateRemindersForBaby(newBaby.babyId, newBaby.birthDate)
-
-      // 显示友好的提示
-      uni.showModal({
-        title: '✅ 宝宝添加成功',
-        content: `已为 ${newBaby.name} 自动生成国家免疫规划疫苗计划和接种提醒，可在"疫苗管理"页面查看详情。`,
-        showCancel: false,
-        confirmText: '好的',
-        success: () => {
-          // 跳转到首页
+        // 显示友好的提示
+        uni.showModal({
+          title: '✅ 宝宝添加成功',
+          content: `已为 ${newBaby.babyName} 自动生成国家免疫规划疫苗计划和接种提醒，可在"疫苗管理"页面查看详情。`,
+          showCancel: false,
+          confirmText: '好的',
+          success: () => {
+            // 跳转到首页
+            uni.reLaunch({
+              url: '/pages/index/index'
+            })
+          }
+        })
+      } catch (vaccineError) {
+        console.error('获取疫苗计划失败:', vaccineError)
+        // 即使疫苗计划获取失败,宝宝添加仍然成功
+        uni.showToast({
+          title: '宝宝添加成功',
+          icon: 'success'
+        })
+        setTimeout(() => {
           uni.reLaunch({
             url: '/pages/index/index'
           })
-        }
-      })
+        }, 1500)
+      }
     }
-  } catch (error) {
+  } catch (error: any) {
     console.error('保存失败:', error)
-    // 错误已在 store 中处理,无需重复提示
+    uni.showToast({
+      title: error.message || '保存失败',
+      icon: 'none'
+    })
   }
 }
 </script>
