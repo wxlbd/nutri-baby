@@ -76,12 +76,14 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { currentBaby } from '@/store/baby'
-import { getFeedingRecordsByBabyId, deleteFeedingRecord } from '@/store/feeding'
-import { getDiaperRecordsByBabyId, deleteDiaperRecord } from '@/store/diaper'
-import { getSleepRecordsByBabyId, deleteSleepRecord } from '@/store/sleep'
 import { formatDate, isToday, getTodayStart, getWeekStart, getMonthStart } from '@/utils/date'
 import { formatDuration } from '@/utils/common'
 import type { FeedingRecord, DiaperRecord, SleepRecord } from '@/types'
+
+// 直接调用 API 层
+import * as feedingApi from '@/api/feeding'
+import * as diaperApi from '@/api/diaper'
+import * as sleepApi from '@/api/sleep'
 
 // 日期筛选
 const filterType = ref<'today' | 'week' | 'month' | 'custom'>('today')
@@ -89,6 +91,11 @@ const customStartDate = ref(getTodayStart())
 const customEndDate = ref(Date.now())
 const showDatePicker = ref(false)
 const selectedDate = ref(new Date())
+
+// 记录数据(从 API 获取)
+const feedingRecords = ref<feedingApi.FeedingRecordResponse[]>([])
+const diaperRecords = ref<diaperApi.DiaperRecordResponse[]>([])
+const sleepRecords = ref<sleepApi.SleepRecordResponse[]>([])
 
 // 所有记录
 interface TimelineRecord {
@@ -99,7 +106,7 @@ interface TimelineRecord {
   typeName: string
   timeText: string
   detail: string
-  originalRecord: FeedingRecord | DiaperRecord | SleepRecord
+  originalRecord: any
 }
 
 // 获取所有记录
@@ -109,68 +116,61 @@ const allRecords = computed<TimelineRecord[]>(() => {
   const records: TimelineRecord[] = []
 
   // 喂养记录
-  const feedingRecords = getFeedingRecordsByBabyId(currentBaby.value.babyId)
-  feedingRecords.forEach(record => {
+  feedingRecords.value.forEach(record => {
     let detail = ''
-    if (record.detail.type === 'breast') {
-      detail = `母乳喂养 ${formatDuration(record.detail.duration)}`
-      if (record.detail.side === 'left') detail += ' (左侧)'
-      else if (record.detail.side === 'right') detail += ' (右侧)'
+    if (record.feedingType === 'breast') {
+      detail = `母乳喂养 ${formatDuration(record.duration || 0)}`
+      const breastSide = record.detail.breastSide
+      if (breastSide === 'left') detail += ' (左侧)'
+      else if (breastSide === 'right') detail += ' (右侧)'
       else detail += ' (双侧)'
-    } else if (record.detail.type === 'bottle') {
-      detail = `奶瓶喂养 ${record.detail.amount}${record.detail.unit}`
+    } else if (record.feedingType === 'bottle') {
+      detail = `奶瓶喂养 ${record.amount}${record.detail.unit || 'ml'}`
       detail += record.detail.bottleType === 'formula' ? ' (配方奶)' : ' (母乳)'
     } else {
       detail = `辅食: ${record.detail.foodName}`
     }
 
     records.push({
-      id: record.id,
+      id: record.recordId,
       type: 'feeding',
-      time: record.time,
+      time: record.feedingTime,
       icon: '🍼',
       typeName: '喂养',
-      timeText: formatDate(record.time, 'HH:mm'),
+      timeText: formatDate(record.feedingTime, 'HH:mm'),
       detail,
       originalRecord: record,
     })
   })
 
   // 排泄记录
-  const diaperRecords = getDiaperRecordsByBabyId(currentBaby.value.babyId)
-  diaperRecords.forEach(record => {
+  diaperRecords.value.forEach(record => {
     let detail = ''
-    if (record.type === 'wet') detail = '小便'
-    else if (record.type === 'dirty') detail = '大便'
+    if (record.diaperType === 'pee') detail = '小便'
+    else if (record.diaperType === 'poo') detail = '大便'
     else detail = '小便+大便'
 
-    if (record.poopColor) detail += ` (${record.poopColor})`
+    if (record.pooColor) detail += ` (${record.pooColor})`
 
     records.push({
-      id: record.id,
+      id: record.recordId,
       type: 'diaper',
-      time: record.time,
+      time: record.changeTime,
       icon: '🧷',
       typeName: '换尿布',
-      timeText: formatDate(record.time, 'HH:mm'),
+      timeText: formatDate(record.changeTime, 'HH:mm'),
       detail,
       originalRecord: record,
     })
   })
 
   // 睡眠记录
-  const sleepRecords = getSleepRecordsByBabyId(currentBaby.value.babyId)
-  sleepRecords.forEach(record => {
-    let detail = record.type === 'nap' ? '小睡' : '夜间长睡'
-    if (record.duration) {
-      // duration 是分钟数,转换为秒数后格式化
-      detail += ` ${formatDuration(record.duration * 60)}`
-    } else {
-      detail += ' (进行中)'
-    }
+  sleepRecords.value.forEach(record => {
+    const duration = record.duration || 0
+    const detail = `${record.sleepType === 'nap' ? '小睡' : '夜间睡眠'} ${formatDuration(duration)}`
 
     records.push({
-      id: record.id,
+      id: record.recordId,
       type: 'sleep',
       time: record.startTime,
       icon: '💤',
@@ -181,7 +181,7 @@ const allRecords = computed<TimelineRecord[]>(() => {
     })
   })
 
-  // 按时间倒序排序
+  // 按时间倒序排列
   return records.sort((a, b) => b.time - a.time)
 })
 
@@ -230,6 +230,36 @@ const groupedRecords = computed(() => {
   return groups
 })
 
+// 加载所有记录
+const loadRecords = async () => {
+  if (!currentBaby.value) return
+
+  const babyId = currentBaby.value.babyId
+
+  try {
+    const [feedingData, diaperData, sleepData] = await Promise.all([
+      feedingApi.apiFetchFeedingRecords({ babyId, pageSize: 200 }),
+      diaperApi.apiFetchDiaperRecords({ babyId, pageSize: 200 }),
+      sleepApi.apiFetchSleepRecords({ babyId, pageSize: 200 })
+    ])
+
+    feedingRecords.value = feedingData.records
+    diaperRecords.value = diaperData.records
+    sleepRecords.value = sleepData.records
+  } catch (error) {
+    console.error('加载记录失败:', error)
+    uni.showToast({
+      title: '加载数据失败',
+      icon: 'none'
+    })
+  }
+}
+
+// 页面加载
+onMounted(() => {
+  loadRecords()
+})
+
 // 筛选日期
 const filterDate = (type: 'today' | 'week' | 'month') => {
   filterType.value = type
@@ -245,45 +275,38 @@ const handleDateConfirm = ({ selectedValue }: any) => {
 }
 
 // 删除记录
-const deleteRecord = (record: TimelineRecord) => {
+const deleteRecord = async (record: TimelineRecord) => {
   uni.showModal({
     title: '确认删除',
     content: '确定要删除这条记录吗?',
-    success: (res) => {
+    success: async (res) => {
       if (res.confirm) {
-        let success = false
+        try {
+          if (record.type === 'feeding') {
+            await feedingApi.apiDeleteFeedingRecord(record.id)
+          } else if (record.type === 'diaper') {
+            await diaperApi.apiDeleteDiaperRecord(record.id)
+          } else if (record.type === 'sleep') {
+            await sleepApi.apiDeleteSleepRecord(record.id)
+          }
 
-        if (record.type === 'feeding') {
-          success = deleteFeedingRecord(record.id)
-        } else if (record.type === 'diaper') {
-          success = deleteDiaperRecord(record.id)
-        } else if (record.type === 'sleep') {
-          success = deleteSleepRecord(record.id)
-        }
-
-        if (success) {
           uni.showToast({
             title: '删除成功',
             icon: 'success'
+          })
+
+          // 重新加载记录
+          await loadRecords()
+        } catch (error: any) {
+          uni.showToast({
+            title: error.message || '删除失败',
+            icon: 'none'
           })
         }
       }
     }
   })
 }
-
-// 页面加载
-onMounted(() => {
-  if (!currentBaby.value) {
-    uni.showToast({
-      title: '请先选择宝宝',
-      icon: 'none'
-    })
-    setTimeout(() => {
-      uni.navigateBack()
-    }, 1500)
-  }
-})
 </script>
 
 <style lang="scss" scoped>
