@@ -33,10 +33,18 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
-import { wxLogin } from '@/store/user'
+import { ref, onMounted } from 'vue'
+import { wxLogin, isLoggedIn } from '@/store/user'
 
 const loading = ref(false)
+
+// 应用启动时检查登录状态,如果已登录则自动跳转
+onMounted(() => {
+  if (isLoggedIn.value) {
+    console.log('[Login] 用户已登录,自动跳转到首页')
+    redirectAfterLogin()
+  }
+})
 
 /**
  * 登录后重定向逻辑
