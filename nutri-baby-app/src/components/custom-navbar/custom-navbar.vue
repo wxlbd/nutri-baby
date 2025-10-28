@@ -12,11 +12,11 @@
               class="avatar-img"
             />
             <view v-else class="avatar-placeholder">
-              {{ currentBaby.name.charAt(0) }}
+              {{ currentBaby.name ? currentBaby.name.charAt(0) : '宝' }}
             </view>
           </view>
           <view class="baby-text">
-            <text class="baby-name">{{ currentBaby.name }}</text>
+            <text class="baby-name">{{ currentBaby.name || '宝宝' }}</text>
             <text class="baby-age">{{ babyAge }}</text>
           </view>
           <nut-icon name="right" size="12" color="#999" class="arrow-icon" />
