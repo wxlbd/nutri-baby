@@ -227,13 +227,15 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { currentBaby } from '@/store/baby'
-import { getFeedingRecordsByBabyId } from '@/store/feeding'
-import { getSleepRecordsByBabyId } from '@/store/sleep'
-import { getDiaperRecordsByBabyId } from '@/store/diaper'
-import { getGrowthRecordsByBabyId } from '@/store/growth'
 import { getWeekStart, getMonthStart, formatDate } from '@/utils/date'
+
+// 直接调用 API 层
+import * as feedingApi from '@/api/feeding'
+import * as sleepApi from '@/api/sleep'
+import * as diaperApi from '@/api/diaper'
+import * as growthApi from '@/api/growth'
 
 // 时间范围
 const timeRange = ref<'week' | 'month'>('week')
@@ -244,6 +246,45 @@ const getTimeRange = () => {
   const start = timeRange.value === 'week' ? getWeekStart() : getMonthStart()
   return { start, end: now }
 }
+
+// 记录数据(从 API 获取)
+const feedingRecords = ref<feedingApi.FeedingRecordResponse[]>([])
+const sleepRecords = ref<sleepApi.SleepRecordResponse[]>([])
+const diaperRecords = ref<diaperApi.DiaperRecordResponse[]>([])
+const growthRecords = ref<growthApi.GrowthRecordResponse[]>([])
+
+// 加载所有记录
+const loadRecords = async () => {
+  if (!currentBaby.value) return
+
+  const babyId = currentBaby.value.babyId
+  const { start, end } = getTimeRange()
+
+  try {
+    const [feedingData, sleepData, diaperData, growthData] = await Promise.all([
+      feedingApi.apiFetchFeedingRecords({ babyId, startTime: start, endTime: end, pageSize: 500 }),
+      sleepApi.apiFetchSleepRecords({ babyId, startTime: start, endTime: end, pageSize: 500 }),
+      diaperApi.apiFetchDiaperRecords({ babyId, startTime: start, endTime: end, pageSize: 500 }),
+      growthApi.apiFetchGrowthRecords({ babyId, pageSize: 100 }) // 成长记录不限制时间范围
+    ])
+
+    feedingRecords.value = feedingData.records
+    sleepRecords.value = sleepData.records
+    diaperRecords.value = diaperData.records
+    growthRecords.value = growthData.records
+  } catch (error) {
+    console.error('加载统计数据失败:', error)
+    uni.showToast({
+      title: '加载数据失败',
+      icon: 'none'
+    })
+  }
+}
+
+// 监听时间范围变化,重新加载数据
+watch(timeRange, () => {
+  loadRecords()
+})
 
 // 喂养统计
 const feedingStats = computed(() => {
@@ -257,25 +298,20 @@ const feedingStats = computed(() => {
     }
   }
 
-  const { start, end } = getTimeRange()
-  const records = getFeedingRecordsByBabyId(currentBaby.value.babyId).filter(
-    r => r.time >= start && r.time <= end
-  )
-
   let totalMilk = 0
   const dailyMap = new Map<string, number>()
 
-  records.forEach(record => {
+  feedingRecords.value.forEach(record => {
     // 只统计奶瓶喂养的奶量，母乳喂养不计入
-    if (record.detail.type === 'bottle') {
+    if (record.feedingType === 'bottle') {
       const amount = record.detail.unit === 'oz'
-        ? record.detail.amount * 29.5735
-        : record.detail.amount
+        ? (record.amount || 0) * 29.5735
+        : (record.amount || 0)
 
       totalMilk += amount
 
       // 按日期统计
-      const date = formatDate(record.time, 'MM-DD')
+      const date = formatDate(record.feedingTime, 'MM-DD')
       dailyMap.set(date, (dailyMap.get(date) || 0) + amount)
     }
   })
@@ -300,8 +336,8 @@ const feedingStats = computed(() => {
 
   return {
     totalMilk: Math.round(totalMilk),
-    count: records.length,
-    avgMilk: records.length > 0 ? Math.round(totalMilk / days) : 0,
+    count: feedingRecords.value.length,
+    avgMilk: feedingRecords.value.length > 0 ? Math.round(totalMilk / days) : 0,
     dailyData,
     maxDaily,
   }
@@ -324,22 +360,17 @@ const sleepStats = computed(() => {
     }
   }
 
-  const { start, end } = getTimeRange()
-  const records = getSleepRecordsByBabyId(currentBaby.value.babyId).filter(
-    r => r.startTime >= start && r.startTime <= end && r.duration
-  )
-
-  const totalMinutes = records.reduce((sum, r) => sum + (r.duration || 0), 0)
+  const totalMinutes = sleepRecords.value.reduce((sum, r) => sum + (r.duration || 0), 0)
   const days = timeRange.value === 'week' ? 7 : 30
 
   // 计算最长单次睡眠
-  const longestSleep = records.length > 0
-    ? Math.max(...records.map(r => r.duration || 0))
+  const longestSleep = sleepRecords.value.length > 0
+    ? Math.max(...sleepRecords.value.map(r => r.duration || 0))
     : 0
 
   // 计算平均单次睡眠
-  const avgSingleSleep = records.length > 0
-    ? Math.round(totalMinutes / records.length)
+  const avgSingleSleep = sleepRecords.value.length > 0
+    ? Math.round(totalMinutes / sleepRecords.value.length)
     : 0
 
   // 统计夜间睡眠和小睡
@@ -348,8 +379,8 @@ const sleepStats = computed(() => {
   let napMinutes = 0
   let napCount = 0
 
-  records.forEach(r => {
-    if (r.type === 'night') {
+  sleepRecords.value.forEach(r => {
+    if (r.sleepType === 'night') {
       nightSleepMinutes += r.duration || 0
       nightSleepCount++
     } else {
@@ -400,7 +431,7 @@ const sleepStats = computed(() => {
 
   return {
     totalHours: Math.round(totalMinutes / 60 * 10) / 10,
-    count: records.length,
+    count: sleepRecords.value.length,
     avgHours: Math.round((totalMinutes / days / 60) * 10) / 10,
     longestSleep,
     avgSingleSleep,
@@ -418,17 +449,12 @@ const diaperStats = computed(() => {
     return { total: 0, wet: 0, dirty: 0 }
   }
 
-  const { start, end } = getTimeRange()
-  const records = getDiaperRecordsByBabyId(currentBaby.value.babyId).filter(
-    r => r.time >= start && r.time <= end
-  )
-
   let wet = 0
   let dirty = 0
 
-  records.forEach(r => {
-    if (r.type === 'wet') wet++
-    else if (r.type === 'dirty') dirty++
+  diaperRecords.value.forEach(r => {
+    if (r.diaperType === 'pee') wet++
+    else if (r.diaperType === 'poo') dirty++
     else {
       wet++
       dirty++
@@ -436,7 +462,7 @@ const diaperStats = computed(() => {
   })
 
   return {
-    total: records.length,
+    total: diaperRecords.value.length,
     wet,
     dirty,
   }
@@ -461,9 +487,7 @@ const growthStats = computed(() => {
     }
   }
 
-  const records = getGrowthRecordsByBabyId(currentBaby.value.babyId)
-
-  if (records.length === 0) {
+  if (growthRecords.value.length === 0) {
     return {
       hasData: false,
       latestHeight: 0,
@@ -481,17 +505,17 @@ const growthStats = computed(() => {
   }
 
   // 最新数据
-  const latestRecord = records[0]
+  const latestRecord = growthRecords.value[0]
 
   // 准备曲线数据（按时间正序）
-  const sortedRecords = [...records].reverse()
+  const sortedRecords = [...growthRecords.value].reverse()
   const dates: string[] = []
   const heightData: number[] = []
   const weightData: number[] = []
   const headData: number[] = []
 
   sortedRecords.forEach(record => {
-    const date = new Date(record.time)
+    const date = new Date(record.measureTime)
     dates.push(`${date.getMonth() + 1}/${date.getDate()}`)
 
     if (record.height) heightData.push(record.height)
@@ -543,7 +567,11 @@ onMounted(() => {
     setTimeout(() => {
       uni.navigateBack()
     }, 1500)
+    return
   }
+
+  // 加载数据
+  loadRecords()
 })
 </script>
 
