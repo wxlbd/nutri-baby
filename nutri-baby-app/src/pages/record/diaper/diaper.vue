@@ -7,7 +7,7 @@
           type="primary"
           size="large"
           class="type-button"
-          @click="quickRecord('wet')"
+          @click="quickRecord('pee')"
         >
           <view class="button-content">
             <text class="icon">💧</text>
@@ -19,7 +19,7 @@
           type="warning"
           size="large"
           class="type-button"
-          @click="quickRecord('dirty')"
+          @click="quickRecord('poop')"
         >
           <view class="button-content">
             <text class="icon">💩</text>
@@ -114,7 +114,7 @@ import * as diaperApi from '@/api/diaper'
 
 // 表单数据
 const form = ref({
-  type: 'wet' as DiaperType,
+  type: 'pee' as DiaperType,
   poopColor: undefined as PoopColor | undefined,
   poopTexture: undefined as PoopTexture | undefined,
   note: '',
@@ -157,7 +157,7 @@ const quickRecord = (type: DiaperType) => {
   form.value.type = type
 
   // 如果包含大便,显示详情填写
-  if (type === 'dirty' || type === 'both') {
+  if (type === 'poop' || type === 'both') {
     showDetails.value = true
     return
   }
