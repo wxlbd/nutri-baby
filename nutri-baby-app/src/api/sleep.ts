@@ -1,0 +1,105 @@
+/**
+ * 睡眠记录 API 接口
+ * 职责: 纯 API 调用,无状态,无副作用
+ */
+import { get, post, put, del } from '@/utils/request'
+
+// ============ 类型定义 ============
+
+/**
+ * API 响应: 睡眠记录详情
+ */
+export interface SleepRecordResponse {
+  recordId: string
+  babyId: string
+  sleepType: 'nap' | 'night'
+  startTime: number
+  endTime?: number
+  duration?: number
+  quality?: 'good' | 'fair' | 'poor'
+  note?: string
+  createBy: string
+  createTime: number
+}
+
+/**
+ * API 响应: 睡眠记录列表
+ */
+export interface SleepRecordsListResponse {
+  records: SleepRecordResponse[]
+  total: number
+  page: number
+  pageSize: number
+}
+
+/**
+ * API 请求: 创建睡眠记录
+ */
+export interface CreateSleepRecordRequest {
+  babyId: string
+  sleepType: 'nap' | 'night'
+  startTime: number
+  endTime?: number
+  duration?: number
+  quality?: 'good' | 'fair' | 'poor'
+  note?: string
+}
+
+// ============ API 函数 ============
+
+/**
+ * 获取睡眠记录列表
+ *
+ * @param params 查询参数
+ * @returns Promise<SleepRecordsListResponse>
+ */
+export async function apiFetchSleepRecords(params: {
+  babyId: string
+  startTime?: number
+  endTime?: number
+  page?: number
+  pageSize?: number
+}): Promise<SleepRecordsListResponse> {
+  const response = await get<SleepRecordsListResponse>('/sleep-records', params)
+  return response.data || { records: [], total: 0, page: 1, pageSize: 10 }
+}
+
+/**
+ * 创建睡眠记录
+ *
+ * @param data 创建请求数据
+ * @returns Promise<SleepRecordResponse>
+ */
+export async function apiCreateSleepRecord(
+  data: CreateSleepRecordRequest
+): Promise<SleepRecordResponse> {
+  const response = await post<SleepRecordResponse>('/sleep-records', data)
+  if (!response.data) {
+    throw new Error(response.message || '创建睡眠记录失败')
+  }
+  return response.data
+}
+
+/**
+ * 更新睡眠记录
+ *
+ * @param recordId 记录ID
+ * @param data 更新数据
+ * @returns Promise<void>
+ */
+export async function apiUpdateSleepRecord(
+  recordId: string,
+  data: Partial<CreateSleepRecordRequest>
+): Promise<void> {
+  await put(`/sleep-records/${recordId}`, data)
+}
+
+/**
+ * 删除睡眠记录
+ *
+ * @param recordId 记录ID
+ * @returns Promise<void>
+ */
+export async function apiDeleteSleepRecord(recordId: string): Promise<void> {
+  await del(`/sleep-records/${recordId}`)
+}
