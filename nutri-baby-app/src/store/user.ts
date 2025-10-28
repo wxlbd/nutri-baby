@@ -26,14 +26,30 @@ const isNewUser = ref<boolean>(false)
 // 初始化标记
 let isInitialized = false
 
-// 延迟初始化 - 仅在首次访问时从存储读取
-function initializeIfNeeded() {
+/**
+ * 初始化用户状态 - 从本地存储恢复
+ *
+ * ⚠️ 注意: 小程序环境不支持 setTimeout 延迟初始化
+ * 必须在 App.vue 启动时立即调用
+ */
+export function initialize() {
   if (!isInitialized) {
     userInfo.value = getStorage<UserInfo>(StorageKeys.USER_INFO) || null
     token.value = getStorage<string>(StorageKeys.TOKEN) || null
-    isLoggedIn.value = !!userInfo.value
+    isLoggedIn.value = !!userInfo.value && !!token.value
     isInitialized = true
+
+    console.log('[User Store] initialized:', {
+      hasUserInfo: !!userInfo.value,
+      hasToken: !!token.value,
+      isLoggedIn: isLoggedIn.value
+    })
   }
+}
+
+// 延迟初始化函数 (保留向后兼容性)
+function initializeIfNeeded() {
+  initialize()
 }
 
 // ============ 本地操作函数 ============
@@ -275,9 +291,3 @@ export async function logout() {
 // ============ 导出 ============
 
 export { userInfo, isLoggedIn, token, isNewUser }
-
-// 确保导出时也触发初始化检查
-if (typeof window !== 'undefined') {
-  // 浏览器环境下,在模块加载完成后立即初始化
-  setTimeout(() => initializeIfNeeded(), 0)
-}
