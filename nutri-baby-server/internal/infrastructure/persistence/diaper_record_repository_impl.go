@@ -57,10 +57,10 @@ func (r *diaperRecordRepositoryImpl) FindByBabyID(
 		Where("baby_id = ? AND deleted_at IS NULL", babyID)
 
 	if startTime > 0 {
-		query = query.Where("change_time >= ?", startTime)
+		query = query.Where("time >= ?", startTime)
 	}
 	if endTime > 0 {
-		query = query.Where("change_time <= ?", endTime)
+		query = query.Where("time <= ?", endTime)
 	}
 
 	if err := query.Count(&total).Error; err != nil {
@@ -69,7 +69,7 @@ func (r *diaperRecordRepositoryImpl) FindByBabyID(
 
 	offset := (page - 1) * pageSize
 	err := query.
-		Order("change_time DESC").
+		Order("time DESC").
 		Limit(pageSize).
 		Offset(offset).
 		Find(&records).Error

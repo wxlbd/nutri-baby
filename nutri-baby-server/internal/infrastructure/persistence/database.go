@@ -17,7 +17,7 @@ import (
 func NewDatabase(cfg *config.Config) (*gorm.DB, error) {
 	// GORM配置
 	gormConfig := &gorm.Config{
-		Logger: gormlogger.Default.LogMode(gormlogger.Silent),
+		Logger: gormlogger.Default.LogMode(gormlogger.Info),
 		NowFunc: func() time.Time {
 			return time.Now().UTC()
 		},
