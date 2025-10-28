@@ -59,6 +59,9 @@ const statusBarHeight = ref(0)
 const navbarContentHeight = ref(88)
 
 // 获取当前宝宝 - 通过 defaultBabyId 从列表中匹配
+// 注意: 这里使用 defaultBabyId 而不是 currentBabyId
+// 原因: 导航栏应该显示用户设置的默认宝宝,而不是当前操作的宝宝
+// currentBabyId 用于记录页面等地方记录数据时使用,可能与 defaultBabyId 不同
 const currentBaby = computed(() => {
   const userInfo = getUserInfo()
   const defaultBabyId = userInfo?.defaultBabyId
