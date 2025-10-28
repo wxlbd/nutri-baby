@@ -143,16 +143,26 @@
 </template>
 
 <script setup lang="ts">
-import {computed, onUnmounted, ref} from 'vue'
+import {computed, onMounted, onUnmounted, ref, watch} from 'vue'
+import {onShow} from '@dcloudio/uni-app'
 import {currentBaby, currentBabyId} from '@/store/baby'
 import {getUserInfo} from '@/store/user'
 import {padZero} from '@/utils/common'
+import {StorageKeys, getStorage, setStorage, removeStorage} from '@/utils/storage'
 import type {FeedingDetail} from '@/types'
 import SubscribeGuide from '@/components/SubscribeGuide.vue'
 import { getAuthStatus } from '@/store/subscribe'
 
 // 直接调用 API 层
 import * as feedingApi from '@/api/feeding'
+
+// 临时喂养记录类型
+interface TempBreastFeeding {
+  babyId: string
+  side: 'left' | 'right' | 'both'
+  startTime: number // 开始时间戳(毫秒)
+  feedingType: 'breast'
+}
 
 // 喂养类型
 const feedingType = ref<'breast' | 'bottle' | 'food'>('breast')
@@ -194,22 +204,74 @@ const foodForm = ref({
 
 // 计时器相关
 const timerRunning = ref(false)
-const timerSeconds = ref(0)
+const startTime = ref(0) // 开始时间戳 (毫秒)
+const timerTrigger = ref(0) // 用于触发视图更新的虚拟响应式值
+const tempRecordCheckDone = ref(false) // 防止重复检测临时记录
 let timerInterval: number | null = null
 
-// 格式化时间显示
+// 格式化时间显示 - 基于开始时间戳计算
 const formattedTime = computed(() => {
-    const minutes = Math.floor(timerSeconds.value / 60)
-    const seconds = timerSeconds.value % 60
+    // 依赖 timerTrigger 以触发定期更新
+    timerTrigger.value // 访问此值以建立依赖关系
+
+    if (!timerRunning.value || startTime.value === 0) {
+        return '00:00'
+    }
+    const elapsedSeconds = Math.floor((Date.now() - startTime.value) / 1000)
+    const minutes = Math.floor(elapsedSeconds / 60)
+    const seconds = elapsedSeconds % 60
     return `${padZero(minutes)}:${padZero(seconds)}`
 })
 
+// 保存临时记录到本地
+const saveTempRecord = () => {
+  const tempRecord: TempBreastFeeding = {
+    babyId: currentBabyId.value,
+    side: breastForm.value.side,
+    startTime: startTime.value,
+    feedingType: 'breast'
+  }
+  setStorage(StorageKeys.TEMP_BREAST_FEEDING, tempRecord)
+  console.log('[Feeding] 临时记录已保存:', tempRecord)
+}
+
+// 清除临时记录
+const clearTempRecord = () => {
+  removeStorage(StorageKeys.TEMP_BREAST_FEEDING)
+  tempRecordCheckDone.value = false // 重置标志，允许下次检测
+  console.log('[Feeding] 临时记录已清除')
+}
+
+// 恢复临时记录
+const restoreTempRecord = (tempRecord: TempBreastFeeding) => {
+  breastForm.value.side = tempRecord.side
+  startTime.value = tempRecord.startTime
+  timerRunning.value = true
+
+  // 启动定时器更新显示
+  timerInterval = setInterval(() => {
+    // 每秒改变 timerTrigger 以触发计算属性重新计算
+    timerTrigger.value++
+  }, 1000) as unknown as number
+
+  console.log('[Feeding] 临时记录已恢复, 已过时长:', Math.floor((Date.now() - tempRecord.startTime) / 1000), '秒')
+}
+
 // 开始计时
 const startTimer = () => {
+    startTime.value = Date.now()
     timerRunning.value = true
+
+    // 保存临时记录
+    saveTempRecord()
+
+    // 启动定时器以每秒更新视图
     timerInterval = setInterval(() => {
-        timerSeconds.value++
+        // 每秒改变 timerTrigger 以触发计算属性重新计算
+        timerTrigger.value++
     }, 1000) as unknown as number
+
+    console.log('[Feeding] 开始计时')
 }
 
 // 停止计时
@@ -220,8 +282,11 @@ const stopTimer = () => {
         timerInterval = null
     }
 
-    // 使用秒数,不再转换为分钟
-    const duration = timerSeconds.value
+    // 计算总时长(秒)
+    const duration = Math.floor((Date.now() - startTime.value) / 1000)
+
+    console.log('[Feeding] 停止计时,总时长:', duration, '秒')
+
     if (breastForm.value.side === 'both') {
         // 两侧时平均分配
         breastForm.value.leftDuration = Math.floor(duration / 2)
@@ -236,6 +301,11 @@ const stopTimer = () => {
             breastForm.value.rightDuration = duration
         }
     }
+
+    console.log('[Feeding] 喂养侧:', breastForm.value.side, '左侧:', breastForm.value.leftDuration, '右侧:', breastForm.value.rightDuration)
+
+    // 清除临时记录
+    clearTempRecord()
 }
 
 // 组件卸载时清除计时器
@@ -244,6 +314,85 @@ onUnmounted(() => {
         clearInterval(timerInterval)
     }
 })
+
+// 页面加载时检测临时记录
+onMounted(() => {
+  checkTempRecord()
+})
+
+// 页面显示时也检测(从其他页面返回)
+onShow(() => {
+  // 每次页面显示时重置检测标志，允许再次检测
+  tempRecordCheckDone.value = false
+  checkTempRecord()
+})
+
+// 监听喂养侧变化,如果正在计时则更新临时记录
+watch(() => breastForm.value.side, () => {
+  if (timerRunning.value && startTime.value > 0) {
+    saveTempRecord()
+    console.log('[Feeding] 喂养侧已更改,临时记录已更新')
+  }
+})
+
+// 检测并处理临时记录
+const checkTempRecord = () => {
+  // 如果已经在计时,不重复检测
+  if (timerRunning.value) {
+    return
+  }
+
+  // 如果已经检测过本次，不再重复检测（防止 onMounted 和 onShow 重复调用）
+  if (tempRecordCheckDone.value) {
+    return
+  }
+
+  const tempRecord = getStorage<TempBreastFeeding>(StorageKeys.TEMP_BREAST_FEEDING)
+
+  if (!tempRecord) {
+    tempRecordCheckDone.value = true // 标记已检测
+    return
+  }
+
+  // 检查临时记录是否属于当前宝宝
+  if (tempRecord.babyId !== currentBabyId.value) {
+    console.log('[Feeding] 临时记录不属于当前宝宝,已忽略')
+    tempRecordCheckDone.value = true // 标记已检测
+    return
+  }
+
+  // 标记已检测（在显示弹窗前）
+  tempRecordCheckDone.value = true
+
+  // 计算已过时长
+  const elapsedSeconds = Math.floor((Date.now() - tempRecord.startTime) / 1000)
+  const minutes = Math.floor(elapsedSeconds / 60)
+  const seconds = elapsedSeconds % 60
+
+  console.log('[Feeding] 检测到临时记录,已过时长:', `${minutes}分${seconds}秒`)
+
+  // 弹窗询问用户
+  uni.showModal({
+    title: '未完成的喂养记录',
+    content: `检测到您之前有一次未完成的母乳喂养记录(${tempRecord.side === 'left' ? '左侧' : tempRecord.side === 'right' ? '右侧' : '两侧'}),已过 ${minutes} 分钟 ${seconds} 秒,是否继续?`,
+    confirmText: '继续',
+    cancelText: '重新开始',
+    success: (res) => {
+      if (res.confirm) {
+        // 用户选择继续
+        console.log('[Feeding] 用户选择继续临时记录')
+        // 切换到母乳喂养标签
+        feedingType.value = 'breast'
+        // 恢复临时记录
+        restoreTempRecord(tempRecord)
+      } else {
+        // 用户选择重新开始
+        console.log('[Feeding] 用户选择重新开始,清除临时记录')
+        clearTempRecord()
+      }
+    }
+  })
+}
 
 // 表单验证
 const validateForm = (): boolean => {
@@ -257,6 +406,7 @@ const validateForm = (): boolean => {
 
     if (feedingType.value === 'breast') {
         const totalDuration = breastForm.value.leftDuration + breastForm.value.rightDuration
+        console.log('[Feeding] 验证母乳喂养,左侧:', breastForm.value.leftDuration, '右侧:', breastForm.value.rightDuration, '总时长:', totalDuration)
         if (totalDuration === 0) {
             uni.showToast({
                 title: '请记录喂养时长',
@@ -287,6 +437,12 @@ const validateForm = (): boolean => {
 
 // 提交记录
 const handleSubmit = async () => {
+    // 如果还在计时中，先停止计时以获得准确的时长
+    if (timerRunning.value && feedingType.value === 'breast') {
+        console.log('[Feeding] 保存前检测到仍在计时,自动停止计时')
+        stopTimer()
+    }
+
     if (!validateForm()) {
         return
     }
@@ -364,6 +520,11 @@ const handleSubmit = async () => {
 
         await feedingApi.apiCreateFeedingRecord(requestData)
         console.log('[Feeding] 喂养记录保存成功')
+
+        // 保存成功后清除临时记录 (如果是母乳喂养)
+        if (feedingType.value === 'breast') {
+          clearTempRecord()
+        }
 
         uni.showToast({
             title: '记录成功',
