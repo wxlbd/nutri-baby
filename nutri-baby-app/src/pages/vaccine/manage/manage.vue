@@ -146,18 +146,17 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { currentBaby, currentBabyId } from '@/store/baby'
-import {
-  vaccinePlans,
-  createVaccinePlan,
-  updateVaccinePlan,
-  deleteVaccinePlan
-} from '@/store/vaccine'
-import type { VaccinePlan } from '@/types'
+
+// 直接调用 API 层
+import * as vaccineApi from '@/api/vaccine'
 
 // 对话框状态
 const showAddDialog = ref(false)
 const isEdit = ref(false)
 const editPlanId = ref('')
+
+// 疫苗计划列表(从 API 获取)
+const vaccinePlans = ref<vaccineApi.VaccinePlanResponse[]>([])
 
 // 表单数据
 const form = ref({
@@ -170,17 +169,33 @@ const form = ref({
   description: ''
 })
 
+// 加载疫苗计划
+const loadVaccinePlans = async () => {
+  if (!currentBaby.value) return
+
+  try {
+    const data = await vaccineApi.apiFetchVaccinePlans({ babyId: currentBaby.value.babyId })
+    vaccinePlans.value = data.plans
+  } catch (error) {
+    console.error('加载疫苗计划失败:', error)
+    uni.showToast({
+      title: '加载数据失败',
+      icon: 'none'
+    })
+  }
+}
+
 // 判断是否为自定义计划
-const isCustomPlan = (plan: VaccinePlan): boolean => {
+const isCustomPlan = (plan: vaccineApi.VaccinePlanResponse): boolean => {
   // 简单判断:从模板生成的计划通常ID长度不同或有特定前缀
   // 这里可以根据实际情况调整判断逻辑
   return plan.vaccineName.includes('自定义') || !plan.description.includes('个月接种')
 }
 
 // 编辑计划
-const handleEdit = (plan: VaccinePlan) => {
+const handleEdit = (plan: vaccineApi.VaccinePlanResponse) => {
   isEdit.value = true
-  editPlanId.value = plan.id
+  editPlanId.value = plan.planId
   form.value = {
     vaccineName: plan.vaccineName,
     vaccineType: plan.vaccineType,
@@ -194,16 +209,25 @@ const handleEdit = (plan: VaccinePlan) => {
 }
 
 // 删除计划
-const handleDelete = (plan: VaccinePlan) => {
+const handleDelete = (plan: vaccineApi.VaccinePlanResponse) => {
   uni.showModal({
     title: '确认删除',
     content: `确定要删除"${plan.vaccineName}"吗?`,
     success: async (res) => {
       if (res.confirm) {
-        const success = await deleteVaccinePlan(plan.id)
-        if (success) {
-          // 刷新列表
-        }
+        // ⚠️ API 层暂不支持删除疫苗计划
+        uni.showToast({
+          title: '暂不支持删除计划',
+          icon: 'none'
+        })
+        // TODO: 等待后端API支持后实现
+        // try {
+        //   await vaccineApi.apiDeleteVaccinePlan(plan.planId)
+        //   await loadVaccinePlans()
+        //   uni.showToast({ title: '删除成功', icon: 'success' })
+        // } catch (error: any) {
+        //   uni.showToast({ title: error.message || '删除失败', icon: 'none' })
+        // }
       }
     }
   })
@@ -236,38 +260,34 @@ const handleSubmit = async () => {
     return
   }
 
-  if (isEdit.value) {
-    // 更新
-    const success = await updateVaccinePlan(editPlanId.value, {
-      vaccineName: form.value.vaccineName,
-      description: form.value.description,
-      ageInMonths: form.value.ageInMonths,
-      doseNumber: form.value.doseNumber,
-      isRequired: form.value.isRequired,
-      reminderDays: form.value.reminderDays
-    })
+  // ⚠️ API 层暂不支持创建/更新疫苗计划
+  uni.showToast({
+    title: isEdit.value ? '暂不支持编辑计划' : '暂不支持添加自定义计划',
+    icon: 'none'
+  })
 
-    if (success) {
-      showAddDialog.value = false
-      resetForm()
-    }
-  } else {
-    // 创建
-    const result = await createVaccinePlan(currentBabyId.value, {
-      vaccineType: form.value.vaccineType,
-      vaccineName: form.value.vaccineName,
-      description: form.value.description,
-      ageInMonths: form.value.ageInMonths,
-      doseNumber: form.value.doseNumber,
-      isRequired: form.value.isRequired,
-      reminderDays: form.value.reminderDays
-    })
-
-    if (result) {
-      showAddDialog.value = false
-      resetForm()
-    }
-  }
+  // TODO: 等待后端API支持后实现
+  // if (isEdit.value) {
+  //   try {
+  //     await vaccineApi.apiUpdateVaccinePlan(editPlanId.value, { ... })
+  //     await loadVaccinePlans()
+  //     showAddDialog.value = false
+  //     resetForm()
+  //     uni.showToast({ title: '更新成功', icon: 'success' })
+  //   } catch (error: any) {
+  //     uni.showToast({ title: error.message || '更新失败', icon: 'none' })
+  //   }
+  // } else {
+  //   try {
+  //     await vaccineApi.apiCreateVaccinePlan({ ... })
+  //     await loadVaccinePlans()
+  //     showAddDialog.value = false
+  //     resetForm()
+  //     uni.showToast({ title: '创建成功', icon: 'success' })
+  //   } catch (error: any) {
+  //     uni.showToast({ title: error.message || '创建失败', icon: 'none' })
+  //   }
+  // }
 }
 
 // 重置表单
@@ -286,7 +306,7 @@ const resetForm = () => {
 }
 
 // 页面加载
-onMounted(() => {
+onMounted(async () => {
   if (!currentBaby.value) {
     uni.showToast({
       title: '请先选择宝宝',
@@ -295,7 +315,11 @@ onMounted(() => {
     setTimeout(() => {
       uni.navigateBack()
     }, 1500)
+    return
   }
+
+  // 加载疫苗计划
+  await loadVaccinePlans()
 })
 </script>
 
