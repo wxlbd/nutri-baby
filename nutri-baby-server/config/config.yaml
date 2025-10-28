@@ -43,5 +43,12 @@ upload:
   storage_path: uploads/
 
 wechat:
-  app_id: wx7cb638c9d0f586a1
-  app_secret: 7859f06c578767d6031713846457fdf8
+  app_id: wxf47340979046b474
+  app_secret: c5b5f88848865bc3b0ac9ba5aa1f477e
+  # 订阅消息模板ID配置
+  subscribe_templates:
+    # 喂养提醒模板
+    breast_feeding_reminder: "YOUR_FEEDING_REMINDER_TEMPLATE_ID"
+    # 疫苗提醒模板
+    vaccine_reminder: "YOUR_VACCINE_REMINDER_TEMPLATE_ID"
+
