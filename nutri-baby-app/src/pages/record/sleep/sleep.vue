@@ -1,297 +1,481 @@
 <template>
-  <view class="sleep-page">
-    <!-- 当前状态 -->
-    <view class="status-card">
-      <view v-if="ongoingRecord" class="sleeping">
-        <view class="status-icon">💤</view>
-        <view class="status-text">宝宝正在睡觉</view>
-        <view class="sleep-duration">
-          <text class="duration">{{ sleepDuration }}</text>
-          <text class="label">已睡眠</text>
+    <view class="sleep-page">
+        <!-- 当前状态 -->
+        <view class="status-card">
+            <view v-if="ongoingRecord" class="sleeping">
+                <view class="status-icon">💤</view>
+                <view class="status-text">宝宝正在睡觉</view>
+                <view class="sleep-duration">
+                    <text class="duration">{{ formattedTime }}</text>
+                    <text class="label">已睡眠</text>
+                </view>
+            </view>
+            <view v-else class="awake">
+                <view class="status-icon">👀</view>
+                <view class="status-text">宝宝醒着</view>
+            </view>
         </view>
-      </view>
-      <view v-else class="awake">
-        <view class="status-icon">👀</view>
-        <view class="status-text">宝宝醒着</view>
-      </view>
-    </view>
 
-    <!-- 睡眠类型选择 -->
-    <view v-if="!ongoingRecord" class="sleep-type">
-      <view class="section-title">睡眠类型</view>
-      <nut-radio-group v-model="sleepType" direction="horizontal">
-        <nut-radio label="nap">小睡</nut-radio>
-        <nut-radio label="night">夜间长睡</nut-radio>
-      </nut-radio-group>
-    </view>
-
-    <!-- 操作按钮 -->
-    <view class="action-buttons">
-      <nut-button
-        v-if="!ongoingRecord"
-        type="primary"
-        size="large"
-        block
-        @click="startSleep"
-      >
-        <view class="button-content">
-          <text class="icon">💤</text>
-          <text>开始睡觉</text>
+        <!-- 睡眠类型选择 -->
+        <view v-if="!ongoingRecord" class="sleep-type">
+            <view class="section-title">睡眠类型</view>
+            <nut-radio-group v-model="sleepType" direction="horizontal">
+                <nut-radio label="nap">小睡</nut-radio>
+                <nut-radio label="night">夜间长睡</nut-radio>
+            </nut-radio-group>
         </view>
-      </nut-button>
 
-      <nut-button
-        v-else
-        type="success"
-        size="large"
-        block
-        @click="endSleep"
-      >
-        <view class="button-content">
-          <text class="icon">🌟</text>
-          <text>宝宝醒了</text>
+        <!-- 操作按钮 -->
+        <view class="action-buttons">
+            <nut-button
+                v-if="!ongoingRecord"
+                type="primary"
+                size="large"
+                block
+                @click="startSleep"
+            >
+                <view class="button-content">
+                    <text class="icon">💤</text>
+                    <text>开始睡觉</text>
+                </view>
+            </nut-button>
+
+            <nut-button
+                v-else
+                type="success"
+                size="large"
+                block
+                @click="endSleep"
+            >
+                <view class="button-content">
+                    <text class="icon">🌟</text>
+                    <text>宝宝醒了</text>
+                </view>
+            </nut-button>
         </view>
-      </nut-button>
-    </view>
 
-    <!-- 最近记录 -->
-    <view v-if="lastRecord && !ongoingRecord" class="last-record">
-      <view class="section-title">上次睡眠</view>
-      <nut-cell-group>
-        <nut-cell
-          :title="lastRecord.type === 'nap' ? '小睡' : '夜间长睡'"
-          :desc="formatRecordTime(lastRecord)"
-        >
-          <template #link>
-            <text class="duration-text">{{ formatDuration(lastRecord.duration) }}</text>
-          </template>
-        </nut-cell>
-      </nut-cell-group>
+        <!-- 最近记录 -->
+        <view v-if="lastRecord && !ongoingRecord" class="last-record">
+            <view class="section-title">上次睡眠</view>
+            <nut-cell-group>
+                <nut-cell
+                    :title="lastRecord.type === 'nap' ? '小睡' : '夜间长睡'"
+                    :desc="formatRecordTime(lastRecord)"
+                >
+                    <template #link>
+                        <text class="duration-text">{{
+                            formatDuration(lastRecord.duration)
+                        }}</text>
+                    </template>
+                </nut-cell>
+            </nut-cell-group>
+        </view>
     </view>
-  </view>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
-import { currentBabyId, currentBaby } from '@/store/baby'
-import { getUserInfo } from '@/store/user'
-import { formatDate, formatDuration } from '@/utils/date'
-import { padZero } from '@/utils/common'
-import type { SleepRecord } from '@/types'
+import { ref, computed, onMounted, onUnmounted, watch } from "vue";
+import { onShow } from "@dcloudio/uni-app";
+import { currentBabyId, currentBaby } from "@/store/baby";
+import { getUserInfo } from "@/store/user";
+import { formatDate, formatDuration } from "@/utils/date";
+import { padZero } from "@/utils/common";
+import {
+    StorageKeys,
+    getStorage,
+    setStorage,
+    removeStorage,
+} from "@/utils/storage";
+import type { SleepRecord } from "@/types";
 
 // 直接调用 API 层
-import * as sleepApi from '@/api/sleep'
+import * as sleepApi from "@/api/sleep";
 
-// ⚠️ 注意: 睡眠计时器功能需要本地状态管理,暂时简化为手动输入时间
-// TODO: 后续可以考虑使用 localStorage 或独立的计时器状态管理
-
-// 睡眠类型
-const sleepType = ref<'nap' | 'night'>('nap')
-
-// 进行中的睡眠记录
-const ongoingRecord = ref<SleepRecord | null>(null)
-
-// 最后一次睡眠记录
-const lastRecord = ref<SleepRecord | null>(null)
-
-// 睡眠时长(实时)
-const sleepDuration = ref('00:00')
-
-// 定时器
-let durationTimer: number | null = null
-
-// 更新睡眠时长
-const updateDuration = () => {
-  if (!ongoingRecord.value) return
-
-  const now = Date.now()
-  const duration = Math.floor((now - ongoingRecord.value.startTime) / 1000)
-  const hours = Math.floor(duration / 3600)
-  const minutes = Math.floor((duration % 3600) / 60)
-
-  sleepDuration.value = `${padZero(hours)}:${padZero(minutes)}`
+// 临时睡眠记录类型
+interface TempSleepRecording {
+    babyId: string;
+    type: "nap" | "night";
+    startTime: number; // 开始时间戳(毫秒)
 }
 
-// 页面加载
-onMounted(() => {
-  if (!currentBaby.value) {
-    uni.showToast({
-      title: '请先选择宝宝',
-      icon: 'none'
-    })
-    setTimeout(() => {
-      uni.navigateBack()
-    }, 1500)
-    return
-  }
+// 睡眠类型
+const sleepType = ref<"nap" | "night">("nap");
 
-  // TODO: 加载进行中的睡眠记录(需要从后端或 localStorage 获取)
-  // ongoingRecord.value = ...
-})
+// 进行中的睡眠记录
+const ongoingRecord = ref<SleepRecord | null>(null);
 
-// 组件卸载
-onUnmounted(() => {
-  if (durationTimer) {
-    clearInterval(durationTimer)
-  }
-})
+// 最后一次睡眠记录
+const lastRecord = ref<SleepRecord | null>(null);
+
+// 定时器相关
+const timerRunning = ref(false);
+const startTime = ref(0); // 开始时间戳 (毫秒)
+const timerTrigger = ref(0); // 用于触发视图更新的虚拟响应式值
+const tempRecordCheckDone = ref(false); // 防止重复检测临时记录
+let timerInterval: number | null = null;
+
+// 格式化时间显示 - 基于开始时间戳计算
+const formattedTime = computed(() => {
+    // 依赖 timerTrigger 以触发定期更新
+    timerTrigger.value; // 访问此值以建立依赖关系
+
+    if (!timerRunning.value || startTime.value === 0) {
+        return "00:00:00";
+    }
+
+    const elapsedSeconds = Math.floor((Date.now() - startTime.value) / 1000);
+    const hours = Math.floor(elapsedSeconds / 3600);
+    const minutes = Math.floor((elapsedSeconds % 3600) / 60);
+    const seconds = elapsedSeconds % 60;
+
+    return `${padZero(hours)}:${padZero(minutes)}:${padZero(seconds)}`;
+});
+
+// 保存临时睡眠记录到本地
+const saveTempRecord = () => {
+    const tempRecord: TempSleepRecording = {
+        babyId: currentBabyId.value,
+        type: sleepType.value,
+        startTime: startTime.value,
+    };
+    setStorage(StorageKeys.TEMP_SLEEP_RECORDING, tempRecord);
+    console.log("[Sleep] 临时记录已保存:", tempRecord);
+};
+
+// 清除临时睡眠记录
+const clearTempRecord = () => {
+    removeStorage(StorageKeys.TEMP_SLEEP_RECORDING);
+    tempRecordCheckDone.value = false; // 重置标志，允许下次检测
+    console.log("[Sleep] 临时记录已清除");
+};
+
+// 恢复临时睡眠记录
+const restoreTempRecord = (tempRecord: TempSleepRecording) => {
+    sleepType.value = tempRecord.type;
+    startTime.value = tempRecord.startTime;
+    timerRunning.value = true;
+
+    // 启动定时器更新显示
+    timerInterval = setInterval(() => {
+        // 每秒改变 timerTrigger 以触发计算属性重新计算
+        timerTrigger.value++;
+    }, 1000) as unknown as number;
+
+    console.log(
+        "[Sleep] 临时记录已恢复, 已过时长:",
+        Math.floor((Date.now() - tempRecord.startTime) / 1000),
+        "秒",
+    );
+};
 
 // 开始睡觉
 const startSleep = async () => {
-  const user = getUserInfo()
-  if (!user) {
-    uni.showToast({
-      title: '请先登录',
-      icon: 'none'
-    })
-    return
-  }
+    const user = getUserInfo();
+    if (!user) {
+        uni.showToast({
+            title: "请先登录",
+            icon: "none",
+        });
+        return;
+    }
 
-  try {
-    // 直接创建睡眠记录(开始时间)
-    const record = await sleepApi.apiCreateSleepRecord({
-      babyId: currentBabyId.value,
-      sleepType: sleepType.value,
-      startTime: Date.now()
-      // endTime 在结束时更新
-    })
+    if (!currentBaby.value) {
+        uni.showToast({
+            title: "请先选择宝宝",
+            icon: "none",
+        });
+        return;
+    }
 
-    uni.showToast({
-      title: '开始记录睡眠',
-      icon: 'success'
-    })
+    try {
+        // 使用本地时间戳开始计时
+        startTime.value = Date.now();
+        timerRunning.value = true;
 
-    // TODO: 保存进行中的记录到 localStorage
-    // 启动定时器
-    updateDuration()
-    durationTimer = setInterval(updateDuration, 1000) as unknown as number
+        // 保存临时记录到本地存储
+        saveTempRecord();
 
-  } catch (error: any) {
-    uni.showToast({
-      title: error.message || '开始失败',
-      icon: 'none'
-    })
-  }
-}
+        // 启动定时器以每秒更新视图
+        timerInterval = setInterval(() => {
+            // 每秒改变 timerTrigger 以触发计算属性重新计算
+            timerTrigger.value++;
+        }, 1000) as unknown as number;
+
+        uni.showToast({
+            title: "开始记录睡眠",
+            icon: "success",
+        });
+
+        console.log("[Sleep] 开始计时");
+    } catch (error: any) {
+        uni.showToast({
+            title: error.message || "开始失败",
+            icon: "none",
+        });
+    }
+};
 
 // 结束睡觉
 const endSleep = async () => {
-  if (!ongoingRecord.value) return
-
-  try {
-    // 更新睡眠记录(结束时间)
-    await sleepApi.apiUpdateSleepRecord(ongoingRecord.value.id, {
-      endTime: Date.now()
-    })
-
-    uni.showToast({
-      title: '保存成功',
-      icon: 'success'
-    })
-
-    // 清除定时器
-    if (durationTimer) {
-      clearInterval(durationTimer)
-      durationTimer = null
+    if (!timerRunning.value || startTime.value === 0) {
+        return;
     }
 
-    setTimeout(() => {
-      uni.navigateBack()
-    }, 1000)
+    const user = getUserInfo();
+    if (!user) {
+        uni.showToast({
+            title: "请先登录",
+            icon: "none",
+        });
+        return;
+    }
 
-  } catch (error: any) {
-    uni.showToast({
-      title: error.message || '保存失败',
-      icon: 'none'
-    })
-  }
-}
+    try {
+        // 停止计时器
+        if (timerInterval) {
+            clearInterval(timerInterval);
+            timerInterval = null;
+        }
+
+        timerRunning.value = false;
+
+        // 计算总时长(分钟)
+        const elapsedSeconds = Math.floor(
+            (Date.now() - startTime.value) / 1000,
+        );
+        const durationMinutes = Math.floor(elapsedSeconds / 60);
+
+        console.log("[Sleep] 停止计时,总时长:", durationMinutes, "分钟");
+
+        // 调用 API 创建睡眠记录
+        await sleepApi.apiCreateSleepRecord({
+            babyId: currentBabyId.value,
+            sleepType: sleepType.value,
+            startTime: startTime.value,
+            endTime: Date.now(),
+        });
+
+        console.log("[Sleep] 睡眠记录保存成功");
+
+        // 清除临时记录
+        clearTempRecord();
+
+        uni.showToast({
+            title: "保存成功",
+            icon: "success",
+        });
+
+        setTimeout(() => {
+            uni.navigateBack();
+        }, 1000);
+    } catch (error: any) {
+        console.error("[Sleep] 保存睡眠记录失败:", error);
+
+        // 如果保存失败,恢复计时器
+        timerRunning.value = true;
+        timerInterval = setInterval(() => {
+            timerTrigger.value++;
+        }, 1000) as unknown as number;
+
+        uni.showToast({
+            title: error.message || "保存失败",
+            icon: "none",
+        });
+    }
+};
+
+// 页面卸载时清除计时器
+onUnmounted(() => {
+    if (timerInterval) {
+        clearInterval(timerInterval);
+    }
+});
+
+// 页面加载
+onMounted(() => {
+    if (!currentBaby.value) {
+        uni.showToast({
+            title: "请先选择宝宝",
+            icon: "none",
+        });
+        setTimeout(() => {
+            uni.navigateBack();
+        }, 1500);
+        return;
+    }
+
+    checkTempRecord();
+});
+
+// 页面显示时也检测(从其他页面返回)
+onShow(() => {
+    // 每次页面显示时重置检测标志，允许再次检测
+    tempRecordCheckDone.value = false;
+    checkTempRecord();
+});
+
+// 监听睡眠类型变化,如果正在计时则更新临时记录
+watch(
+    () => sleepType.value,
+    () => {
+        if (timerRunning.value && startTime.value > 0) {
+            saveTempRecord();
+            console.log("[Sleep] 睡眠类型已更改,临时记录已更新");
+        }
+    },
+);
+
+// 检测并处理临时睡眠记录
+const checkTempRecord = () => {
+    // 如果已经在计时,不重复检测
+    if (timerRunning.value) {
+        return;
+    }
+
+    // 如果已经检测过本次，不再重复检测（防止 onMounted 和 onShow 重复调用）
+    if (tempRecordCheckDone.value) {
+        return;
+    }
+
+    const tempRecord = getStorage<TempSleepRecording>(
+        StorageKeys.TEMP_SLEEP_RECORDING,
+    );
+
+    if (!tempRecord) {
+        tempRecordCheckDone.value = true; // 标记已检测
+        return;
+    }
+
+    // 检查临时记录是否属于当前宝宝
+    if (tempRecord.babyId !== currentBabyId.value) {
+        console.log("[Sleep] 临时记录不属于当前宝宝,已忽略");
+        tempRecordCheckDone.value = true; // 标记已检测
+        return;
+    }
+
+    // 标记已检测（在显示弹窗前）
+    tempRecordCheckDone.value = true;
+
+    // 计算已过时长
+    const elapsedSeconds = Math.floor(
+        (Date.now() - tempRecord.startTime) / 1000,
+    );
+    const hours = Math.floor(elapsedSeconds / 3600);
+    const minutes = Math.floor((elapsedSeconds % 3600) / 60);
+    const seconds = elapsedSeconds % 60;
+
+    console.log(
+        "[Sleep] 检测到临时记录,已过时长:",
+        `${hours}小时${minutes}分${seconds}秒`,
+    );
+
+    // 弹窗询问用户
+    uni.showModal({
+        title: "未完成的睡眠记录",
+        content: `检测到您之前有一次未完成的${tempRecord.type === "nap" ? "小睡" : "夜间长睡"}记录,已过 ${hours} 小时 ${minutes} 分钟 ${seconds} 秒,是否继续?`,
+        confirmText: "继续",
+        cancelText: "重新开始",
+        success: (res) => {
+            if (res.confirm) {
+                // 用户选择继续
+                console.log("[Sleep] 用户选择继续临时记录");
+                // 恢复临时记录
+                restoreTempRecord(tempRecord);
+            } else {
+                // 用户选择重新开始
+                console.log("[Sleep] 用户选择重新开始,清除临时记录");
+                clearTempRecord();
+            }
+        },
+    });
+};
 
 // 格式化记录时间
 const formatRecordTime = (record: SleepRecord) => {
-  return formatDate(record.startTime, 'MM-DD HH:mm')
-}
+    return formatDate(record.startTime, "MM-DD HH:mm");
+};
 </script>
 
 <style lang="scss" scoped>
 .sleep-page {
-  min-height: 100vh;
-  background: #f5f5f5;
-  padding: 20rpx;
+    min-height: 100vh;
+    background: #f5f5f5;
+    padding: 20rpx;
 }
 
 .status-card {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  border-radius: 16rpx;
-  padding: 60rpx 30rpx;
-  margin-bottom: 20rpx;
-  text-align: center;
-  color: white;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 16rpx;
+    padding: 60rpx 30rpx;
+    margin-bottom: 20rpx;
+    text-align: center;
+    color: white;
 }
 
 .status-icon {
-  font-size: 100rpx;
-  margin-bottom: 20rpx;
+    font-size: 100rpx;
+    margin-bottom: 20rpx;
 }
 
 .status-text {
-  font-size: 36rpx;
-  font-weight: bold;
-  margin-bottom: 30rpx;
+    font-size: 36rpx;
+    font-weight: bold;
+    margin-bottom: 30rpx;
 }
 
 .sleep-duration {
-  display: flex;
-  flex-direction: column;
-  gap: 12rpx;
+    display: flex;
+    flex-direction: column;
+    gap: 12rpx;
 }
 
 .duration {
-  font-size: 64rpx;
-  font-weight: bold;
+    font-size: 72rpx;
+    font-weight: bold;
+    font-family: "Courier New", monospace;
 }
 
 .label {
-  font-size: 28rpx;
-  opacity: 0.9;
+    font-size: 28rpx;
+    opacity: 0.9;
 }
 
 .sleep-type {
-  background: white;
-  border-radius: 16rpx;
-  padding: 30rpx;
-  margin-bottom: 20rpx;
+    background: white;
+    border-radius: 16rpx;
+    padding: 30rpx;
+    margin-bottom: 20rpx;
 }
 
 .section-title {
-  font-size: 32rpx;
-  font-weight: bold;
-  margin-bottom: 24rpx;
+    font-size: 32rpx;
+    font-weight: bold;
+    margin-bottom: 24rpx;
 }
 
 .action-buttons {
-  margin-bottom: 20rpx;
+    margin-bottom: 20rpx;
 }
 
 .button-content {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 12rpx;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12rpx;
 
-  .icon {
-    font-size: 36rpx;
-  }
+    .icon {
+        font-size: 36rpx;
+    }
 }
 
 .last-record {
-  background: white;
-  border-radius: 16rpx;
-  padding: 30rpx;
+    background: white;
+    border-radius: 16rpx;
+    padding: 30rpx;
 }
 
 .duration-text {
-  color: #fa2c19;
-  font-weight: bold;
+    color: #fa2c19;
+    font-weight: bold;
 }
 </style>
