@@ -2,7 +2,7 @@
  * 睡眠记录 API 接口
  * 职责: 纯 API 调用,无状态,无副作用
  */
-import { get, post, put, del } from '@/utils/request'
+import { get, post, put, del } from "@/utils/request";
 
 // ============ 类型定义 ============
 
@@ -10,39 +10,39 @@ import { get, post, put, del } from '@/utils/request'
  * API 响应: 睡眠记录详情
  */
 export interface SleepRecordResponse {
-  recordId: string
-  babyId: string
-  sleepType: 'nap' | 'night'
-  startTime: number
-  endTime?: number
-  duration?: number
-  quality?: 'good' | 'fair' | 'poor'
-  note?: string
-  createBy: string
-  createTime: number
+  recordId: string;
+  babyId: string;
+  sleepType: "nap" | "night";
+  startTime: number;
+  endTime?: number;
+  duration?: number;
+  quality?: "good" | "fair" | "poor";
+  note?: string;
+  createBy: string;
+  createTime: number;
 }
 
 /**
  * API 响应: 睡眠记录列表
  */
 export interface SleepRecordsListResponse {
-  records: SleepRecordResponse[]
-  total: number
-  page: number
-  pageSize: number
+  records: SleepRecordResponse[];
+  total: number;
+  page: number;
+  pageSize: number;
 }
 
 /**
  * API 请求: 创建睡眠记录
  */
 export interface CreateSleepRecordRequest {
-  babyId: string
-  sleepType: 'nap' | 'night'
-  startTime: number
-  endTime?: number
-  duration?: number
-  quality?: 'good' | 'fair' | 'poor'
-  note?: string
+  babyId: string;
+  sleepType: "nap" | "night";
+  startTime: number;
+  endTime?: number;
+  duration?: number; // 时长(秒)
+  quality?: "good" | "fair" | "poor";
+  note?: string;
 }
 
 // ============ API 函数 ============
@@ -54,14 +54,17 @@ export interface CreateSleepRecordRequest {
  * @returns Promise<SleepRecordsListResponse>
  */
 export async function apiFetchSleepRecords(params: {
-  babyId: string
-  startTime?: number
-  endTime?: number
-  page?: number
-  pageSize?: number
+  babyId: string;
+  startTime?: number;
+  endTime?: number;
+  page?: number;
+  pageSize?: number;
 }): Promise<SleepRecordsListResponse> {
-  const response = await get<SleepRecordsListResponse>('/sleep-records', params)
-  return response.data || { records: [], total: 0, page: 1, pageSize: 10 }
+  const response = await get<SleepRecordsListResponse>(
+    "/sleep-records",
+    params,
+  );
+  return response.data || { records: [], total: 0, page: 1, pageSize: 10 };
 }
 
 /**
@@ -71,13 +74,13 @@ export async function apiFetchSleepRecords(params: {
  * @returns Promise<SleepRecordResponse>
  */
 export async function apiCreateSleepRecord(
-  data: CreateSleepRecordRequest
+  data: CreateSleepRecordRequest,
 ): Promise<SleepRecordResponse> {
-  const response = await post<SleepRecordResponse>('/sleep-records', data)
+  const response = await post<SleepRecordResponse>("/sleep-records", data);
   if (!response.data) {
-    throw new Error(response.message || '创建睡眠记录失败')
+    throw new Error(response.message || "创建睡眠记录失败");
   }
-  return response.data
+  return response.data;
 }
 
 /**
@@ -89,9 +92,9 @@ export async function apiCreateSleepRecord(
  */
 export async function apiUpdateSleepRecord(
   recordId: string,
-  data: Partial<CreateSleepRecordRequest>
+  data: Partial<CreateSleepRecordRequest>,
 ): Promise<void> {
-  await put(`/sleep-records/${recordId}`, data)
+  await put(`/sleep-records/${recordId}`, data);
 }
 
 /**
@@ -101,5 +104,5 @@ export async function apiUpdateSleepRecord(
  * @returns Promise<void>
  */
 export async function apiDeleteSleepRecord(recordId: string): Promise<void> {
-  await del(`/sleep-records/${recordId}`)
+  await del(`/sleep-records/${recordId}`);
 }
