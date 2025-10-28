@@ -1,12 +1,15 @@
 <script setup lang="ts">
 import { onLaunch, onShow, onHide } from "@dcloudio/uni-app";
+import { initialize } from "@/store/user";
 
 onLaunch(() => {
   console.log("App Launch");
 
-  // 不在 App Launch 时进行页面跳转
-  // 让各个页面自己处理权限检查和跳转逻辑
-  // 避免与页面生命周期冲突导致的无限循环
+  // 应用启动时立即初始化用户状态,从本地存储恢复登录信息
+  // 这样可以避免代码重新编译时丢失登录状态
+  initialize();
+
+  console.log("[App] User state initialized from storage");
 });
 
 onShow(() => {
