@@ -27,15 +27,19 @@ type ServerConfig struct {
 
 // DatabaseConfig 数据库配置
 type DatabaseConfig struct {
-	Host            string `mapstructure:"host"`
-	Port            int    `mapstructure:"port"`
-	User            string `mapstructure:"user"`
-	Password        string `mapstructure:"password"`
-	DBName          string `mapstructure:"dbname"`
-	SSLMode         string `mapstructure:"sslmode"`
-	MaxOpenConns    int    `mapstructure:"max_open_conns"`
-	MaxIdleConns    int    `mapstructure:"max_idle_conns"`
-	ConnMaxLifetime int    `mapstructure:"conn_max_lifetime"`
+	Host              string `mapstructure:"host"`              // 主库地址
+	Port              int    `mapstructure:"port"`
+	User              string `mapstructure:"user"`
+	Password          string `mapstructure:"password"`
+	DBName            string `mapstructure:"dbname"`
+	SSLMode           string `mapstructure:"sslmode"`
+	MaxOpenConns      int    `mapstructure:"max_open_conns"`
+	MaxIdleConns      int    `mapstructure:"max_idle_conns"`
+	ConnMaxLifetime   int    `mapstructure:"conn_max_lifetime"`
+	// 读副本配置（可选）
+	ReadReplicaHosts  []string `mapstructure:"read_replica_hosts"`  // 只读副本地址列表
+	ReadReplicaPort   int      `mapstructure:"read_replica_port"`   // 只读副本端口
+	EnableReadReplica bool     `mapstructure:"enable_read_replica"` // 是否启用读副本
 }
 
 // DSN 返回PostgreSQL连接字符串
