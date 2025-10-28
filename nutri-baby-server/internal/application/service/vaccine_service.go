@@ -157,13 +157,47 @@ func (s *VaccineService) GetVaccineReminders(
 	babyID, status string,
 	limit int,
 ) ([]*dto.VaccineReminderDTO, error) {
-	reminders, err := s.vaccineReminderRepo.FindByStatus(ctx, babyID, status, limit)
-	if err != nil {
-		return nil, err
+	// 如果指定了特定状态，先只查询该状态的记录
+	var reminders []*entity.VaccineReminder
+	var err error
+
+	if status != "" {
+		reminders, err = s.vaccineReminderRepo.FindByStatus(ctx, babyID, status, limit)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		// 如果没有指定状态，获取所有未完成的提醒
+		reminders, err = s.vaccineReminderRepo.FindByBabyID(ctx, babyID)
+		if err != nil {
+			return nil, err
+		}
+		// 过滤掉已完成的提醒
+		filtered := make([]*entity.VaccineReminder, 0, len(reminders))
+		for _, r := range reminders {
+			if r.Status != entity.ReminderStatusCompleted {
+				filtered = append(filtered, r)
+			}
+		}
+		reminders = filtered
 	}
 
 	result := make([]*dto.VaccineReminderDTO, 0, len(reminders))
 	for _, reminder := range reminders {
+		// 实时更新提醒状态
+		oldStatus := reminder.Status
+		reminder.UpdateStatus()
+
+		// 如果状态发生了变化且提醒未完成，则保存到数据库
+		if oldStatus != reminder.Status && reminder.Status != entity.ReminderStatusCompleted {
+			_ = s.vaccineReminderRepo.UpdateStatus(ctx, reminder.ReminderID, reminder.Status)
+		}
+
+		// 只返回与请求状态匹配的提醒
+		if status != "" && reminder.Status != status {
+			continue
+		}
+
 		result = append(result, &dto.VaccineReminderDTO{
 			ReminderID:    reminder.ReminderID,
 			BabyID:        reminder.BabyID,
