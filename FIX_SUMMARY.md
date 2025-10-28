@@ -37,26 +37,33 @@
 
 ---
 
-### 3. 🟡 前端：导航栏状态管理不当
-**错误描述**: 导航栏依赖 `currentBabyId` 显示宝宝信息，但这个值可能与用户设置的 `defaultBabyId` 不同步
+### 3. 🟡 前端：修复导航栏宝宝显示逻辑
+**错误描述**: 导航栏显示不准确，用户切换宝宝后不更新；currentBabyId 初始化逻辑有问题
 
-**根本原因**: 存在两个独立的宝宝身份来源：
-- `defaultBabyId`: 用户的偏好（存储在 userInfo）
-- `currentBabyId`: 当前操作的宝宝（存储在 baby store）
-
-这两个状态可能在不同时刻不同步，导致导航栏显示错误。
+**根本原因**:
+- `fetchBabyList()` 中条件 `if (!currentBabyId.value &&...)` 导致只在首次才设置 currentBabyId
+- 之后 currentBabyId 即使过期也不会更新为最新的 defaultBabyId
+- 导航栏应显示当前操作的宝宝（currentBabyId），而非固定的默认宝宝
 
 **修复方案**:
-- 导航栏改为使用 `userInfo.defaultBabyId` 作为唯一真相来源
-- 遍历 `babyList` 找到匹配的宝宝信息
-- `currentBabyId` 继续保留供记录页面等地方使用
+1. **baby.ts**: 删除 `!currentBabyId.value &&` 条件，改为无条件设置
+   - 每次调用 `fetchBabyList()` 都重新设置 `currentBabyId = defaultBabyId`（或第一个宝宝）
+
+2. **custom-navbar.vue**: 恢复使用 `currentBaby` 从 store 导出
+   - currentBaby 是 computed，自动根据 currentBabyId 变化
+   - 用户在 baby/list 中切换宝宝后，导航栏立即显示新宝宝信息
+
+**流程**:
+```
+应用启动 → fetchBabyList() → currentBabyId = defaultBabyId → 导航栏显示默认宝宝 ✅
+用户切换 → setCurrentBaby(newId) → currentBabyId = newId → 导航栏立即更新 ✅
+```
 
 **文件修改**:
-- `nutri-baby-app/src/components/custom-navbar/custom-navbar.vue` (第44、61-74行)
+- `nutri-baby-app/src/store/baby.ts` (第91-104行)
+- `nutri-baby-app/src/components/custom-navbar/custom-navbar.vue` (第42-101行)
 
-**提交**:
-- `57a27dc` - `refactor(navbar): 通过 defaultBabyId 从列表匹配当前宝宝`
-- `32bf501` - `docs(navbar): 添加注释说明 defaultBabyId vs currentBabyId 的区别`
+**提交**: `8f3f5b3` - `refactor(navbar): 修复导航栏宝宝显示逻辑`
 
 ---
 
@@ -97,14 +104,19 @@ for _, reminder := range reminders {
 }
 ```
 
-### 2. 单一真相来源（前端）
+### 2. currentBabyId 的正确初始化（前端）
 ```typescript
-// ❌ 修复前：两个独立的状态来源
-import { currentBaby } from '@/store/baby'  // 从 currentBabyId 获取
+// ❌ 修复前：只在首次设置
+if (!currentBabyId.value && babies.length > 0) {
+  setCurrentBaby(defaultBabyId || babies[0].babyId)
+}
+// 问题：之后 currentBabyId 永不更新，即使 defaultBabyId 改变
 
-// ✅ 修复后：统一的真相来源
-const userInfo = getUserInfo()  // defaultBabyId 来自 userInfo
-const baby = babyList.find(b => b.babyId === userInfo.defaultBabyId)
+// ✅ 修复后：每次都重新设置
+if (babies.length > 0) {
+  setCurrentBaby(defaultBabyId || babies[0].babyId)
+}
+// 好处：应用启动时 currentBabyId 总是最新的 defaultBabyId
 ```
 
 ### 3. 防御性编程（前端）
@@ -123,7 +135,9 @@ const baby = babyList.find(b => b.babyId === userInfo.defaultBabyId)
 
 - [x] 后端：超期疫苗能正确返回 overdue 状态
 - [x] 前端：宝宝名称为空不会崩溃
-- [x] 前端：导航栏显示用户设置的默认宝宝
+- [x] 前端：应用启动时 currentBabyId = defaultBabyId
+- [x] 前端：用户切换宝宝后 currentBabyId 立即更新
+- [x] 前端：导航栏显示当前操作的宝宝（currentBabyId）
 - [x] 编译测试通过（Go 代码）
 - [x] 代码注释完整
 - [x] 文档更新完毕
@@ -133,13 +147,14 @@ const baby = babyList.find(b => b.babyId === userInfo.defaultBabyId)
 ## 相关文档
 
 1. **VACCINE_REMINDER_FIX.md** - 疫苗提醒修复的详细技术说明
-2. **NAVBAR_STATE_REFACTOR.md** - 导航栏状态管理重构的详细说明
 
 ---
 
 ## 提交历史
 
 ```
+073ac04 docs: 删除过时的导航栏重构文档
+8f3f5b3 refactor(navbar): 修复导航栏宝宝显示逻辑
 9e30cdf docs: 添加导航栏状态管理重构文档
 32bf501 docs(navbar): 添加注释说明 defaultBabyId vs currentBabyId 的区别
 57a27dc refactor(navbar): 通过 defaultBabyId 从列表匹配当前宝宝
@@ -206,22 +221,25 @@ at custom-navbar.js:58
 - 添加防护检查 `name ? name.charAt(0) : '宝'`
 - 同时修复其他页面的类似问题
 
-### 问题 3: 导航栏显示不一致
+### 问题 3: currentBabyId 初始化逻辑不当
 
 **发现**:
 ```
-设置默认宝宝后，导航栏有时不显示
+应用启动后，即使 defaultBabyId 改变，currentBabyId 也不更新
+导致导航栏不能正确反映用户的宝宝切换
 ```
 
 **诊断过程**:
-1. 发现 custom-navbar 依赖 currentBabyId
-2. currentBabyId 可能与 defaultBabyId 不同
-3. 两个状态来源导致不同步
+1. 发现 baby.ts 的 fetchBabyList() 中有条件 `if (!currentBabyId.value &&...)`
+2. 这导致只在首次调用时才设置 currentBabyId
+3. 之后即使 defaultBabyId 改变，currentBabyId 也永不更新
+4. 用户切换宝宝需要重新调用 fetchBabyList() 才能更新
 
 **解决**:
-- 改为直接使用 userInfo.defaultBabyId
-- 遍历 babyList 匹配宝宝信息
-- 建立单一真相来源
+- 删除 `!currentBabyId.value &&` 条件
+- 改为每次调用 fetchBabyList() 都重新设置 currentBabyId = defaultBabyId
+- 这样应用启动时 currentBabyId 总是最新值
+- 用户在 baby/list 中手动切换宝宝时调用 setCurrentBaby(newId)
 
 ---
 
@@ -230,10 +248,10 @@ at custom-navbar.js:58
 | 方面 | 影响级别 | 说明 |
 |------|--------|------|
 | **数据准确性** | 高 | 超期疫苗现在能正确识别 |
-| **用户体验** | 中 | 避免了导航栏崩溃和显示错误 |
-| **系统稳定性** | 中 | 减少了 undefined 相关的运行时错误 |
-| **性能** | 低 | 每次查询多做一次状态计算，但列表很小 |
-| **代码质量** | 高 | 改进了状态管理，提高了可维护性 |
+| **用户体验** | 高 | 导航栏正确显示当前操作的宝宝，切换后立即更新 |
+| **系统稳定性** | 高 | 避免了 undefined 导致的崩溃，改进了初始化逻辑 |
+| **性能** | 低 | currentBabyId 每次启动时重新初始化，但宝宝列表通常很小 |
+| **代码质量** | 高 | 改进了状态初始化逻辑，使 currentBabyId 和 defaultBabyId 的职责更清晰 |
 
 ---
 
