@@ -54,7 +54,7 @@ func (s *BabyService) CreateBaby(ctx context.Context, openID string, req *dto.Cr
 	// 创建宝宝实体
 	baby := &entity.Baby{
 		BabyID:      babyID,
-		Name:        req.BabyName,
+		Name:        req.Name,
 		Nickname:    req.Nickname,
 		Gender:      req.Gender,
 		BirthDate:   req.BirthDate,
@@ -106,7 +106,7 @@ func (s *BabyService) CreateBaby(ctx context.Context, openID string, req *dto.Cr
 
 	return &dto.BabyDTO{
 		BabyID:      baby.BabyID,
-		BabyName:    baby.Name,
+		Name:        baby.Name,
 		Nickname:    baby.Nickname,
 		Gender:      baby.Gender,
 		BirthDate:   baby.BirthDate,
@@ -129,7 +129,7 @@ func (s *BabyService) GetUserBabies(ctx context.Context, openID string) ([]dto.B
 	for _, baby := range babies {
 		result = append(result, dto.BabyDTO{
 			BabyID:      baby.BabyID,
-			BabyName:    baby.Name,
+			Name:        baby.Name,
 			Nickname:    baby.Nickname,
 			Gender:      baby.Gender,
 			BirthDate:   baby.BirthDate,
@@ -158,7 +158,7 @@ func (s *BabyService) GetBabyDetail(ctx context.Context, babyID, openID string) 
 
 	return &dto.BabyDTO{
 		BabyID:      baby.BabyID,
-		BabyName:    baby.Name,
+		Name:        baby.Name,
 		Nickname:    baby.Nickname,
 		Gender:      baby.Gender,
 		BirthDate:   baby.BirthDate,
@@ -187,8 +187,8 @@ func (s *BabyService) UpdateBaby(ctx context.Context, babyID, openID string, req
 	}
 
 	// 更新字段
-	if req.BabyName != "" {
-		baby.Name = req.BabyName
+	if req.Name != "" {
+		baby.Name = req.Name
 	}
 	if req.Nickname != "" {
 		baby.Nickname = req.Nickname
@@ -311,7 +311,7 @@ func (s *BabyService) InviteCollaborator(ctx context.Context, babyID, openID str
 	// 构建返回信息
 	result := &dto.BabyInvitationDTO{
 		BabyID:      babyID,
-		BabyName:    baby.Name,
+		Name:        baby.Name,
 		InviterName: inviter.NickName,
 		Role:        req.Role,
 		ExpiresAt:   req.ExpiresAt,
