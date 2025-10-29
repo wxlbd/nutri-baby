@@ -2,7 +2,7 @@ package dto
 
 // CreateBabyRequest 创建宝宝请求 (去家庭化架构)
 type CreateBabyRequest struct {
-	BabyName              string `json:"babyName" binding:"required"`
+	Name                  string `json:"name" binding:"required"`
 	Nickname              string `json:"nickname"`
 	Gender                string `json:"gender" binding:"required,oneof=male female"`
 	BirthDate             string `json:"birthDate" binding:"required"` // YYYY-MM-DD
@@ -13,7 +13,7 @@ type CreateBabyRequest struct {
 
 // UpdateBabyRequest 更新宝宝请求
 type UpdateBabyRequest struct {
-	BabyName    string `json:"babyName"`
+	Name        string `json:"name"`
 	Nickname    string `json:"nickname"`
 	Gender      string `json:"gender" binding:"omitempty,oneof=male female"`
 	BirthDate   string `json:"birthDate"` // YYYY-MM-DD
@@ -26,7 +26,7 @@ type UpdateBabyRequest struct {
 // BabyDTO 宝宝DTO (去家庭化架构)
 type BabyDTO struct {
 	BabyID      string `json:"babyId"`
-	BabyName    string `json:"babyName"`
+	Name        string `json:"name"`
 	Nickname    string `json:"nickname"`
 	Gender      string `json:"gender"`
 	BirthDate   string `json:"birthDate"`
@@ -60,14 +60,14 @@ type InviteCollaboratorRequest struct {
 
 // BabyInvitationDTO 宝宝邀请信息DTO
 type BabyInvitationDTO struct {
-	BabyID       string              `json:"babyId"`       // 宝宝ID
-	BabyName     string              `json:"babyName"`     // 宝宝名称
-	InviterName  string              `json:"inviterName"`  // 邀请人名称
-	Role         string              `json:"role"`         // 角色
-	ShareParams  *ShareParams        `json:"shareParams"`  // 微信分享参数
-	QRCodeParams *QRCodeParams       `json:"qrcodeParams"` // 二维码参数
-	ExpiresAt    *int64              `json:"expiresAt"`    // 过期时间(临时权限)
-	ValidUntil   int64               `json:"validUntil"`   // 邀请有效期(7天)
+	BabyID       string        `json:"babyId"`       // 宝宝ID
+	Name         string        `json:"name"`         // 宝宝名称
+	InviterName  string        `json:"inviterName"`  // 邀请人名称
+	Role         string        `json:"role"`         // 角色
+	ShareParams  *ShareParams  `json:"shareParams"`  // 微信分享参数
+	QRCodeParams *QRCodeParams `json:"qrcodeParams"` // 二维码参数
+	ExpiresAt    *int64        `json:"expiresAt"`    // 过期时间(临时权限)
+	ValidUntil   int64         `json:"validUntil"`   // 邀请有效期(7天)
 }
 
 // ShareParams 微信小程序分享参数
