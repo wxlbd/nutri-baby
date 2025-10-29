@@ -11,7 +11,7 @@ import { get, post, put, del } from "@/utils/request";
  */
 export interface BabyResponse {
   babyId: string;
-  babyName: string;
+  name: string;
   nickname?: string;
   gender: "male" | "female";
   birthDate: string;
@@ -29,7 +29,7 @@ export interface BabyResponse {
  */
 export interface BabyProfileResponse {
   babyId: string;
-  name: string; // 从 babyName 转换
+  name: string;
   nickname?: string;
   gender: "male" | "female";
   birthDate: string;
@@ -44,7 +44,7 @@ export interface BabyProfileResponse {
  * API 请求: 创建宝宝
  */
 export interface CreateBabyRequest {
-  babyName: string;
+  name: string;
   gender: "male" | "female";
   birthDate: string;
   nickname?: string;
@@ -57,7 +57,7 @@ export interface CreateBabyRequest {
  * API 请求: 更新宝宝
  */
 export interface UpdateBabyRequest {
-  babyName?: string;
+  name?: string;
   nickname?: string;
   gender?: "male" | "female";
   birthDate?: string;
@@ -78,10 +78,9 @@ export async function apiFetchBabyList(): Promise<BabyProfileResponse[]> {
   const response = await get<BabyResponse[]>("/babies");
   const babies = response.data || [];
 
-  // 转换字段: babyName -> name
   return babies.map((baby) => ({
     babyId: baby.babyId,
-    name: baby.babyName, // 转换字段名
+    name: baby.name,
     nickname: baby.nickname,
     gender: baby.gender,
     birthDate: baby.birthDate,
