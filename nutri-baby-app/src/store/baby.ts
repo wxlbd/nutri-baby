@@ -4,37 +4,40 @@
  *
  * ⚠️ 向后兼容: 所有导出函数的签名保持不变,页面组件无需修改
  */
-import { ref, computed } from 'vue'
-import type { BabyProfile } from '@/types'
-import { StorageKeys, getStorage, setStorage } from '@/utils/storage'
-import * as babyApi from '@/api/baby'
-import { getUserInfo } from './user'
+import { ref, computed } from "vue";
+import type { BabyProfile } from "@/types";
+import { StorageKeys, getStorage, setStorage } from "@/utils/storage";
+import * as babyApi from "@/api/baby";
+import { getUserInfo } from "./user";
 
 // ============ 状态定义 ============
 
 // 宝宝列表 - 延迟初始化
-const babyList = ref<BabyProfile[]>([])
+const babyList = ref<BabyProfile[]>([]);
 
 // 当前选中的宝宝 ID - 延迟初始化
-const currentBabyId = ref<string>('')
+const currentBabyId = ref<string>("");
 
 // 初始化标记
-let isInitialized = false
+let isInitialized = false;
 
 // 延迟初始化 - 仅在首次访问时从存储读取
 function initializeIfNeeded() {
   if (!isInitialized) {
-    babyList.value = getStorage<BabyProfile[]>(StorageKeys.BABY_LIST) || []
-    currentBabyId.value = getStorage<string>(StorageKeys.CURRENT_BABY_ID) || ''
-    isInitialized = true
+    babyList.value = getStorage<BabyProfile[]>(StorageKeys.BABY_LIST) || [];
+    currentBabyId.value = getStorage<string>(StorageKeys.CURRENT_BABY_ID) || "";
+    isInitialized = true;
   }
 }
 
 // 当前宝宝信息
 const currentBaby = computed(() => {
-  initializeIfNeeded() // 确保数据已加载
-  return babyList.value.find(baby => baby.babyId === currentBabyId.value) || null
-})
+  initializeIfNeeded(); // 确保数据已加载
+  console.log("babyList.value", babyList.value);
+  return (
+    babyList.value.find((baby) => baby.babyId === currentBabyId.value) || null
+  );
+});
 
 // ============ 本地查询函数 ============
 
@@ -44,8 +47,8 @@ const currentBaby = computed(() => {
  * ⚠️ 向后兼容: 函数签名保持不变
  */
 export function getBabyList() {
-  initializeIfNeeded()
-  return babyList.value
+  initializeIfNeeded();
+  return babyList.value;
 }
 
 /**
@@ -54,7 +57,7 @@ export function getBabyList() {
  * ⚠️ 向后兼容: 函数签名保持不变
  */
 export function getCurrentBaby() {
-  return currentBaby.value
+  return currentBaby.value;
 }
 
 // ============ API 调用函数(委托给 api 层) ============
@@ -67,14 +70,14 @@ export function getCurrentBaby() {
  * ⚠️ 向后兼容: 函数签名保持不变
  */
 export async function fetchBabyList(): Promise<BabyProfile[]> {
-  initializeIfNeeded()
+  initializeIfNeeded();
   try {
-    const apiResponse = await babyApi.apiFetchBabyList()
+    const apiResponse = await babyApi.apiFetchBabyList();
 
     // 将 API 响应的字段映射到本地类型
     const babies: BabyProfile[] = apiResponse.map((baby) => ({
       babyId: baby.babyId,
-      name: baby.babyName,
+      name: baby.name,
       nickname: baby.nickname,
       gender: baby.gender,
       birthDate: baby.birthDate,
@@ -83,30 +86,30 @@ export async function fetchBabyList(): Promise<BabyProfile[]> {
       familyGroup: baby.familyGroup,
       createTime: baby.createTime,
       updateTime: baby.updateTime,
-    }))
+    }));
 
-    babyList.value = babies
-    setStorage(StorageKeys.BABY_LIST, babies)
+    babyList.value = babies;
+    setStorage(StorageKeys.BABY_LIST, babies);
 
     // 设置当前宝宝的逻辑优化：
     // 1. 如果用户设置了默认宝宝且该宝宝在列表中,使用默认宝宝
     // 2. 如果没有默认宝宝或默认宝宝不在列表中,选中第一个
     // 3. 每次调用 fetchBabyList 都会重新设置 currentBabyId（用户手动切换除外）
-    const userInfo = getUserInfo()
-    const defaultBabyId = userInfo?.defaultBabyId
+    const userInfo = getUserInfo();
+    const defaultBabyId = userInfo?.defaultBabyId;
 
     if (babies.length > 0) {
-      if (defaultBabyId && babies.some(b => b.babyId === defaultBabyId)) {
-        setCurrentBaby(defaultBabyId)
+      if (defaultBabyId && babies.some((b) => b.babyId === defaultBabyId)) {
+        setCurrentBaby(defaultBabyId);
       } else {
-        setCurrentBaby(babies[0].babyId)
+        setCurrentBaby(babies[0].babyId);
       }
     }
 
-    return babies
+    return babies;
   } catch (error: any) {
-    console.error('fetch baby list error:', error)
-    throw error
+    console.error("fetch baby list error:", error);
+    throw error;
   }
 }
 
@@ -119,7 +122,7 @@ export async function fetchBabyList(): Promise<BabyProfile[]> {
  */
 export async function fetchBabyDetail(babyId: string): Promise<BabyProfile> {
   try {
-    const apiResponse = await babyApi.apiFetchBabyDetail(babyId)
+    const apiResponse = await babyApi.apiFetchBabyDetail(babyId);
 
     // 映射字段
     const baby: BabyProfile = {
@@ -133,21 +136,21 @@ export async function fetchBabyDetail(babyId: string): Promise<BabyProfile> {
       familyGroup: apiResponse.familyGroup,
       createTime: apiResponse.createTime,
       updateTime: apiResponse.updateTime,
-    }
+    };
 
     // 更新本地列表
-    const index = babyList.value.findIndex(b => b.babyId === baby.babyId)
+    const index = babyList.value.findIndex((b) => b.babyId === baby.babyId);
     if (index !== -1) {
-      babyList.value[index] = baby
+      babyList.value[index] = baby;
     } else {
-      babyList.value.push(baby)
+      babyList.value.push(baby);
     }
-    setStorage(StorageKeys.BABY_LIST, babyList.value)
+    setStorage(StorageKeys.BABY_LIST, babyList.value);
 
-    return baby
+    return baby;
   } catch (error: any) {
-    console.error('fetch baby detail error:', error)
-    throw error
+    console.error("fetch baby detail error:", error);
+    throw error;
   }
 }
 
@@ -169,8 +172,8 @@ export async function fetchBabyDetail(babyId: string): Promise<BabyProfile> {
  * ⚠️ 向后兼容: 函数签名保持不变
  */
 export function setCurrentBaby(id: string) {
-  currentBabyId.value = id
-  setStorage(StorageKeys.CURRENT_BABY_ID, id)
+  currentBabyId.value = id;
+  setStorage(StorageKeys.CURRENT_BABY_ID, id);
 }
 
 /**
@@ -179,7 +182,7 @@ export function setCurrentBaby(id: string) {
  * ⚠️ 向后兼容: 函数签名保持不变
  */
 export function getBabyById(id: string): BabyProfile | null {
-  return babyList.value.find(baby => baby.babyId === id) || null
+  return babyList.value.find((baby) => baby.babyId === id) || null;
 }
 
 /**
@@ -188,12 +191,12 @@ export function getBabyById(id: string): BabyProfile | null {
  * ⚠️ 向后兼容: 函数签名保持不变
  */
 export function clearBabyData() {
-  babyList.value = []
-  currentBabyId.value = ''
-  setStorage(StorageKeys.BABY_LIST, [])
-  setStorage(StorageKeys.CURRENT_BABY_ID, '')
+  babyList.value = [];
+  currentBabyId.value = "";
+  setStorage(StorageKeys.BABY_LIST, []);
+  setStorage(StorageKeys.CURRENT_BABY_ID, "");
 }
 
 // ============ 导出 ============
 
-export { babyList, currentBabyId, currentBaby }
+export { babyList, currentBabyId, currentBaby };
