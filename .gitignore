@@ -34,3 +34,4 @@ BACKEND_CONFIG_REFACTOR.md
 DIAGNOSE.md
 diagnostic.js
 VSCODE_RUN_CONFIG_GUIDE.md
+.idea/.gitignore
