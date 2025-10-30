@@ -109,7 +109,7 @@ func TestFeedingReminderStrategyFactory(t *testing.T) {
 			"type": "breast",
 		},
 	}
-	strategy := factory.GetStrategy(breastRecord)
+	strategy,_ := factory.GetStrategy(breastRecord)
 	assert.Equal(t, "breast_feeding_reminder", strategy.GetTemplateType())
 
 	// 测试奶瓶喂养策略选择
@@ -118,7 +118,7 @@ func TestFeedingReminderStrategyFactory(t *testing.T) {
 			"type": "bottle",
 		},
 	}
-	strategy = factory.GetStrategy(bottleRecord)
+	strategy,_ = factory.GetStrategy(bottleRecord)
 	assert.Equal(t, "bottle_feeding_reminder", strategy.GetTemplateType())
 
 	// 测试辅食策略选择
@@ -127,7 +127,7 @@ func TestFeedingReminderStrategyFactory(t *testing.T) {
 			"type": "food",
 		},
 	}
-	strategy = factory.GetStrategy(foodRecord)
+	strategy,_ = factory.GetStrategy(foodRecord)
 	assert.Equal(t, "food_feeding_reminder", strategy.GetTemplateType())
 
 	// 测试未知类型（应返回默认母乳策略）
@@ -136,7 +136,7 @@ func TestFeedingReminderStrategyFactory(t *testing.T) {
 			"type": "unknown",
 		},
 	}
-	strategy = factory.GetStrategy(unknownRecord)
+	strategy,_ = factory.GetStrategy(unknownRecord)
 	assert.Equal(t, "breast_feeding_reminder", strategy.GetTemplateType())
 }
 
