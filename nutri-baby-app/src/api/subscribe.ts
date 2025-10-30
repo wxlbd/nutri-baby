@@ -107,3 +107,46 @@ export async function getMessageLogs(
     limit: pageSize
   })
 }
+
+/**
+ * 喂养提醒请求数据
+ */
+export interface FeedingReminderRequest {
+  babyId: string
+  feedingType: 'breast' | 'bottle'
+  lastFeedingTime: number // 上次喂养时间(Unix时间戳,毫秒)
+  lastFeedingDuration?: number // 上次喂养时长(秒)
+  lastFeedingAmount?: number // 上次喂养量(ml)
+  lastFeedingBottleType?: 'formula' | 'breast-milk'
+  templateType: 'breast_feeding_reminder' | 'bottle_feeding_reminder'
+}
+
+/**
+ * 发送喂养提醒消息
+ * @param data 喂养提醒数据
+ * @returns Promise<void>
+ */
+export async function sendFeedingReminder(
+  data: FeedingReminderRequest
+): Promise<void> {
+  return request.post('/api/v1/subscribe/feeding-reminder', data)
+}
+
+/**
+ * 发送长时间喂养警告
+ * @param babyId 宝宝ID
+ * @param startTime 开始时间(Unix时间戳,毫秒)
+ * @param duration 已喂养时长(秒)
+ * @returns Promise<void>
+ */
+export async function sendFeedingDurationAlert(
+  babyId: string,
+  startTime: number,
+  duration: number
+): Promise<void> {
+  return request.post('/api/v1/subscribe/feeding-duration-alert', {
+    babyId,
+    startTime,
+    duration
+  })
+}
