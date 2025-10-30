@@ -2,35 +2,12 @@ package repository
 
 import (
 	"context"
+
 	"github.com/wxlbd/nutri-baby-server/internal/domain/entity"
-	"time"
 )
 
 // SubscribeRepository 订阅消息仓储接口
 type SubscribeRepository interface {
-	// ==================== 一次性订阅授权管理 ====================
-
-	// CreateSubscribeRecord 创建订阅授权记录(每次授权创建新记录)
-	CreateSubscribeRecord(ctx context.Context, record *entity.SubscribeRecord) error
-
-	// GetAvailableSubscribeRecord 获取用户可用的授权记录(按授权时间倒序,取最新的一条)
-	GetAvailableSubscribeRecord(ctx context.Context, openid, templateType string) (*entity.SubscribeRecord, error)
-
-	// GetSubscribeRecord 根据openid和模板类型获取最新的订阅记录
-	GetSubscribeRecord(ctx context.Context, openid, templateType string) (*entity.SubscribeRecord, error)
-
-	// ListUserSubscriptions 获取用户的所有订阅记录(包括已使用和已过期)
-	ListUserSubscriptions(ctx context.Context, openid string) ([]*entity.SubscribeRecord, error)
-
-	// UpdateSubscribeRecord 更新订阅记录
-	UpdateSubscribeRecord(ctx context.Context, record *entity.SubscribeRecord) error
-
-	// CountAvailableAuthorizations 统计用户可用的授权数量
-	CountAvailableAuthorizations(ctx context.Context, openid, templateType string) (int64, error)
-
-	// DeleteExpiredRecords 清理过期的授权记录(定期任务使用)
-	DeleteExpiredRecords(ctx context.Context, beforeTime time.Time) (int64, error)
-
 	// ==================== 消息发送队列管理(暂不使用) ====================
 
 	// AddToSendQueue 将消息加入发送队列
