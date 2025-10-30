@@ -48,7 +48,7 @@ const TEMPLATE_CONFIGS: SubscribeMessageTemplate[] = [
     templateId: '2JRV0DnOHnasHzzamWFoWGaUxrgW6GY69-eGn4tBFZE',
     title: '母乳喂养提醒',
     keywords: ['上次时间', '距离上次', '上次位置', '温馨提示'],
-    description: '智能提醒您该喂养宝宝了',
+    description: '智能提醒您该给宝宝哺乳了，不错过每次喂养时间',
     // icon: '/static/icons/breast.png',
     priority: 4,
   },
@@ -57,7 +57,7 @@ const TEMPLATE_CONFIGS: SubscribeMessageTemplate[] = [
     templateId: 'QSMUFLFfRiEVbMRL0DfWNIPoN3kNN8nA0mRpwXyinNw',
     title: '喂奶时间过长提醒',
     keywords: ['开始时间', '持续时长', '温馨提示'],
-    description: '当喂奶时长超过建议时间时提醒',
+    description: '当喂奶时长超过建议时间时提醒，保护乳房健康',
     // icon: '/static/icons/alert.png',
     priority: 3,
   },
@@ -66,7 +66,7 @@ const TEMPLATE_CONFIGS: SubscribeMessageTemplate[] = [
     templateId: 'ssttSBSWM_IXh5zVOu9GBeuabX8NFcwM2IG-VK-RXNY',
     title: '奶瓶喂养提醒',
     keywords: ['上次时间', '距离上次', '上次容量', '上次类型', '温馨提示'],
-    description: '智能提醒您该喂养宝宝了',
+    description: '开启提醒，智能提示您宝宝的喂养时间，让喂养更有规律',
     // icon: '/static/icons/bottle.png',
     priority: 4,
   },
@@ -141,9 +141,12 @@ function initializeIfNeeded() {
           type: template.type,
           enabled: false,
           advanceDays: template.type === 'vaccine_reminder' ? 3 : undefined,
-          intervalMinutes: ['breast_feeding_reminder', 'bottle_feeding_reminder'].includes(template.type)
-            ? 180
-            : undefined,
+          intervalMinutes:
+            template.type === 'breast_feeding_reminder'
+              ? 180 // 母乳提醒每3小时一次
+              : template.type === 'bottle_feeding_reminder'
+              ? 180 // 奶瓶提醒每3小时一次
+              : undefined,
         })
       })
       saveReminderConfigs()
@@ -326,6 +329,7 @@ export async function requestSubscribeMessage(
     uni.requestSubscribeMessage({
       tmplIds: templateIds,
       success: (res) => {
+      console.log("申请订阅的模板 IDs",templateIds)
         console.log('[Subscribe] requestSubscribeMessage success:', res)
 
         const results = new Map<SubscribeMessageType, 'accept' | 'reject'>()
@@ -352,6 +356,7 @@ export async function requestSubscribeMessage(
       },
       fail: (err) => {
         console.error('[Subscribe] requestSubscribeMessage fail:', err)
+        console.error('[Subscribe] fail error details:', JSON.stringify(err))
 
         // 失败视为拒绝
         const results = new Map<SubscribeMessageType, 'accept' | 'reject'>()
