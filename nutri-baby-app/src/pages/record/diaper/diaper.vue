@@ -45,6 +45,18 @@
     <view v-if="showDetails" class="details-section">
       <view class="section-title">大便详情(可选)</view>
 
+      <!-- 记录时间选择 -->
+      <nut-cell-group>
+        <nut-cell title="记录时间">
+          <template #link>
+            <view class="time-display" @click="showDatePicker">
+              <text>{{ formatRecordTime(recordDateTime) }}</text>
+              <nut-icon name="right"></nut-icon>
+            </view>
+          </template>
+        </nut-cell>
+      </nut-cell-group>
+
       <nut-cell-group>
         <!-- 大便颜色 -->
         <nut-cell title="颜色">
@@ -100,6 +112,29 @@
         </nut-button>
       </view>
     </view>
+
+    <!-- 日期选择器 -->
+    <nut-date-picker
+        v-model="recordDateTime"
+        type="datetime"
+        :min-date="minDateTime"
+        :max-date="maxDateTime"
+        @confirm="onDateTimeConfirm"
+        @cancel="onDateTimeCancel"
+        :visible="showDatetimePickerModal"
+    ></nut-date-picker>
+
+    <!-- 快速记录时间选择弹窗 -->
+    <nut-dialog v-model:visible="showQuickTimePickerModal" title="选择记录时间" @confirm="onQuickTimeConfirm" @cancel="onQuickTimeCancel">
+      <view class="quick-time-picker">
+        <nut-date-picker
+            v-model="quickRecordDateTime"
+            type="datetime"
+            :min-date="minDateTime"
+            :max-date="maxDateTime"
+        ></nut-date-picker>
+      </view>
+    </nut-dialog>
   </view>
 </template>
 
@@ -122,6 +157,52 @@ const form = ref({
 
 // 是否显示详情
 const showDetails = ref(false)
+
+// 日期时间选择器
+const recordDateTime = ref<Date>(new Date()) // 记录时间,初始为当前时间
+const showDatetimePickerModal = ref(false)
+const quickRecordDateTime = ref<Date>(new Date())
+const showQuickTimePickerModal = ref(false)
+const minDateTime = ref<Date>(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)) // 最小: 30天前
+const maxDateTime = ref<Date>(new Date()) // 最大: 当前时间
+
+// 显示日期时间选择器
+const showDatePicker = () => {
+    showDatetimePickerModal.value = true
+}
+
+// 确认日期时间选择
+const onDateTimeConfirm = (value: Date) => {
+    recordDateTime.value = value
+    showDatetimePickerModal.value = false
+    console.log('[Diaper] 记录时间已更改为:', value)
+}
+
+// 取消日期时间选择
+const onDateTimeCancel = () => {
+    showDatetimePickerModal.value = false
+}
+
+// 快速记录时间确认
+const onQuickTimeConfirm = () => {
+    showQuickTimePickerModal.value = false
+    saveRecord(quickRecordDateTime.value.getTime())
+}
+
+// 快速记录时间取消
+const onQuickTimeCancel = () => {
+    showQuickTimePickerModal.value = false
+}
+
+// 格式化记录时间显示
+const formatRecordTime = (date: Date): string => {
+    const year = date.getFullYear()
+    const month = String(date.getMonth() + 1).padStart(2, '0')
+    const day = String(date.getDate()).padStart(2, '0')
+    const hours = String(date.getHours()).padStart(2, '0')
+    const minutes = String(date.getMinutes()).padStart(2, '0')
+    return `${year}-${month}-${day} ${hours}:${minutes}`
+}
 
 // 大便颜色选项
 const poopColors = [
@@ -158,16 +239,19 @@ const quickRecord = (type: DiaperType) => {
 
   // 如果包含大便,显示详情填写
   if (type === 'poop' || type === 'both') {
+    // 重置时间为当前时间
+    recordDateTime.value = new Date()
     showDetails.value = true
     return
   }
 
-  // 小便直接保存
-  saveRecord()
+  // 小便显示时间选择弹窗
+  quickRecordDateTime.value = new Date()
+  showQuickTimePickerModal.value = true
 }
 
 // 保存记录
-const saveRecord = async () => {
+const saveRecord = async (changeTime?: number) => {
   const user = getUserInfo()
   if (!user) {
     uni.showToast({
@@ -178,6 +262,9 @@ const saveRecord = async () => {
   }
 
   try {
+    // 使用传入的时间或当前表单中的时间
+    const finalChangeTime = changeTime ?? recordDateTime.value.getTime()
+
     // 直接调用 API 层创建记录
     await diaperApi.apiCreateDiaperRecord({
       babyId: currentBabyId.value,
@@ -185,7 +272,7 @@ const saveRecord = async () => {
       pooColor: form.value.poopColor,
       pooTexture: form.value.poopTexture,
       note: form.value.note || undefined,
-      changeTime: Date.now()
+      changeTime: finalChangeTime
     })
 
     uni.showToast({
@@ -260,6 +347,14 @@ const handleSubmit = () => {
   margin-bottom: 24rpx;
 }
 
+.time-display {
+  display: flex;
+  align-items: center;
+  gap: 10rpx;
+  color: #333;
+  font-size: 28rpx;
+}
+
 .color-selector {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -304,5 +399,9 @@ const handleSubmit = () => {
 
 .submit-button {
   margin-top: 40rpx;
+}
+
+.quick-time-picker {
+  height: 400rpx;
 }
 </style>
