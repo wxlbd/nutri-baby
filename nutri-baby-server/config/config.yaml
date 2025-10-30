@@ -48,6 +48,8 @@ wechat:
   # 订阅消息模板ID配置
   subscribe_templates:
     # 喂养提醒模板
-    breast_feeding_reminder: "YOUR_FEEDING_REMINDER_TEMPLATE_ID"
+    breast_feeding_reminder: "2JRV0DnOHnasHzzamWFoWGaUxrgW6GY69-eGn4tBFZE"   # 母乳喂养提醒
+    bottle_feeding_reminder: "ssttSBSWM_IXh5zVOu9GBeuabX8NFcwM2IG-VK-RXNY"   # 奶瓶喂养提醒
+    food_feeding_reminder: "ssttSBSWM_IXh5zVOu9GBeuabX8NFcwM2IG-VK-RXNY"     # 辅食喂养提醒
     # 疫苗提醒模板
     vaccine_reminder: "YOUR_VACCINE_REMINDER_TEMPLATE_ID"
