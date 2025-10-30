@@ -21,17 +21,6 @@ type FeedingDetail struct {
 	FormulaType string `json:"formulaType,omitempty"` // 兼容旧数据
 }
 
-// CreateFeedingRecordRequest 创建喂养记录请求
-type CreateFeedingRecordRequest struct {
-	BabyID      string        `json:"babyId" binding:"required"`
-	FeedingType string        `json:"feedingType" binding:"required,oneof=breast bottle food"`
-	Amount      int64         `json:"amount"`   // ml
-	Duration    int           `json:"duration"` // 秒
-	Detail      FeedingDetail `json:"detail"`
-	Note        string        `json:"note"`
-	FeedingTime int64         `json:"feedingTime"` // 毫秒时间戳
-}
-
 // FeedingRecordDTO 喂养记录DTO
 type FeedingRecordDTO struct {
 	RecordID    string        `json:"recordId"`
