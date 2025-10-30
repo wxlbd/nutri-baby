@@ -112,6 +112,31 @@
             </nut-tabs>
         </view>
 
+        <!-- 记录时间选择 -->
+        <view class="time-picker-section">
+            <nut-cell-group>
+                <nut-cell title="记录时间">
+                    <template #link>
+                        <view class="time-display" @click="showDatePicker">
+                            <text>{{ formatRecordTime(recordDateTime) }}</text>
+                            <nut-icon name="right"></nut-icon>
+                        </view>
+                    </template>
+                </nut-cell>
+            </nut-cell-group>
+        </view>
+
+        <!-- 日期选择器 -->
+        <nut-date-picker
+                v-model="recordDateTime"
+                type="datetime"
+                :min-date="minDateTime"
+                :max-date="maxDateTime"
+                @confirm="onDateTimeConfirm"
+                @cancel="onDateTimeCancel"
+                :visible="showDatetimePickerModal"
+        ></nut-date-picker>
+
         <!-- 提交按钮 -->
         <view class="submit-section">
             <nut-button
@@ -123,22 +148,6 @@
                 保存记录
             </nut-button>
         </view>
-
-        <!-- 订阅消息引导(母乳) -->
-        <SubscribeGuide
-          v-model="showBreastFeedingGuide"
-          type="breast_feeding_reminder"
-          :context-message="breastFeedingGuideContext"
-          @confirm="handleSubscribeResult"
-        />
-
-        <!-- 订阅消息引导(奶瓶) -->
-        <SubscribeGuide
-          v-model="showBottleFeedingGuide"
-          type="bottle_feeding_reminder"
-          :context-message="bottleFeedingGuideContext"
-          @confirm="handleSubscribeResult"
-        />
     </view>
 </template>
 
@@ -150,8 +159,6 @@ import {getUserInfo} from '@/store/user'
 import {padZero} from '@/utils/common'
 import {StorageKeys, getStorage, setStorage, removeStorage} from '@/utils/storage'
 import type {FeedingDetail} from '@/types'
-import SubscribeGuide from '@/components/SubscribeGuide.vue'
-import { getAuthStatus } from '@/store/subscribe'
 
 // 直接调用 API 层
 import * as feedingApi from '@/api/feeding'
@@ -166,20 +173,6 @@ interface TempBreastFeeding {
 
 // 喂养类型
 const feedingType = ref<'breast' | 'bottle' | 'food'>('breast')
-
-// 订阅消息引导状态
-const showBreastFeedingGuide = ref(false)
-const showBottleFeedingGuide = ref(false)
-
-// 母乳喂养引导文案
-const breastFeedingGuideContext = computed(() => {
-  return '设置提醒,定时通知您该给宝宝喂奶了,不错过每次喂养时间'
-})
-
-// 奶瓶喂养引导文案
-const bottleFeedingGuideContext = computed(() => {
-  return '开启提醒,智能提示您宝宝的喂养时间,让喂养更有规律'
-})
 
 // 母乳喂养表单
 const breastForm = ref({
@@ -208,6 +201,39 @@ const startTime = ref(0) // 开始时间戳 (毫秒)
 const timerTrigger = ref(0) // 用于触发视图更新的虚拟响应式值
 const tempRecordCheckDone = ref(false) // 防止重复检测临时记录
 let timerInterval: number | null = null
+
+// 日期时间选择器
+const recordDateTime = ref<Date>(new Date()) // 记录时间,初始为当前时间
+const showDatetimePickerModal = ref(false)
+const minDateTime = ref<Date>(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)) // 最小: 30天前
+const maxDateTime = ref<Date>(new Date()) // 最大: 当前时间
+
+// 显示日期时间选择器
+const showDatePicker = () => {
+    showDatetimePickerModal.value = true
+}
+
+// 确认日期时间选择
+const onDateTimeConfirm = (value: Date) => {
+    recordDateTime.value = value
+    showDatetimePickerModal.value = false
+    console.log('[Feeding] 记录时间已更改为:', value)
+}
+
+// 取消日期时间选择
+const onDateTimeCancel = () => {
+    showDatetimePickerModal.value = false
+}
+
+// 格式化记录时间显示
+const formatRecordTime = (date: Date): string => {
+    const year = date.getFullYear()
+    const month = String(date.getMonth() + 1).padStart(2, '0')
+    const day = String(date.getDate()).padStart(2, '0')
+    const hours = String(date.getHours()).padStart(2, '0')
+    const minutes = String(date.getMinutes()).padStart(2, '0')
+    return `${year}-${month}-${day} ${hours}:${minutes}`
+}
 
 // 格式化时间显示 - 基于开始时间戳计算
 const formattedTime = computed(() => {
@@ -325,6 +351,10 @@ onShow(() => {
   // 每次页面显示时重置检测标志，允许再次检测
   tempRecordCheckDone.value = false
   checkTempRecord()
+
+  // ❌ 注意: 不能在onShow中自动调用requestSubscribeMessage
+  // 微信限制: requestSubscribeMessage只能通过用户主动点击(TAP)触发
+  // 已改为在用户点击"保存记录"时申请
 })
 
 // 监听喂养侧变化,如果正在计时则更新临时记录
@@ -490,7 +520,7 @@ const handleSubmit = async () => {
         const requestData: feedingApi.CreateFeedingRecordRequest = {
             babyId: currentBabyId.value,
             feedingType: detail.type,
-            feedingTime: Date.now(),
+            feedingTime: recordDateTime.value.getTime(),
             detail: {}
         }
 
@@ -531,43 +561,10 @@ const handleSubmit = async () => {
             icon: 'success'
         })
 
-        // 每次保存成功后都直接询问授权(除非被Ban)
-        const messageType = feedingType.value === 'breast' ? 'breast_feeding_reminder' : 'bottle_feeding_reminder'
-        console.log('[Feeding] 检查订阅授权状态, messageType:', messageType)
-
-        const authStatus = getAuthStatus(messageType)
-        console.log('[Feeding] authStatus:', authStatus)
-
-        // 只有被Ban时才不显示
-        if (authStatus !== 'ban') {
-          console.log('[Feeding] 准备显示订阅引导 (authStatus !== ban)')
-
-          if (feedingType.value === 'breast') {
-            console.log('[Feeding] 母乳喂养,1.5秒后显示引导')
-            setTimeout(() => {
-              console.log('[Feeding] 显示母乳喂养订阅引导')
-              showBreastFeedingGuide.value = true
-            }, 1500) // 延迟1.5秒显示,让用户看到保存成功的提示
-            return // 等待用户处理引导,不立即返回上一页
-          }
-
-          if (feedingType.value === 'bottle') {
-            console.log('[Feeding] 奶瓶喂养,1.5秒后显示引导')
-            setTimeout(() => {
-              console.log('[Feeding] 显示奶瓶喂养订阅引导')
-              showBottleFeedingGuide.value = true
-            }, 1500)
-            return
-          }
-        } else {
-          console.log('[Feeding] authStatus === ban, 不显示订阅引导')
-        }
-
-        // 被Ban或不需要引导,直接返回上一页
-        console.log('[Feeding] 1秒后返回上一页')
+        // 延迟返回上一页，让用户看到成功提示
         setTimeout(() => {
             uni.navigateBack()
-        }, 1000)
+        }, 1500)
     } catch (error: any) {
         console.error('[Feeding] 保存喂养记录失败:', error)
         uni.showToast({
@@ -577,14 +574,6 @@ const handleSubmit = async () => {
     }
 }
 
-// 处理订阅消息结果
-const handleSubscribeResult = (result: 'accept' | 'reject') => {
-  console.log('订阅结果:', result)
-  // 返回上一页
-  setTimeout(() => {
-    uni.navigateBack()
-  }, 500)
-}
 </script>
 
 <style lang="scss" scoped>
@@ -600,6 +589,19 @@ const handleSubscribeResult = (result: 'accept' | 'reject') => {
 
 .feeding-form {
     padding: 20rpx;
+}
+
+.time-picker-section {
+    background: white;
+    margin: 20rpx 0;
+}
+
+.time-display {
+    display: flex;
+    align-items: center;
+    gap: 10rpx;
+    color: #333;
+    font-size: 28rpx;
 }
 
 .timer-section {
