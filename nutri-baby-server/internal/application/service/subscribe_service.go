@@ -14,50 +14,51 @@ import (
 )
 
 type SubscribeService struct {
-	subscribeRepo repository.SubscribeRepository
-	wechatService *WechatService
-	logger        *zap.Logger
+	subscribeRepo             repository.SubscribeRepository
+	subscriptionCacheRepo     repository.SubscriptionCacheRepository
+	wechatService             *WechatService
+	logger                    *zap.Logger
 }
 
 func NewSubscribeService(
 	subscribeRepo repository.SubscribeRepository,
+	subscriptionCacheRepo repository.SubscriptionCacheRepository,
 	wechatService *WechatService,
 	logger *zap.Logger,
 ) *SubscribeService {
 	return &SubscribeService{
-		subscribeRepo: subscribeRepo,
-		wechatService: wechatService,
-		logger:        logger,
+		subscribeRepo:         subscribeRepo,
+		subscriptionCacheRepo: subscriptionCacheRepo,
+		wechatService:         wechatService,
+		logger:                logger,
 	}
 }
 
-// SaveSubscribeAuth 保存用户授权记录(一次性订阅消息机制)
+// SaveSubscribeAuth 保存用户授权记录(一次性订阅消息机制回调处理)
+//
+// 微信授权完成后,通过回调通知应用授权结果
+// 用户可选"记住我的选择",如勾选则将权限状态缓存30天
 func (s *SubscribeService) SaveSubscribeAuth(ctx context.Context, openid string, records []dto.SubscribeAuthDTO) (*dto.SubscribeAuthResponse, error) {
 	successCount := 0
 	failedCount := 0
 
 	for _, r := range records {
-		// 只保存用户同意的记录
-		if r.Status != "accept" {
-			continue
+		// 判断用户是同意还是拒绝
+		status := repository.StatusDeny
+		if r.Status == "accept" {
+			status = repository.StatusAllow
 		}
 
-		// 计算过期时间(微信一次性订阅消息有效期为7天)
-		authorizeTime := time.Now()
-		expireTime := authorizeTime.Add(7 * 24 * time.Hour)
-
-		record := &entity.SubscribeRecord{
-			OpenID:        openid,
-			TemplateID:    r.TemplateID,
-			TemplateType:  r.TemplateType,
-			Status:        "available",
-			AuthorizeTime: authorizeTime,
-			ExpireTime:    &expireTime,
-		}
-
-		// 每次授权创建新记录(一次性消息机制)
-		if err := s.subscribeRepo.CreateSubscribeRecord(ctx, record); err != nil {
-			s.logger.Error("Failed to save subscribe record",
+		// 将权限状态保存到 Redis
+		// 注: 微信的"总是保持以上选择"由微信端实现,我们只需记录状态即可(永久有效)
+		err := s.subscriptionCacheRepo.SetSubscriptionStatus(
+			ctx,
+			openid,
+			r.TemplateType,
+			status,
+		)
+		if err != nil {
+			s.logger.Error("Failed to cache subscription status",
 				zap.String("openid", openid),
 				zap.String("templateType", r.TemplateType),
 				zap.Error(err),
@@ -65,10 +66,11 @@ func (s *SubscribeService) SaveSubscribeAuth(ctx context.Context, openid string,
 			failedCount++
 		} else {
 			successCount++
-			s.logger.Info("Subscribe authorization saved",
+			s.logger.Info("Subscription status cached",
 				zap.String("openid", openid),
 				zap.String("templateType", r.TemplateType),
-				zap.Time("expireTime", expireTime))
+				zap.String("status", string(status)),
+			)
 		}
 	}
 
@@ -79,26 +81,26 @@ func (s *SubscribeService) SaveSubscribeAuth(ctx context.Context, openid string,
 }
 
 // GetUserSubscriptions 获取用户订阅状态
+//
+// 返回用户在 Redis 缓存中存储的所有订阅权限记录
 func (s *SubscribeService) GetUserSubscriptions(ctx context.Context, openid string) (*dto.SubscribeStatusResponse, error) {
-	records, err := s.subscribeRepo.ListUserSubscriptions(ctx, openid)
+	// 从缓存中获取用户的所有订阅权限状态
+	subscriptionMap, err := s.subscriptionCacheRepo.GetAllSubscriptions(ctx, openid)
 	if err != nil {
-		s.logger.Error("Failed to get user subscriptions",
+		s.logger.Error("Failed to get user subscriptions from cache",
 			zap.String("openid", openid),
 			zap.Error(err),
 		)
-		return nil, errs.ErrInternal
+		return nil, err
 	}
 
-	subscriptions := make([]dto.SubscriptionItem, 0, len(records))
-	for _, record := range records {
+	// 转换为响应格式
+	subscriptions := make([]dto.SubscriptionItem, 0, len(subscriptionMap))
+	for templateType, status := range subscriptionMap {
 		item := dto.SubscriptionItem{
-			TemplateType:  record.TemplateType,
-			TemplateID:    record.TemplateID,
-			Status:        record.Status,
-			SubscribeTime: record.AuthorizeTime.Unix(),
-		}
-		if record.ExpireTime != nil {
-			item.ExpireTime = record.ExpireTime.Unix()
+			TemplateType:  templateType,
+			Status:        string(status),
+			SubscribeTime: time.Now().Unix(), // 缓存中未记录精确时间,使用当前时间
 		}
 		subscriptions = append(subscriptions, item)
 	}
@@ -108,20 +110,49 @@ func (s *SubscribeService) GetUserSubscriptions(ctx context.Context, openid stri
 	}, nil
 }
 
-// CheckAuthorizationStatus 检查用户是否有可用的授权
+// CheckAuthorizationStatus 检查用户对特定模板的授权状态
+//
+// 返回 true 当且仅当:
+//  1. 缓存中有该记录且状态为 allow(允许)
+//  2. 缓存未命中时,回复 false(需要重新授权询问)
 func (s *SubscribeService) CheckAuthorizationStatus(ctx context.Context, openid, templateType string) (bool, error) {
-	// TODO: 根据用户openid 和 模板ID 查询是否有可用的授权记录
-	// count, err := s.subscribeRepo.CountAvailableAuthorizations(ctx, openid, templateType)
-	// if err != nil {
-	// 	s.logger.Error("Failed to count available authorizations",
-	// 		zap.String("openid", openid),
-	// 		zap.String("templateType", templateType),
-	// 		zap.Error(err),
-	// 	)
-	// 	return false, errs.ErrInternal
-	// }
+	// 首先从缓存中查询用户的权限状态
+	allowed, err := s.subscriptionCacheRepo.HasAllowedTemplate(ctx, openid, templateType)
+	if err != nil {
+		s.logger.Error("Failed to check subscription cache",
+			zap.String("openid", openid),
+			zap.String("templateType", templateType),
+			zap.Error(err),
+		)
+		// 缓存查询失败,保守起见返回 false(需要重新授权)
+		return false, nil
+	}
 
-	return true, nil
+	// 缓存命中且用户已授权
+	if allowed {
+		s.logger.Info("User has allowed subscription",
+			zap.String("openid", openid),
+			zap.String("templateType", templateType),
+		)
+		return true, nil
+	}
+
+	// 检查用户是否已明确拒绝
+	denied, err := s.subscriptionCacheRepo.HasDeniedTemplate(ctx, openid, templateType)
+	if err == nil && denied {
+		s.logger.Info("User has denied subscription",
+			zap.String("openid", openid),
+			zap.String("templateType", templateType),
+		)
+		return false, nil
+	}
+
+	// 缓存未命中,需要向用户显示授权弹窗
+	s.logger.Info("Subscription status not in cache, need to request authorization",
+		zap.String("openid", openid),
+		zap.String("templateType", templateType),
+	)
+	return false, nil
 }
 
 // SendSubscribeMessage 发送订阅消息(一次性消息机制)
@@ -134,53 +165,6 @@ func (s *SubscribeService) SendSubscribeMessage(
 		zap.String("page", req.Page),
 		zap.Any("data", req.Data),
 	)
-
-	// 1. 查找可用的授权记录(按授权时间倒序,取最新的一条)
-	s.logger.Info("🔍 [SendSubscribeMessage] STEP 1 - 查询可用授权记录",
-		zap.String("openid", req.OpenID),
-		zap.String("templateID", req.TemplateID),
-	)
-
-	//record, err := s.subscribeRepo.GetAvailableSubscribeRecord(ctx, req.OpenID, req.TemplateType)
-	//if err != nil {
-	//	s.logger.Error("❌ [SendSubscribeMessage] 查询授权记录失败",
-	//		zap.String("openid", req.OpenID),
-	//		zap.String("templateType", req.TemplateType),
-	//		zap.Error(err),
-	//	)
-	//	return errs.New(4001, "查询授权记录失败")
-	//}
-	//
-	//if record == nil {
-	//	s.logger.Warn("⚠️ [SendSubscribeMessage] 未找到可用授权记录",
-	//		zap.String("openid", req.OpenID),
-	//		zap.String("templateType", req.TemplateType),
-	//	)
-	//	return errs.New(4001, "用户未授权或授权已使用")
-	//}
-	//
-	//s.logger.Info("✅ [SendSubscribeMessage] 找到可用授权记录",
-	//	zap.String("openid", req.OpenID),
-	//	zap.String("templateType", req.TemplateType),
-	//	zap.String("templateID", record.TemplateID),
-	//	zap.String("status", record.Status),
-	//	zap.Time("authorizeTime", record.AuthorizeTime),
-	//	zap.Timep("expireTime", record.ExpireTime),
-	//)
-	//
-	//// 2. 检查授权是否可用
-	//s.logger.Info("🔍 [SendSubscribeMessage] STEP 2 - 检查授权是否可用",
-	//	zap.String("status", record.Status),
-	//)
-	//
-	//if !record.IsAvailable() {
-	//	s.logger.Warn("⚠️ [SendSubscribeMessage] 授权不可用",
-	//		zap.String("openid", req.OpenID),
-	//		zap.String("templateType", req.TemplateType),
-	//		zap.String("status", record.Status),
-	//	)
-	//	return errs.New(4002, "授权已失效")
-	//}
 
 	s.logger.Info("✅ [SendSubscribeMessage] 授权可用,准备调用微信API")
 
@@ -205,17 +189,6 @@ func (s *SubscribeService) SendSubscribeMessage(
 		zap.String("openid", req.OpenID),
 		zap.String("templateID", req.TemplateID),
 	)
-
-	//record.MarkAsUsed()
-	//updateErr := s.subscribeRepo.UpdateSubscribeRecord(ctx, record)
-	//if updateErr != nil {
-	//	s.logger.Error("❌ [SendSubscribeMessage] 更新授权状态失败",
-	//		zap.String("openid", req.OpenID),
-	//		zap.Error(updateErr),
-	//	)
-	//} else {
-	//	s.logger.Info("✅ [SendSubscribeMessage] 授权状态已更新为已使用")
-	//}
 
 	// 5. 记录发送日志
 	s.logger.Info("📝 [SendSubscribeMessage] STEP 5 - 保存发送日志")
@@ -296,22 +269,4 @@ func (s *SubscribeService) GetMessageLogs(ctx context.Context, openid string, of
 		Logs:  items,
 		Total: total,
 	}, nil
-}
-
-// CleanExpiredRecords 清理过期的授权记录(定时任务调用)
-func (s *SubscribeService) CleanExpiredRecords(ctx context.Context) error {
-	// 清理7天前过期的记录
-	beforeTime := time.Now().Add(-7 * 24 * time.Hour)
-
-	count, err := s.subscribeRepo.DeleteExpiredRecords(ctx, beforeTime)
-	if err != nil {
-		s.logger.Error("Failed to clean expired records", zap.Error(err))
-		return err
-	}
-
-	if count > 0 {
-		s.logger.Info("Cleaned expired authorization records", zap.Int64("count", count))
-	}
-
-	return nil
 }
