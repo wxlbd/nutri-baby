@@ -25,11 +25,16 @@ type FeedingRecord struct {
 	CreateBy       string        `gorm:"column:create_by;type:varchar(64)" json:"createBy"`
 	CreateByName   string        `gorm:"column:create_by_name;type:varchar(64)" json:"createByName"`      // 冗余:创建者昵称
 	CreateByAvatar string        `gorm:"column:create_by_avatar;type:varchar(512)" json:"createByAvatar"` // 冗余:创建者头像
-	ReminderSent   bool          `gorm:"column:reminder_sent;default:false;index" json:"reminderSent"`    // 是否已发送提醒
-	ReminderTime   *int64        `gorm:"column:reminder_time" json:"reminderTime,omitempty"`              // 提醒发送时间戳(毫秒)
-	CreateTime     int64         `gorm:"column:create_time;autoCreateTime:milli" json:"createTime"`
-	UpdateTime     int64         `gorm:"column:update_time;autoUpdateTime:milli" json:"updateTime"`
-	DeletedAt      *time.Time    `gorm:"column:deleted_at;index" json:"-"`
+
+	// 提醒相关字段
+	ReminderInterval *int   `gorm:"column:reminder_interval" json:"reminderInterval,omitempty"` // 提醒间隔(分钟)
+	NextReminderTime *int64 `gorm:"column:next_reminder_time" json:"nextReminderTime,omitempty"` // 下次提醒时间戳(毫秒)
+	ReminderSent     bool   `gorm:"column:reminder_sent;default:false;index" json:"reminderSent"` // 是否已发送提醒
+	ReminderTime     *int64 `gorm:"column:reminder_time" json:"reminderTime,omitempty"`           // 提醒发送时间戳(毫秒)
+
+	CreateTime int64      `gorm:"column:create_time;autoCreateTime:milli" json:"createTime"`
+	UpdateTime int64      `gorm:"column:update_time;autoUpdateTime:milli" json:"updateTime"`
+	DeletedAt  *time.Time `gorm:"column:deleted_at;index" json:"-"`
 }
 
 // TableName 指定表名
