@@ -43,6 +43,8 @@ export interface CreateFeedingRecordRequest {
   detail: any
   note?: string
   feedingTime: number
+  // 新增：用户自定义提醒间隔
+  reminderInterval?: number // 提醒间隔(分钟)
 }
 
 // ============ API 函数 ============
