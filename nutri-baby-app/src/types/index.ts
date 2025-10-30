@@ -91,6 +91,24 @@ export interface FoodFeeding {
 export type FeedingDetail = BreastFeeding | BottleFeeding | FoodFeeding
 
 /**
+ * 喂养提醒设置
+ */
+export interface FeedingReminderSetting {
+  enabled: boolean          // 是否启用提醒
+  intervalMinutes: number   // 间隔(分钟)
+  nextReminderTime: number  // 下次提醒时间戳(毫秒)
+}
+
+/**
+ * 喂养提醒用户偏好
+ */
+export interface FeedingReminderPreferences {
+  breast: number  // 母乳默认间隔(分钟)
+  bottle: number  // 奶瓶默认间隔(分钟)
+  food: number    // 辅食默认间隔(分钟)
+}
+
+/**
  * 喂养记录
  */
 export interface FeedingRecord {
@@ -102,6 +120,7 @@ export interface FeedingRecord {
   createByName: string // 冗余:创建者昵称
   createByAvatar: string // 冗余:创建者头像
   createTime: number
+  reminderSetting?: FeedingReminderSetting // 提醒设置(可选)
 }
 
 /**
