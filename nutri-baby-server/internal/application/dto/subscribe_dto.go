@@ -47,19 +47,20 @@ type CancelSubscriptionRequest struct {
 
 // SendMessageRequest 发送消息请求(内部使用)
 type SendMessageRequest struct {
-	OpenID     string                 `json:"openid" binding:"required"`
-	TemplateID string                 `json:"templateId" binding:"required"`
-	Data       map[string]interface{} `json:"data" binding:"required"`
-	Page       string                 `json:"page"`
+	OpenID       string         `json:"openid" binding:"required"`
+	TemplateType string         `json:"templateType" binding:"required"`
+	TemplateID   string         `json:"templateId" binding:"required"`
+	Data         map[string]any `json:"data" binding:"required"`
+	Page         string         `json:"page"`
 }
 
 // QueueMessageRequest 加入队列请求
 type QueueMessageRequest struct {
-	OpenID        string                 `json:"openid" binding:"required"`
-	TemplateType  string                 `json:"templateType" binding:"required"`
-	Data          map[string]interface{} `json:"data" binding:"required"`
-	Page          string                 `json:"page"`
-	ScheduledTime int64                  `json:"scheduledTime"` // Unix timestamp
+	OpenID        string         `json:"openid" binding:"required"`
+	TemplateType  string         `json:"templateType" binding:"required"`
+	Data          map[string]any `json:"data" binding:"required"`
+	Page          string         `json:"page"`
+	ScheduledTime int64          `json:"scheduledTime"` // Unix timestamp
 }
 
 // ======================== 消息发送日志 ========================
