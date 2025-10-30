@@ -7,6 +7,7 @@ import (
 	"errors"
 
 	"github.com/wxlbd/nutri-baby-server/internal/domain/entity"
+	"github.com/wxlbd/nutri-baby-server/internal/infrastructure/config"
 )
 
 // FeedingReminderStrategy 喂养提醒策略接口
@@ -25,14 +26,18 @@ type FeedingReminderStrategy interface {
 }
 
 // BreastFeedingReminderStrategy 母乳喂养提醒策略
-type BreastFeedingReminderStrategy struct{}
+type BreastFeedingReminderStrategy struct {
+	config *config.Config
+}
 
-func NewBreastFeedingReminderStrategy() *BreastFeedingReminderStrategy {
-	return &BreastFeedingReminderStrategy{}
+func NewBreastFeedingReminderStrategy(cfg *config.Config) *BreastFeedingReminderStrategy {
+	return &BreastFeedingReminderStrategy{
+		config: cfg,
+	}
 }
 
 func (s *BreastFeedingReminderStrategy) GetTemplateID() string {
-	return "2JRV0DnOHnasHzzamWFoWGaUxrgW6GY69-eGn4tBFZE"
+	return s.config.Wechat.SubscribeTemplates["breast_feeding_reminder"]
 }
 
 func (s *BreastFeedingReminderStrategy) GetTemplateType() string {
@@ -68,14 +73,18 @@ func (s *BreastFeedingReminderStrategy) CanHandle(record *entity.FeedingRecord) 
 }
 
 // BottleFeedingReminderStrategy 奶瓶喂养提醒策略
-type BottleFeedingReminderStrategy struct{}
+type BottleFeedingReminderStrategy struct {
+	config *config.Config
+}
 
-func NewBottleFeedingReminderStrategy() *BottleFeedingReminderStrategy {
-	return &BottleFeedingReminderStrategy{}
+func NewBottleFeedingReminderStrategy(cfg *config.Config) *BottleFeedingReminderStrategy {
+	return &BottleFeedingReminderStrategy{
+		config: cfg,
+	}
 }
 
 func (s *BottleFeedingReminderStrategy) GetTemplateID() string {
-	return "ssttSBSWM_IXh5zVOu9GBeuabX8NFcwM2IG-VK-RXNY"
+	return s.config.Wechat.SubscribeTemplates["bottle_feeding_reminder"]
 }
 
 func (s *BottleFeedingReminderStrategy) GetTemplateType() string {
@@ -113,10 +122,14 @@ func (s *BottleFeedingReminderStrategy) CanHandle(record *entity.FeedingRecord) 
 }
 
 // FoodFeedingReminderStrategy 辅食喂养提醒策略
-type FoodFeedingReminderStrategy struct{}
+type FoodFeedingReminderStrategy struct {
+	config *config.Config
+}
 
-func NewFoodFeedingReminderStrategy() *FoodFeedingReminderStrategy {
-	return &FoodFeedingReminderStrategy{}
+func NewFoodFeedingReminderStrategy(cfg *config.Config) *FoodFeedingReminderStrategy {
+	return &FoodFeedingReminderStrategy{
+		config: cfg,
+	}
 }
 
 func (s *FoodFeedingReminderStrategy) GetTemplateType() string {
@@ -124,7 +137,7 @@ func (s *FoodFeedingReminderStrategy) GetTemplateType() string {
 }
 
 func (s *FoodFeedingReminderStrategy) GetTemplateID() string {
-	return "ssttSBSWM_IXh5zVOu9GBeuabX8NFcwM2IG-VK-RXNY"
+	return s.config.Wechat.SubscribeTemplates["food_feeding_reminder"]
 }
 
 func (s *FoodFeedingReminderStrategy) BuildMessageData(record *entity.FeedingRecord, lastFeedingTime time.Time, hoursSinceLastFeeding float64) map[string]interface{} {
@@ -155,12 +168,12 @@ type FeedingReminderStrategyFactory struct {
 }
 
 // NewFeedingReminderStrategyFactory 创建策略工厂
-func NewFeedingReminderStrategyFactory() *FeedingReminderStrategyFactory {
+func NewFeedingReminderStrategyFactory(cfg *config.Config) *FeedingReminderStrategyFactory {
 	return &FeedingReminderStrategyFactory{
 		strategies: map[string]FeedingReminderStrategy{
-			entity.FeedingTypeBottle: NewBottleFeedingReminderStrategy(),
-			entity.FeedingTypeFood:   NewFoodFeedingReminderStrategy(),
-			entity.FeedingTypeBreast: NewBreastFeedingReminderStrategy(),
+			entity.FeedingTypeBottle: NewBottleFeedingReminderStrategy(cfg),
+			entity.FeedingTypeFood:   NewFoodFeedingReminderStrategy(cfg),
+			entity.FeedingTypeBreast: NewBreastFeedingReminderStrategy(cfg),
 		},
 	}
 }
