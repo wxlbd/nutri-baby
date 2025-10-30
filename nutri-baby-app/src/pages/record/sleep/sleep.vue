@@ -54,6 +54,22 @@
             </nut-button>
         </view>
 
+        <!-- 快速补记睡眠 -->
+        <view v-if="!ongoingRecord" class="quick-record-section">
+            <view class="section-title">快速补记睡眠</view>
+            <nut-button
+                type="info"
+                size="large"
+                block
+                @click="showQuickRecordModal = true"
+            >
+                <view class="button-content">
+                    <text class="icon">⏰</text>
+                    <text>补记历史睡眠</text>
+                </view>
+            </nut-button>
+        </view>
+
         <!-- 最近记录 -->
         <view v-if="lastRecord && !ongoingRecord" class="last-record">
             <view class="section-title">上次睡眠</view>
@@ -71,6 +87,63 @@
             </nut-cell-group>
         </view>
     </view>
+
+    <!-- 快速补记睡眠对话框 -->
+    <nut-dialog
+        v-model:visible="showQuickRecordModal"
+        title="补记睡眠"
+        @confirm="handleQuickSleepConfirm"
+        @cancel="showQuickRecordModal = false"
+    >
+        <view class="quick-record-form">
+            <!-- 睡眠类型 -->
+            <view class="form-item">
+                <view class="form-label">睡眠类型</view>
+                <nut-radio-group v-model="quickRecord.type" direction="horizontal">
+                    <nut-radio label="nap">小睡</nut-radio>
+                    <nut-radio label="night">夜间长睡</nut-radio>
+                </nut-radio-group>
+            </view>
+
+            <!-- 开始时间 -->
+            <view class="form-item">
+                <view class="form-label">开始时间</view>
+                <view class="time-input" @click="showStartTimePicker = true">
+                    {{ formatQuickTime(quickRecord.startTime) }}
+                </view>
+            </view>
+
+            <!-- 结束时间 -->
+            <view class="form-item">
+                <view class="form-label">结束时间</view>
+                <view class="time-input" @click="showEndTimePicker = true">
+                    {{ formatQuickTime(quickRecord.endTime) }}
+                </view>
+            </view>
+        </view>
+    </nut-dialog>
+
+    <!-- 开始时间选择器 -->
+    <nut-date-picker
+        v-model="quickRecord.startTime"
+        type="datetime"
+        :min-date="minDateTime"
+        :max-date="quickRecord.endTime"
+        @confirm="onStartTimeConfirm"
+        @cancel="showStartTimePicker = false"
+        :visible="showStartTimePicker"
+    ></nut-date-picker>
+
+    <!-- 结束时间选择器 -->
+    <nut-date-picker
+        v-model="quickRecord.endTime"
+        type="datetime"
+        :min-date="quickRecord.startTime"
+        :max-date="maxDateTime"
+        @confirm="onEndTimeConfirm"
+        @cancel="showEndTimePicker = false"
+        :visible="showEndTimePicker"
+    ></nut-date-picker>
 </template>
 
 <script setup lang="ts">
@@ -106,6 +179,106 @@ const ongoingRecord = ref<SleepRecord | null>(null);
 
 // 最后一次睡眠记录
 const lastRecord = ref<SleepRecord | null>(null);
+
+// 快速补记相关
+const showQuickRecordModal = ref(false);
+const showStartTimePicker = ref(false);
+const showEndTimePicker = ref(false);
+const minDateTime = ref<Date>(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)); // 30天前
+const maxDateTime = ref<Date>(new Date());
+
+const quickRecord = ref({
+    type: 'nap' as 'nap' | 'night',
+    startTime: new Date(Date.now() - 2 * 60 * 60 * 1000), // 默认2小时前
+    endTime: new Date()
+});
+
+// 快速补记时间格式化
+const formatQuickTime = (date: Date): string => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    return `${year}-${month}-${day} ${hours}:${minutes}`;
+};
+
+// 开始时间确认
+const onStartTimeConfirm = (value: Date) => {
+    quickRecord.value.startTime = value;
+    showStartTimePicker.value = false;
+};
+
+// 结束时间确认
+const onEndTimeConfirm = (value: Date) => {
+    quickRecord.value.endTime = value;
+    showEndTimePicker.value = false;
+};
+
+// 处理快速补记睡眠
+const handleQuickSleepConfirm = async () => {
+    const user = getUserInfo();
+    if (!user) {
+        uni.showToast({
+            title: "请先登录",
+            icon: "none",
+        });
+        return;
+    }
+
+    if (!currentBaby.value) {
+        uni.showToast({
+            title: "请先选择宝宝",
+            icon: "none",
+        });
+        return;
+    }
+
+    // 验证时间
+    if (quickRecord.value.startTime >= quickRecord.value.endTime) {
+        uni.showToast({
+            title: "开始时间必须早于结束时间",
+            icon: "none",
+        });
+        return;
+    }
+
+    try {
+        const elapsedSeconds = Math.floor((quickRecord.value.endTime.getTime() - quickRecord.value.startTime.getTime()) / 1000);
+
+        await sleepApi.apiCreateSleepRecord({
+            babyId: currentBabyId.value,
+            sleepType: quickRecord.value.type,
+            startTime: quickRecord.value.startTime.getTime(),
+            endTime: quickRecord.value.endTime.getTime(),
+            duration: elapsedSeconds,
+        });
+
+        uni.showToast({
+            title: "保存成功",
+            icon: "success",
+        });
+
+        showQuickRecordModal.value = false;
+
+        // 重置表单
+        quickRecord.value = {
+            type: 'nap',
+            startTime: new Date(Date.now() - 2 * 60 * 60 * 1000),
+            endTime: new Date()
+        };
+
+        setTimeout(() => {
+            uni.navigateBack();
+        }, 1000);
+    } catch (error: any) {
+        console.error("[Sleep] 保存快速补记睡眠失败:", error);
+        uni.showToast({
+            title: error.message || "保存失败",
+            icon: "none",
+        });
+    }
+};
 
 // 定时器相关
 const timerRunning = ref(false);
@@ -487,6 +660,13 @@ const formatRecordTime = (record: SleepRecord) => {
     margin-bottom: 20rpx;
 }
 
+.quick-record-section {
+    background: white;
+    border-radius: 16rpx;
+    padding: 30rpx;
+    margin-bottom: 20rpx;
+}
+
 .button-content {
     display: flex;
     align-items: center;
@@ -507,5 +687,29 @@ const formatRecordTime = (record: SleepRecord) => {
 .duration-text {
     color: #fa2c19;
     font-weight: bold;
+}
+
+.quick-record-form {
+    padding: 20rpx 0;
+}
+
+.form-item {
+    margin-bottom: 30rpx;
+}
+
+.form-label {
+    font-size: 28rpx;
+    font-weight: bold;
+    margin-bottom: 12rpx;
+    display: block;
+}
+
+.time-input {
+    padding: 16rpx;
+    border: 1rpx solid #eee;
+    border-radius: 8rpx;
+    text-align: center;
+    font-size: 28rpx;
+    color: #333;
 }
 </style>
