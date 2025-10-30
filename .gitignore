@@ -20,3 +20,17 @@
 /nutri-baby-server/server
 /nutri-baby-server/wire/wire_gen.go.DS_Store
 /nutri-baby-server/wire/wire_gen.go
+.idea/git_toolbox_prj.xml
+.idea/GitLink.xml
+.idea/json_assistant_history.xml
+.idea/nutri-baby.iml
+.idea/vcs.xml
+.idea/workspace.xml
+.idea/httpRequests/http-client.cookies
+.idea/httpRequests/http-requests-log.http
+nutri-baby-server/.DS_Store
+.DS_Store
+BACKEND_CONFIG_REFACTOR.md
+DIAGNOSE.md
+diagnostic.js
+VSCODE_RUN_CONFIG_GUIDE.md
