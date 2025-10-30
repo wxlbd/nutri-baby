@@ -24,6 +24,7 @@ func InitApp(cfg *config.Config) (*App, error) {
 		wechat.NewClient,     // 微信 SDK 客户端
 
 		// 仓储层
+		persistence.NewSubscriptionCacheRepository, // 订阅权限缓存管理器
 		persistence.NewUserRepository,
 		// persistence.NewFamilyRepository, // 已废弃：去家庭化架构
 		// persistence.NewFamilyMemberRepository, // 已废弃：去家庭化架构
@@ -50,6 +51,7 @@ func InitApp(cfg *config.Config) (*App, error) {
 		service.NewVaccineService,
 		service.NewVaccinePlanService, // 疫苗计划管理服务
 		service.NewSchedulerService,   // 定时任务服务
+		// service.NewFeedingService,     // 喂养记录服务 (暂未集成到 Handler,先注释)
 		// service.NewSyncService, // TODO: WebSocket同步未实现，暂时注释
 
 		// HTTP处理器
