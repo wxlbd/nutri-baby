@@ -24,7 +24,7 @@ func NewWechatService(wechatClient *wechat.Client, logger *zap.Logger) *WechatSe
 func (s *WechatService) SendSubscribeMessage(
 	openid string,
 	templateID string,
-	data map[string]interface{},
+	data map[string]any,
 	page string,
 	miniprogramState string,
 ) error {
