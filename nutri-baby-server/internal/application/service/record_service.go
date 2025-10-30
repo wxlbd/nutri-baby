@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-
 	"github.com/wxlbd/nutri-baby-server/internal/application/dto"
 	"github.com/wxlbd/nutri-baby-server/internal/domain/entity"
 	"github.com/wxlbd/nutri-baby-server/internal/domain/repository"
@@ -62,25 +61,27 @@ func (s *RecordService) CreateFeedingRecord(ctx context.Context, openID string, 
 		"note":        req.Note,
 	}
 
-	// 合并额外的detail信息
-	if req.Detail.BreastSide != "" {
-		detail["breastSide"] = req.Detail.BreastSide
-	}
-	if req.Detail.LeftTime > 0 {
-		detail["leftTime"] = req.Detail.LeftTime
-	}
-	if req.Detail.RightTime > 0 {
-		detail["rightTime"] = req.Detail.RightTime
-	}
-	if req.Detail.FormulaType != "" {
-		detail["formulaType"] = req.Detail.FormulaType
+	// 合并额外的detail信息 (从map中安全地提取值)
+	if req.Detail != nil {
+		if breastSide, ok := req.Detail["breastSide"].(string); ok && breastSide != "" {
+			detail["breastSide"] = breastSide
+		}
+		if leftTime, ok := req.Detail["leftTime"].(float64); ok && leftTime > 0 {
+			detail["leftTime"] = int64(leftTime)
+		}
+		if rightTime, ok := req.Detail["rightTime"].(float64); ok && rightTime > 0 {
+			detail["rightTime"] = int64(rightTime)
+		}
+		if formulaType, ok := req.Detail["formulaType"].(string); ok && formulaType != "" {
+			detail["formulaType"] = formulaType
+		}
 	}
 
 	record := &entity.FeedingRecord{
 		RecordID:    uuid.New().String(),
 		FeedingType: req.FeedingType,
-		Amount:      req.Amount,
-		Duration:    req.Duration,
+		Amount:      derefInt64(req.Amount),
+		Duration:    derefInt(req.Duration),
 		BabyID:      req.BabyID,
 		Time:        feedingTime,
 		Detail:      detail,
@@ -93,14 +94,29 @@ func (s *RecordService) CreateFeedingRecord(ctx context.Context, openID string, 
 		return nil, err
 	}
 
+	// 将detail转换回FeedingDetail结构体
+	feedingDetail := dto.FeedingDetail{}
+	if breastSide, ok := detail["breastSide"].(string); ok {
+		feedingDetail.BreastSide = breastSide
+	}
+	if leftTime, ok := detail["leftTime"].(int64); ok {
+		feedingDetail.LeftTime = int(leftTime)
+	}
+	if rightTime, ok := detail["rightTime"].(int64); ok {
+		feedingDetail.RightTime = int(rightTime)
+	}
+	if formulaType, ok := detail["formulaType"].(string); ok {
+		feedingDetail.FormulaType = formulaType
+	}
+
 	return &dto.FeedingRecordDTO{
 		RecordID:    record.RecordID,
 		BabyID:      record.BabyID,
 		FeedingType: req.FeedingType,
-		Amount:      req.Amount,
-		Duration:    req.Duration,
-		Detail:      req.Detail,
-		Note:        req.Note,
+		Amount:      record.Amount,
+		Duration:    record.Duration,
+		Detail:      feedingDetail,
+		Note:        derefString(req.Note),
 		FeedingTime: record.Time,
 		CreateBy:    record.CreateBy,
 		CreateTime:  record.CreateTime,
@@ -490,4 +506,28 @@ func (s *RecordService) checkBabyAccess(ctx context.Context, babyID, openID stri
 	}
 
 	return nil
+}
+
+// derefInt64 解引用int64指针，如果为nil返回0
+func derefInt64(val *int64) int64 {
+	if val == nil {
+		return 0
+	}
+	return *val
+}
+
+// derefInt 解引用int指针，如果为nil返回0
+func derefInt(val *int) int {
+	if val == nil {
+		return 0
+	}
+	return *val
+}
+
+// derefString 解引用string指针，如果为nil返回空字符串
+func derefString(val *string) string {
+	if val == nil {
+		return ""
+	}
+	return *val
 }
