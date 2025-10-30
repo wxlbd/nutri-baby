@@ -42,6 +42,7 @@ export const StorageKeys = {
   SUBSCRIBE_GUIDE_RECORDS: `${STORAGE_PREFIX}subscribe_guide_records`, // 引导显示记录
   SUBSCRIBE_REMINDER_CONFIGS: `${STORAGE_PREFIX}subscribe_reminder_configs`, // 提醒配置
   FEEDING_SUBSCRIBE_RECORD: `${STORAGE_PREFIX}feeding_subscribe_record`, // 喂养订阅申请记录
+  FEEDING_REMINDER_PREFERENCES: `${STORAGE_PREFIX}feeding_reminder_preferences`, // 喂养提醒用户偏好
 
   // 临时记录 (未完成的记录)
   TEMP_BREAST_FEEDING: `${STORAGE_PREFIX}temp_breast_feeding`, // 临时母乳喂养记录
