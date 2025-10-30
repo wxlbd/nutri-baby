@@ -87,8 +87,9 @@ type UploadConfig struct {
 
 // WechatConfig 微信配置
 type WechatConfig struct {
-	AppID     string `mapstructure:"app_id"`
-	AppSecret string `mapstructure:"app_secret"`
+	AppID              string            `mapstructure:"app_id"`
+	AppSecret          string            `mapstructure:"app_secret"`
+	SubscribeTemplates map[string]string `mapstructure:"subscribe_templates"` // 订阅消息模板映射: templateType -> templateID
 }
 
 // Load 加载配置
