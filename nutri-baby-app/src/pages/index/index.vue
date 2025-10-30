@@ -180,6 +180,12 @@ import * as diaperApi from "@/api/diaper";
 import * as sleepApi from "@/api/sleep";
 import * as vaccineApi from "@/api/vaccine";
 
+// 喂养订阅消息管理
+import {
+    shouldShowFeedingSubscribeRequest,
+    requestAllFeedingSubscribeMessages,
+} from "@/utils/feeding-subscribe";
+
 // 导航栏引用
 const navbarRef = ref<any>(null);
 // 页面内容区域的 padding-top
@@ -241,6 +247,7 @@ const todayStats = computed(() => {
 
 // 距上次喂奶时间
 const lastFeedingTime = computed(() => {
+    
     if (!currentBaby.value || todayFeedingRecords.value.length === 0)
         return "-";
 
@@ -486,7 +493,7 @@ const goToVaccine = () => {
 };
 
 // 喂养记录
-const handleFeeding = () => {
+const handleFeeding = async () => {
     if (!currentBaby.value) {
         uni.showToast({
             title: "请先添加宝宝",
@@ -494,6 +501,25 @@ const handleFeeding = () => {
         });
         return;
     }
+    // ✨ 在跳转前申请喂养订阅消息权限
+    try {
+        console.log("[Index] 检查是否需要申请喂养订阅消息");
+
+        const { shouldShow, bannedCount } = shouldShowFeedingSubscribeRequest();
+
+        if (shouldShow) {
+            console.log("[Index] 显示喂养订阅申请, 已Ban数:", bannedCount);
+            // 申请喂养订阅消息
+            await requestAllFeedingSubscribeMessages();
+        } else {
+            console.log("[Index] 不需要显示订阅申请");
+        }
+    } catch (error: any) {
+        console.error("[Index] 申请订阅消息失败:", error);
+        // 静默失败，不影响主功能
+    }
+
+    // 申请完成后跳转到喂养记录页面
     uni.navigateTo({
         url: "/pages/record/feeding/feeding",
     });
