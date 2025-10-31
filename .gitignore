@@ -35,3 +35,9 @@ DIAGNOSE.md
 diagnostic.js
 VSCODE_RUN_CONFIG_GUIDE.md
 .idea/.gitignore
+nutri-baby-server/MAKEFILE_UPDATE.md
+/.mcp.json
+/.idea/.name
+/nutri-baby-server/cmd/server/__debug_*
+/nutri-baby-server/bin/server
+/nutri-baby-server/bin/server-linux-amd64
