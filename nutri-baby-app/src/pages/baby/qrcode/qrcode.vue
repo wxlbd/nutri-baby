@@ -10,18 +10,16 @@
     <view class="qrcode-card">
       <!-- 二维码显示区域 -->
       <view class="qrcode-wrapper">
-        <canvas
-          v-if="!qrcodeUrl"
-          canvas-id="qrcode"
-          class="qrcode-canvas"
-          :style="{ width: qrcodeSize + 'px', height: qrcodeSize + 'px' }"
-        />
         <image
-          v-else
+          v-if="qrcodeUrl"
           :src="qrcodeUrl"
           class="qrcode-image"
           mode="aspectFit"
         />
+        <view v-else class="qrcode-placeholder">
+          <view v-if="loading" class="loading-spinner"></view>
+          <text v-else>二维码加载中...</text>
+        </view>
       </view>
 
       <!-- 提示信息 -->
@@ -67,18 +65,20 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
+import { apiGenerateQRCode } from '@/api/baby'
 
 // 页面参数
-const scene = ref('')
-const page = ref('')
+const babyId = ref('')
+const shortCode = ref('')
 const babyName = ref('')
 const role = ref('')
 
 // 二维码相关
 const qrcodeUrl = ref('')
 const qrcodeSize = ref(280) // 二维码尺寸
+const loading = ref(false)
 
 // 角色文本映射
 const roleTextMap: Record<string, string> = {
@@ -91,11 +91,13 @@ const roleText = computed(() => roleTextMap[role.value] || '编辑者')
 
 // 页面加载
 onLoad((options) => {
-  if (options?.scene) {
-    scene.value = decodeURIComponent(options.scene)
+  console.log('QRCode page onLoad with options:', options)
+
+  if (options?.babyId) {
+    babyId.value = options.babyId
   }
-  if (options?.page) {
-    page.value = decodeURIComponent(options.page)
+  if (options?.shortCode) {
+    shortCode.value = options.shortCode
   }
   if (options?.babyName) {
     babyName.value = decodeURIComponent(options.babyName)
@@ -103,101 +105,65 @@ onLoad((options) => {
   if (options?.role) {
     role.value = options.role
   }
-})
 
-// 组件挂载后生成二维码
-onMounted(() => {
-  generateQRCode()
+  // 加载完成后生成二维码
+  if (babyId.value && shortCode.value) {
+    generateQRCode()
+  } else {
+    uni.showToast({
+      title: '缺少必要参数',
+      icon: 'none',
+    })
+  }
 })
 
 // 生成二维码
 async function generateQRCode() {
-  // 方式一: 前端生成二维码(使用微信小程序API)
-  // @ts-ignore
-  if (typeof wx !== 'undefined' && wx.canIUse) {
-    try {
-      // 调用微信小程序二维码生成API
-      // 注意: 这需要后端获取access_token,所以这里我们使用canvas绘制简单的提示
-      // 实际项目中应该由后端生成二维码图片URL并返回
-
-      // 暂时显示提示信息
-      uni.showModal({
-        title: '提示',
-        content: '二维码生成功能需要后端支持,请联系管理员配置',
-        showCancel: false,
-      })
-
-      // TODO: 实际项目中应该调用后端API获取二维码图片URL
-      // const response = await get(`/babies/qrcode?scene=${scene.value}&page=${page.value}`)
-      // qrcodeUrl.value = response.data.qrcodeUrl
-    } catch (error) {
-      console.error('generate qrcode error:', error)
-      uni.showToast({
-        title: '二维码生成失败',
-        icon: 'none',
-      })
-    }
+  if (!babyId.value || !shortCode.value) {
+    uni.showToast({
+      title: '参数错误',
+      icon: 'none',
+    })
+    return
   }
 
-  // 方式二: 使用第三方二维码库在canvas上绘制
-  // 这里提供一个简化的示例,实际项目建议使用 uQRCode 等成熟库
-  drawQRCodePlaceholder()
-}
+  loading.value = true
 
-// 绘制二维码占位符(实际项目中应替换为真实二维码生成库)
-function drawQRCodePlaceholder() {
-  const ctx = uni.createCanvasContext('qrcode')
+  try {
+    const response = await apiGenerateQRCode(babyId.value, shortCode.value)
+    qrcodeUrl.value = response.qrcodeUrl
 
-  // 绘制白色背景
-  ctx.setFillStyle('#ffffff')
-  ctx.fillRect(0, 0, qrcodeSize.value, qrcodeSize.value)
+    console.log('QR Code generated:', response)
 
-  // 绘制边框
-  ctx.setStrokeStyle('#000000')
-  ctx.setLineWidth(2)
-  ctx.strokeRect(10, 10, qrcodeSize.value - 20, qrcodeSize.value - 20)
-
-  // 绘制提示文字
-  ctx.setFillStyle('#333333')
-  ctx.setFontSize(14)
-  ctx.setTextAlign('center')
-  ctx.fillText('请扫描此二维码', qrcodeSize.value / 2, qrcodeSize.value / 2 - 10)
-  ctx.fillText('加入宝宝协作', qrcodeSize.value / 2, qrcodeSize.value / 2 + 10)
-
-  ctx.draw()
+    if (!qrcodeUrl.value) {
+      throw new Error('未获取到二维码URL')
+    }
+  } catch (error: any) {
+    console.error('Generate QR code error:', error)
+    uni.showToast({
+      title: error.message || '二维码生成失败',
+      icon: 'none',
+    })
+  } finally {
+    loading.value = false
+  }
 }
 
 // 保存二维码
 function saveQRCode() {
-  if (qrcodeUrl.value) {
-    // 如果有二维码图片URL,直接保存
-    uni.downloadFile({
-      url: qrcodeUrl.value,
-      success: (res) => {
-        if (res.statusCode === 200) {
-          uni.saveImageToPhotosAlbum({
-            filePath: res.tempFilePath,
-            success: () => {
-              uni.showToast({
-                title: '保存成功',
-                icon: 'success',
-              })
-            },
-            fail: () => {
-              uni.showToast({
-                title: '保存失败',
-                icon: 'none',
-              })
-            },
-          })
-        }
-      },
+  if (!qrcodeUrl.value) {
+    uni.showToast({
+      title: '二维码未生成',
+      icon: 'none',
     })
-  } else {
-    // 如果是canvas绘制的二维码,需要先转为图片
-    uni.canvasToTempFilePath({
-      canvasId: 'qrcode',
-      success: (res) => {
+    return
+  }
+
+  // 下载二维码图片
+  uni.downloadFile({
+    url: qrcodeUrl.value,
+    success: (res) => {
+      if (res.statusCode === 200) {
         uni.saveImageToPhotosAlbum({
           filePath: res.tempFilePath,
           success: () => {
@@ -213,16 +179,16 @@ function saveQRCode() {
             })
           },
         })
-      },
-      fail: (err) => {
-        console.error('canvas to image error:', err)
-        uni.showToast({
-          title: '保存失败',
-          icon: 'none',
-        })
-      },
-    })
-  }
+      }
+    },
+    fail: (err) => {
+      console.error('Download QR code error:', err)
+      uni.showToast({
+        title: '下载失败',
+        icon: 'none',
+      })
+    },
+  })
 }
 </script>
 
@@ -265,12 +231,39 @@ function saveQRCode() {
   align-items: center;
   padding: 40rpx;
 
-  .qrcode-canvas,
   .qrcode-image {
     width: 560rpx;
     height: 560rpx;
     border-radius: 12rpx;
     box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.1);
+  }
+
+  .qrcode-placeholder {
+    width: 560rpx;
+    height: 560rpx;
+    border-radius: 12rpx;
+    background-color: #f5f5f5;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    color: #999;
+    font-size: 28rpx;
+
+    .loading-spinner {
+      width: 80rpx;
+      height: 80rpx;
+      border: 6rpx solid #e5e5e5;
+      border-top-color: #4facfe;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+  }
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
   }
 }
 

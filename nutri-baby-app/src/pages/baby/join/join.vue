@@ -86,11 +86,12 @@
 import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { joinBabyCollaboration } from '@/store/collaborator'
-import { get } from '@/utils/request'
+import { apiGetInvitationByCode } from '@/api/baby'
 
 // 页面参数
 const babyId = ref('')
 const token = ref('')
+const shortCode = ref('') // 新增短码参数
 
 // 页面状态
 const loading = ref(true)
@@ -127,6 +128,15 @@ const formatExpireTime = computed(() => {
 
 // 页面加载
 onLoad((options) => {
+  console.log('Join page onLoad with options:', options)
+
+  // 支持两种参数格式：
+  // 1. 扫码进入: ?code=ABC123
+  // 2. 分享链接: ?babyId=xxx&token=xxx
+  if (options?.code) {
+    shortCode.value = options.code
+  }
+
   if (options?.babyId) {
     babyId.value = options.babyId
   }
@@ -140,36 +150,63 @@ onLoad((options) => {
 
 // 加载邀请信息
 async function loadInvitationInfo() {
-  if (!babyId.value || !token.value) {
+  // 优先使用短码方式
+  if (shortCode.value) {
+    await loadInvitationByShortCode()
+  } else if (babyId.value && token.value) {
+    await loadInvitationByToken()
+  } else {
     errorMessage.value = '邀请链接无效,缺少必要参数'
     loading.value = false
-    return
   }
+}
 
+// 通过短码加载邀请信息
+async function loadInvitationByShortCode() {
   try {
-    // 这里应该调用后端API获取邀请详情
-    // 暂时使用模拟数据
-    // const response = await get(`/babies/${babyId.value}/invitation/${token.value}`)
+    const response = await apiGetInvitationByCode(shortCode.value)
 
-    // 模拟数据
-    setTimeout(() => {
-      invitationInfo.value = {
-        babyId: babyId.value,
-        babyName: '小明',
-        babyAvatar: '',
-        inviterName: '爸爸',
-        role: 'editor',
-        accessType: 'permanent',
-        expiresAt: null,
-      }
-      role.value = invitationInfo.value.role
-      loading.value = false
-    }, 500)
+    console.log('Invitation loaded by short code:', response)
+
+    invitationInfo.value = {
+      babyId: response.babyId,
+      babyName: response.babyName,
+      babyAvatar: response.babyAvatar,
+      inviterName: response.inviterName,
+      role: response.role,
+      accessType: response.accessType,
+      expiresAt: response.expiresAt,
+    }
+
+    // 保存 babyId 和 token 用于后续加入操作
+    babyId.value = response.babyId
+    token.value = response.token
+    role.value = response.role
+
+    loading.value = false
   } catch (error: any) {
-    console.error('load invitation info error:', error)
-    errorMessage.value = error.message || '加载邀请信息失败'
+    console.error('Load invitation by short code error:', error)
+    errorMessage.value = error.message || '邀请码无效或已过期'
     loading.value = false
   }
+}
+
+// 通过 token 加载邀请信息（旧方式，保持兼容）
+async function loadInvitationByToken() {
+  // 模拟数据（保持原有逻辑）
+  setTimeout(() => {
+    invitationInfo.value = {
+      babyId: babyId.value,
+      babyName: '小明',
+      babyAvatar: '',
+      inviterName: '爸爸',
+      role: 'editor',
+      accessType: 'permanent',
+      expiresAt: null,
+    }
+    role.value = invitationInfo.value.role
+    loading.value = false
+  }, 500)
 }
 
 // 确认加入

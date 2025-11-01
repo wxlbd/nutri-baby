@@ -10,12 +10,16 @@ import (
 
 // BabyHandler 宝宝处理器 (去家庭化架构)
 type BabyHandler struct {
-	babyService *service.BabyService
+	babyService   *service.BabyService
+	wechatService *service.WechatService
 }
 
 // NewBabyHandler 创建宝宝处理器
-func NewBabyHandler(babyService *service.BabyService) *BabyHandler {
-	return &BabyHandler{babyService: babyService}
+func NewBabyHandler(babyService *service.BabyService, wechatService *service.WechatService) *BabyHandler {
+	return &BabyHandler{
+		babyService:   babyService,
+		wechatService: wechatService,
+	}
 }
 
 // CreateBaby 创建宝宝
@@ -193,4 +197,49 @@ func (h *BabyHandler) UpdateCollaboratorRole(c *gin.Context) {
 	}
 
 	response.Success(c, nil)
+}
+
+// GenerateInviteQRCode 生成邀请小程序码
+// @Router /v1/babies/:babyId/qrcode [get]
+func (h *BabyHandler) GenerateInviteQRCode(c *gin.Context) {
+	shortCode := c.Query("shortCode") // 从查询参数获取短码
+
+	if shortCode == "" {
+		response.ErrorWithMessage(c, 1001, "shortCode参数不能为空")
+		return
+	}
+
+	// 构建场景值
+	scene := "c=" + shortCode
+
+	// 调用微信服务生成小程序码
+	qrcodeURL, err := h.wechatService.GenerateQRCode(c.Request.Context(), scene, "pages/baby/join/join")
+	if err != nil {
+		response.Error(c, err)
+		return
+	}
+
+	response.Success(c, gin.H{
+		"qrcodeUrl": qrcodeURL,
+		"scene":     scene,
+	})
+}
+
+// GetInvitationByShortCode 通过短码获取邀请详情
+// @Router /v1/invitations/code/:shortCode [get]
+func (h *BabyHandler) GetInvitationByShortCode(c *gin.Context) {
+	shortCode := c.Param("shortCode")
+
+	if shortCode == "" {
+		response.ErrorWithMessage(c, 1001, "shortCode参数不能为空")
+		return
+	}
+
+	invitation, err := h.babyService.GetInvitationByShortCode(c.Request.Context(), shortCode)
+	if err != nil {
+		response.Error(c, err)
+		return
+	}
+
+	response.Success(c, invitation)
 }
