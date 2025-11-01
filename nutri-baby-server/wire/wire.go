@@ -47,11 +47,13 @@ func InitApp(cfg *config.Config) (*App, error) {
 		service.NewAuthService,
 		// service.NewFamilyService, // 已废弃：去家庭化架构
 		service.NewBabyService,
-		service.NewRecordService,
+		service.NewFeedingRecordService, // 喂养记录服务
+		service.NewSleepRecordService,   // 睡眠记录服务
+		service.NewDiaperRecordService,  // 尿布记录服务
+		service.NewGrowthRecordService,  // 成长记录服务
 		service.NewVaccineService,
 		service.NewVaccinePlanService, // 疫苗计划管理服务
 		service.NewSchedulerService,   // 定时任务服务
-		// service.NewFeedingService,     // 喂养记录服务 (暂未集成到 Handler,先注释)
 		// service.NewSyncService, // TODO: WebSocket同步未实现，暂时注释
 
 		// HTTP处理器
