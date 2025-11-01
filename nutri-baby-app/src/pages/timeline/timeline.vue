@@ -19,7 +19,7 @@
         <!-- 记录列表 -->
         <view class="timeline-list">
             <view v-if="groupedRecords.length === 0" class="empty-state">
-                <nut-empty description="暂无记录" />
+                <nut-empty :description="emptyDescription" />
             </view>
 
             <view v-else>
@@ -94,6 +94,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from "vue";
+import { isLoggedIn } from "@/store/user";
 import { currentBaby } from "@/store/baby";
 import {
     formatDate,
@@ -263,6 +264,11 @@ const groupedRecords = computed(() => {
     return groups;
 });
 
+// 空状态描述
+const emptyDescription = computed(() => {
+    return !isLoggedIn.value ? "登录后查看记录" : "暂无记录";
+});
+
 // 加载所有记录
 const loadRecords = async () => {
     if (!currentBaby.value) return;
@@ -290,7 +296,9 @@ const loadRecords = async () => {
 
 // 页面加载
 onMounted(() => {
-    loadRecords();
+    if (isLoggedIn.value) {
+        loadRecords();
+    }
 });
 
 // 筛选日期

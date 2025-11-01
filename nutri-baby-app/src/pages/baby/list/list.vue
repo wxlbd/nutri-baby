@@ -34,9 +34,11 @@
                             :src="baby.avatarUrl"
                             mode="aspectFill"
                         />
-                        <view v-else class="avatar-placeholder">
-                            {{ baby.name ? baby.name.charAt(0) : '宝' }}
-                        </view>
+                        <image
+                            v-else
+                            src="/static/default.png"
+                            mode="aspectFill"
+                        />
                     </view>
 
                     <!-- 信息 -->

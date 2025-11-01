@@ -8,37 +8,62 @@
             class="page-content"
             :style="{ paddingTop: pageContentPaddingTop }"
         >
+            <!-- 游客模式提示横幅 -->
+            <view v-if="!isLoggedIn" class="guest-banner">
+                <view class="banner-content">
+                    <view class="banner-text">
+                        <text class="banner-title">欢迎使用宝宝喂养日志</text>
+                        <text class="banner-desc">登录后记录您的宝宝成长数据</text>
+                    </view>
+                    <nut-button size="small" type="primary" @click="goToLogin">
+                        立即登录
+                    </nut-button>
+                </view>
+            </view>
+
             <!-- 今日数据概览 -->
             <view class="today-stats">
                 <view class="stats-title">今日数据</view>
                 <view class="stats-grid">
-                    <view class="stat-item">
-                        <view class="stat-icon">🍼</view>
-                        <view class="stat-value"
-                            >{{ todayStats.totalMilk }}ml</view
-                        >
-                        <view class="stat-label">奶瓶奶量</view>
+                    <view class="stat-item stat-milk">
+                        <image class="stat-bg" src="/static/stat-bg-milk.png" mode="aspectFill" />
+                        <view class="stat-content">
+                            <view class="stat-icon">🍼</view>
+                            <view class="stat-value"
+                                >{{ todayStats.totalMilk }}ml</view
+                            >
+                            <view class="stat-label">奶瓶奶量</view>
+                        </view>
                     </view>
-                    <view class="stat-item">
-                        <view class="stat-icon">🤱</view>
-                        <view class="stat-value"
-                            >{{ todayStats.breastfeedingCount }}次</view
-                        >
-                        <view class="stat-label">母乳喂养</view>
+                    <view class="stat-item stat-breast">
+                        <image class="stat-bg" src="/static/stat-bg-breast.png" mode="aspectFill" />
+                        <view class="stat-content">
+                            <view class="stat-icon">🤱</view>
+                            <view class="stat-value"
+                                >{{ todayStats.breastfeedingCount }}次</view
+                            >
+                            <view class="stat-label">母乳喂养</view>
+                        </view>
                     </view>
-                    <view class="stat-item">
-                        <view class="stat-icon">💤</view>
-                        <view class="stat-value">{{
-                            formatDuration(todayStats.sleepDuration)
-                        }}</view>
-                        <view class="stat-label">睡眠时长</view>
+                    <view class="stat-item stat-sleep">
+                        <image class="stat-bg" src="/static/stat-bg-sleep.png" mode="aspectFill" />
+                        <view class="stat-content">
+                            <view class="stat-icon">💤</view>
+                            <view class="stat-value">{{
+                                formatDuration(todayStats.sleepDuration)
+                            }}</view>
+                            <view class="stat-label">睡眠时长</view>
+                        </view>
                     </view>
-                    <view class="stat-item">
-                        <view class="stat-icon">🧷</view>
-                        <view class="stat-value">{{
-                            todayStats.diaperCount
-                        }}</view>
-                        <view class="stat-label">换尿布</view>
+                    <view class="stat-item stat-diaper">
+                        <image class="stat-bg" src="/static/stat-bg-diaper.png" mode="aspectFill" />
+                        <view class="stat-content">
+                            <view class="stat-icon">🧷</view>
+                            <view class="stat-value">{{
+                                todayStats.diaperCount
+                            }}</view>
+                            <view class="stat-label">换尿布</view>
+                        </view>
                     </view>
                 </view>
             </view>
@@ -145,13 +170,6 @@
                         </nut-button>
                     </view>
                 </view>
-            </view>
-
-            <!-- 底部提示 -->
-            <view v-if="!isLoggedIn" class="login-tip">
-                <nut-button type="primary" size="small" @click="goToLogin">
-                    请先登录
-                </nut-button>
             </view>
         </view>
     </view>
@@ -365,11 +383,9 @@ const checkLoginAndBaby = async () => {
 
     // 1. 检查登录状态
     if (!isLoggedIn.value) {
-        console.log("[Index] 未登录,跳转到登录页");
-        // 未登录,使用 switchTab 跳转到登录页(如果登录页不是 tabBar,则降级使用 reLaunch)
-        uni.reLaunch({
-            url: "/pages/user/login",
-        });
+        console.log("[Index] 未登录，显示游客模式");
+        // ✅ 未登录时不强制跳转，显示游客模式提示
+        // 游客模式：用户可以浏览首页，但无法查看真实数据
         return;
     }
 
@@ -478,22 +494,21 @@ const goToLogin = () => {
     });
 };
 
-// 跳转到疫苗提醒
-const goToVaccine = () => {
-    if (!currentBaby.value) {
-        uni.showToast({
-            title: "请先添加宝宝",
-            icon: "none",
+// 喂养记录（需要检查登录状态）
+const handleFeeding = async () => {
+    if (!isLoggedIn.value) {
+        uni.showModal({
+            title: "提示",
+            content: "该功能需要登录，是否前往登录？",
+            success: (res) => {
+                if (res.confirm) {
+                    goToLogin();
+                }
+            },
         });
         return;
     }
-    uni.navigateTo({
-        url: "/pages/vaccine/vaccine",
-    });
-};
 
-// 喂养记录
-const handleFeeding = async () => {
     if (!currentBaby.value) {
         uni.showToast({
             title: "请先添加宝宝",
@@ -527,6 +542,19 @@ const handleFeeding = async () => {
 
 // 换尿布记录
 const handleDiaper = () => {
+    if (!isLoggedIn.value) {
+        uni.showModal({
+            title: "提示",
+            content: "该功能需要登录，是否前往登录？",
+            success: (res) => {
+                if (res.confirm) {
+                    goToLogin();
+                }
+            },
+        });
+        return;
+    }
+
     if (!currentBaby.value) {
         uni.showToast({
             title: "请先添加宝宝",
@@ -541,6 +569,19 @@ const handleDiaper = () => {
 
 // 睡眠记录
 const handleSleep = () => {
+    if (!isLoggedIn.value) {
+        uni.showModal({
+            title: "提示",
+            content: "该功能需要登录，是否前往登录？",
+            success: (res) => {
+                if (res.confirm) {
+                    goToLogin();
+                }
+            },
+        });
+        return;
+    }
+
     if (!currentBaby.value) {
         uni.showToast({
             title: "请先添加宝宝",
@@ -555,6 +596,19 @@ const handleSleep = () => {
 
 // 成长记录
 const handleGrowth = () => {
+    if (!isLoggedIn.value) {
+        uni.showModal({
+            title: "提示",
+            content: "该功能需要登录，是否前往登录？",
+            success: (res) => {
+                if (res.confirm) {
+                    goToLogin();
+                }
+            },
+        });
+        return;
+    }
+
     if (!currentBaby.value) {
         uni.showToast({
             title: "请先添加宝宝",
@@ -564,6 +618,33 @@ const handleGrowth = () => {
     }
     uni.navigateTo({
         url: "/pages/record/growth/growth",
+    });
+};
+
+// 跳转到疫苗提醒
+const goToVaccine = () => {
+    if (!isLoggedIn.value) {
+        uni.showModal({
+            title: "提示",
+            content: "该功能需要登录，是否前往登录？",
+            success: (res) => {
+                if (res.confirm) {
+                    goToLogin();
+                }
+            },
+        });
+        return;
+    }
+
+    if (!currentBaby.value) {
+        uni.showToast({
+            title: "请先添加宝宝",
+            icon: "none",
+        });
+        return;
+    }
+    uni.navigateTo({
+        url: "/pages/vaccine/vaccine",
     });
 };
 </script>
@@ -588,6 +669,40 @@ $spacing: 20rpx; // 统一间距
     margin-bottom: calc(100rpx + env(safe-area-inset-bottom));
 }
 
+// 游客模式提示横幅
+.guest-banner {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 16rpx;
+    padding: 30rpx;
+    margin-bottom: $spacing;
+    box-shadow: 0 4rpx 12rpx rgba(102, 126, 234, 0.2);
+}
+
+.banner-content {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 20rpx;
+}
+
+.banner-text {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 8rpx;
+    color: white;
+}
+
+.banner-title {
+    font-size: 32rpx;
+    font-weight: bold;
+}
+
+.banner-desc {
+    font-size: 24rpx;
+    opacity: 0.9;
+}
+
 // 今日数据卡片
 .today-stats {
     background: white;
@@ -609,10 +724,44 @@ $spacing: 20rpx; // 统一间距
 }
 
 .stat-item {
+    position: relative;
     text-align: center;
     padding: 20rpx;
-    background: #f5f5f5;
     border-radius: 12rpx;
+    overflow: hidden;
+    background-color: #f5f5f5;
+}
+
+.stat-bg {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 0;
+    object-fit: cover;
+    object-position: center;
+}
+
+.stat-content {
+    position: relative;
+    z-index: 1;
+}
+
+// 奶瓶奶量背景
+.stat-milk {
+}
+
+// 母乳喂养背景
+.stat-breast {
+}
+
+// 睡眠时长背景
+.stat-sleep {
+}
+
+// 换尿布背景
+.stat-diaper {
 }
 
 .stat-icon {
@@ -794,10 +943,5 @@ $spacing: 20rpx; // 统一间距
     .icon {
         font-size: 36rpx;
     }
-}
-
-.login-tip {
-    text-align: center;
-    padding: 40rpx 0;
 }
 </style>

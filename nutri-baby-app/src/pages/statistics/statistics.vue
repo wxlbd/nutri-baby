@@ -8,6 +8,12 @@
       </nut-tabs>
     </view>
 
+    <!-- 未登录提示 -->
+    <view v-if="!isLoggedIn" class="guest-tip">
+      <text class="tip-icon">📊</text>
+      <text class="tip-text">登录后查看数据</text>
+    </view>
+
     <!-- 喂养统计 -->
     <view class="stat-section">
       <view class="section-header">
@@ -228,6 +234,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
+import { isLoggedIn } from '@/store/user'
 import { currentBaby } from '@/store/baby'
 import { getWeekStart, getMonthStart, formatDate } from '@/utils/date'
 
@@ -559,6 +566,10 @@ const getBarHeight = (value: number, max: number) => {
 
 // 页面加载
 onMounted(() => {
+  if (!isLoggedIn.value) {
+    return
+  }
+
   if (!currentBaby.value) {
     uni.showToast({
       title: '请先选择宝宝',
@@ -580,6 +591,27 @@ onMounted(() => {
   min-height: 100vh;
   background: #f5f5f5;
   padding-bottom: 40rpx;
+}
+
+.guest-tip {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 24rpx 30rpx;
+  margin: 20rpx;
+  border-radius: 12rpx;
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+  box-shadow: 0 4rpx 12rpx rgba(102, 126, 234, 0.2);
+}
+
+.tip-icon {
+  font-size: 36rpx;
+}
+
+.tip-text {
+  font-size: 28rpx;
+  font-weight: 500;
 }
 
 .time-range {
