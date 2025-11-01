@@ -212,19 +212,19 @@ function handleWechatShare(invitationData: any) {
 
 // 处理二维码
 function handleQRCode(invitationData: any) {
-  const { qrcodeParams } = invitationData
+  const { qrcodeParams, babyId: returnedBabyId, shortCode } = invitationData
 
-  if (!qrcodeParams) {
+  if (!qrcodeParams || !qrcodeParams.qrcodeUrl) {
     uni.showToast({
-      title: '二维码参数缺失',
+      title: '二维码生成失败',
       icon: 'none',
     })
     return
   }
 
-  // 跳转到二维码显示页面
+  // 跳转到二维码显示页面，传递完整的二维码URL
   uni.navigateTo({
-    url: `/pages/baby/qrcode/qrcode?scene=${encodeURIComponent(qrcodeParams.scene)}&page=${encodeURIComponent(qrcodeParams.page)}&babyName=${encodeURIComponent(babyName.value)}&role=${selectedRole.value}`,
+    url: `/pages/baby/qrcode/qrcode?qrcodeUrl=${encodeURIComponent(qrcodeParams.qrcodeUrl)}&babyName=${encodeURIComponent(babyName.value)}&role=${selectedRole.value}&shortCode=${encodeURIComponent(shortCode || '')}`,
   })
 }
 </script>

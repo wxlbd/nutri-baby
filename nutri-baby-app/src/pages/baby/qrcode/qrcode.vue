@@ -67,7 +67,6 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
-import { apiGenerateQRCode } from '@/api/baby'
 
 // 页面参数
 const babyId = ref('')
@@ -77,7 +76,6 @@ const role = ref('')
 
 // 二维码相关
 const qrcodeUrl = ref('')
-const qrcodeSize = ref(280) // 二维码尺寸
 const loading = ref(false)
 
 // 角色文本映射
@@ -93,11 +91,10 @@ const roleText = computed(() => roleTextMap[role.value] || '编辑者')
 onLoad((options) => {
   console.log('QRCode page onLoad with options:', options)
 
-  if (options?.babyId) {
-    babyId.value = options.babyId
-  }
-  if (options?.shortCode) {
-    shortCode.value = options.shortCode
+  // 从邀请页面接收二维码URL
+  if (options?.qrcodeUrl) {
+    qrcodeUrl.value = decodeURIComponent(options.qrcodeUrl)
+    console.log('Received QR code URL:', qrcodeUrl.value)
   }
   if (options?.babyName) {
     babyName.value = decodeURIComponent(options.babyName)
@@ -105,49 +102,18 @@ onLoad((options) => {
   if (options?.role) {
     role.value = options.role
   }
+  if (options?.shortCode) {
+    shortCode.value = decodeURIComponent(options.shortCode)
+  }
 
-  // 加载完成后生成二维码
-  if (babyId.value && shortCode.value) {
-    generateQRCode()
-  } else {
+  // 如果没有接收到URL，显示错误
+  if (!qrcodeUrl.value) {
     uni.showToast({
-      title: '缺少必要参数',
+      title: '二维码URL缺失,请重新生成',
       icon: 'none',
     })
   }
 })
-
-// 生成二维码
-async function generateQRCode() {
-  if (!babyId.value || !shortCode.value) {
-    uni.showToast({
-      title: '参数错误',
-      icon: 'none',
-    })
-    return
-  }
-
-  loading.value = true
-
-  try {
-    const response = await apiGenerateQRCode(babyId.value, shortCode.value)
-    qrcodeUrl.value = response.qrcodeUrl
-
-    console.log('QR Code generated:', response)
-
-    if (!qrcodeUrl.value) {
-      throw new Error('未获取到二维码URL')
-    }
-  } catch (error: any) {
-    console.error('Generate QR code error:', error)
-    uni.showToast({
-      title: error.message || '二维码生成失败',
-      icon: 'none',
-    })
-  } finally {
-    loading.value = false
-  }
-}
 
 // 保存二维码
 function saveQRCode() {
