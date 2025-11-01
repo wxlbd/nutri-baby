@@ -23,6 +23,7 @@ type ServerConfig struct {
 	Mode         string `mapstructure:"mode"`
 	ReadTimeout  int    `mapstructure:"read_timeout"`
 	WriteTimeout int    `mapstructure:"write_timeout"`
+	BaseURL      string `mapstructure:"base_url"` // 服务器基础 URL，用于生成完整资源访问地址
 }
 
 // DatabaseConfig 数据库配置

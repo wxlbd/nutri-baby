@@ -65,10 +65,8 @@ type BabyInvitationDTO struct {
 	InviterName  string        `json:"inviterName"`  // 邀请人名称
 	Role         string        `json:"role"`         // 角色
 	ShortCode    string        `json:"shortCode"`    // 6位短码(用于小程序码scene参数)
-	ShareParams  *ShareParams  `json:"shareParams"`  // 微信分享参数
 	QRCodeParams *QRCodeParams `json:"qrcodeParams"` // 二维码参数
-	ExpiresAt    *int64        `json:"expiresAt"`    // 过期时间(临时权限)
-	ValidUntil   int64         `json:"validUntil"`   // 邀请有效期(7天)
+	ExpiresAt    *int64        `json:"expiresAt"`    // 协作者权限过期时间(临时权限)
 }
 
 // ShareParams 微信小程序分享参数
@@ -100,6 +98,5 @@ type InvitationDetailDTO struct {
 	Role        string `json:"role"`        // 角色
 	AccessType  string `json:"accessType"`  // 访问类型
 	ExpiresAt   *int64 `json:"expiresAt"`   // 权限过期时间(临时权限)
-	ValidUntil  int64  `json:"validUntil"`  // 邀请有效期
 	Token       string `json:"token"`       // Token(用于加入)
 }

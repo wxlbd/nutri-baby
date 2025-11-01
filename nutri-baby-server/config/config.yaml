@@ -3,6 +3,7 @@ server:
   mode: debug # debug, release, test
   read_timeout: 60
   write_timeout: 60
+  base_url: "http://localhost:8080" # 小程序码和其他资源的完整访问 URL
 
 database:
   host: 101.200.47.93

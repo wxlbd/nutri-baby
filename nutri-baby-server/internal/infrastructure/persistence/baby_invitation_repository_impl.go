@@ -79,6 +79,29 @@ func (r *babyInvitationRepositoryImpl) FindByBabyID(ctx context.Context, babyID 
 	return invitations, nil
 }
 
+// FindByBabyAndInviter 根据宝宝ID和邀请人查找未使用的邀请记录
+func (r *babyInvitationRepositoryImpl) FindByBabyAndInviter(ctx context.Context, babyID, inviterID string) (*entity.BabyInvitation, error) {
+	var invitation entity.BabyInvitation
+
+	// 查询条件:
+	// 1. 宝宝ID匹配
+	// 2. 邀请人ID匹配
+	// 3. 邀请未使用(used_by IS NULL)
+	// 4. 未被删除(deleted_at IS NULL)
+	err := r.db.WithContext(ctx).
+		Where("baby_id = ? AND inviter_id = ? AND used_by IS NULL AND deleted_at IS NULL", babyID, inviterID).
+		First(&invitation).Error
+
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, errors.New(errors.NotFound, "邀请不存在")
+	}
+	if err != nil {
+		return nil, errors.Wrap(errors.DatabaseError, "failed to find invitation by baby and inviter", err)
+	}
+
+	return &invitation, nil
+}
+
 // MarkAsUsed 标记邀请已使用
 func (r *babyInvitationRepositoryImpl) MarkAsUsed(ctx context.Context, invitationID, usedBy string, usedAt int64) error {
 	err := r.db.WithContext(ctx).
