@@ -3,16 +3,33 @@
         <!-- 用户信息卡片 -->
         <view class="user-card">
             <view class="user-info">
+                <!-- 头像 -->
                 <view class="avatar">
-                    <text class="avatar-text">{{
+                    <image
+                        v-if="!isLoggedIn"
+                        src="/static/default.png"
+                        class="avatar-image"
+                        mode="aspectFill"
+                    />
+                    <text v-else class="avatar-text">{{
                         userInfo?.nickName?.charAt(0) || "用"
                     }}</text>
                 </view>
+
+                <!-- 昵称/登录按钮 -->
                 <view class="info">
-                    <view class="nickname">{{
-                        userInfo?.nickName || "用户"
-                    }}</view>
-                    <view class="login-time">{{ loginTimeText }}</view>
+                    <!-- 未登录：显示登录/注册按钮 -->
+                    <view v-if="!isLoggedIn" class="login-button" @click="goToLogin">
+                        <text>登录/注册</text>
+                    </view>
+
+                    <!-- 已登录：显示昵称和时间 -->
+                    <template v-else>
+                        <view class="nickname">{{
+                            userInfo?.nickName || "用户"
+                        }}</view>
+                        <view class="login-time">{{ loginTimeText }}</view>
+                    </template>
                 </view>
             </view>
         </view>
@@ -119,7 +136,7 @@
         </view>
 
         <!-- 退出登录 -->
-        <view class="logout-section">
+        <view v-if="isLoggedIn" class="logout-section">
             <nut-button type="default" size="large" block @click="handleLogout">
                 退出登录
             </nut-button>
@@ -134,7 +151,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from "vue";
-import { userInfo, clearUserInfo } from "@/store/user";
+import { isLoggedIn, userInfo, clearUserInfo } from "@/store/user";
 import { currentBaby } from "@/store/baby";
 import { formatDate } from "@/utils/date";
 
@@ -178,8 +195,17 @@ const loadStatistics = async () => {
 
 // 页面加载时获取数据
 onMounted(() => {
-    loadStatistics();
+    if (isLoggedIn.value) {
+        loadStatistics();
+    }
 });
+
+// 跳转到登录
+const goToLogin = () => {
+    uni.navigateTo({
+        url: "/pages/user/login",
+    });
+};
 
 // 登录时间文本
 const loginTimeText = computed(() => {
@@ -414,8 +440,28 @@ const handleLogout = () => {
     font-weight: bold;
 }
 
+.avatar-image {
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+}
+
 .info {
     flex: 1;
+}
+
+.login-button {
+    background: linear-gradient(135deg, #FF6B6B, #FF8E53);
+    border-radius: 20rpx;
+    padding: 12rpx 32rpx;
+    display: inline-block;
+    cursor: pointer;
+
+    text {
+        color: white;
+        font-size: 28rpx;
+        font-weight: 500;
+    }
 }
 
 .nickname {

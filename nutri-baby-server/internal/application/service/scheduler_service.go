@@ -204,9 +204,13 @@ func (s *SchedulerService) AddFeedingReminderTask(ctx context.Context, record *e
 	// 创建任务标签用于识别和取消
 	jobTag := fmt.Sprintf("feeding_reminder_%s", record.RecordID)
 
-	// 使用 gocron 的 At() 方法添加一次性任务
-	// gocron 会在指定时间执行，然后自动移除该任务
-	job, err := s.scheduler.At(executeTime).Tag(jobTag).Do(reminderJob)
+	// 使用 gocron 的一次性任务 API
+	// StartAt() 指定任务开始时间, LimitRunsTo(1) 限制只执行一次
+	job, err := s.scheduler.Every(1).Second().
+		StartAt(executeTime).
+		LimitRunsTo(1).
+		Tag(jobTag).
+		Do(reminderJob)
 	if err != nil {
 		s.logger.Error("添加喂养提醒任务失败",
 			zap.String("recordID", record.RecordID),
