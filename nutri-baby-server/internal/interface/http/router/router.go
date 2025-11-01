@@ -23,11 +23,14 @@ func NewRouter(
 	gin.SetMode(cfg.Server.Mode)
 
 	r := gin.New()
-
+	
 	// 全局中间件
 	r.Use(middleware.CORS())
 	r.Use(middleware.Logger())
 	r.Use(gin.Recovery())
+
+	// 静态文件服务 (用于小程序码、头像等上传文件)
+	r.Static("/uploads", "./uploads")
 
 	// API v1 路由组
 	v1 := r.Group("/v1")
@@ -36,6 +39,13 @@ func NewRouter(
 		auth := v1.Group("/auth")
 		{
 			auth.POST("/wechat-login", authHandler.WechatLogin)
+		}
+
+		// 邀请相关（公开访问，无需认证）
+		// 允许未登录用户通过短码查看邀请详情
+		invitations := v1.Group("/invitations")
+		{
+			invitations.GET("/code/:shortCode", babyHandler.GetInvitationByShortCode)
 		}
 
 		// 需要认证的路由
@@ -77,12 +87,6 @@ func NewRouter(
 				babies.GET("/:babyId/vaccine-records", vaccineHandler.GetVaccineRecords)
 				babies.GET("/:babyId/vaccine-reminders", vaccineHandler.GetVaccineReminders)
 				babies.GET("/:babyId/vaccine-statistics", vaccineHandler.GetVaccineStatistics)
-			}
-
-			// 邀请相关（通过短码查询）
-			invitations := authRequired.Group("/invitations")
-			{
-				invitations.GET("/code/:shortCode", babyHandler.GetInvitationByShortCode)
 			}
 
 			// 疫苗计划单个操作（不依赖babyId路径参数）
