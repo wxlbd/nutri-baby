@@ -34,7 +34,7 @@
         </view>
         <view class="info-item">
           <text class="label">有效期:</text>
-          <text class="value">7天</text>
+          <text class="value">永久有效</text>
         </view>
       </view>
 
