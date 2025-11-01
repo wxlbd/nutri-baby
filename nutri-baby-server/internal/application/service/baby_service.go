@@ -8,11 +8,13 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"go.uber.org/zap"
 
 	"github.com/wxlbd/nutri-baby-server/internal/application/dto"
 	"github.com/wxlbd/nutri-baby-server/internal/domain/entity"
 	"github.com/wxlbd/nutri-baby-server/internal/domain/repository"
 	"github.com/wxlbd/nutri-baby-server/pkg/errors"
+	"github.com/wxlbd/nutri-baby-server/pkg/utils"
 )
 
 // BabyService 宝宝服务 (去家庭化架构)
@@ -22,6 +24,8 @@ type BabyService struct {
 	invitationRepo   repository.BabyInvitationRepository
 	userRepo         repository.UserRepository
 	vaccineService   *VaccineService
+	wechatService    *WechatService
+	logger           *zap.Logger
 }
 
 // NewBabyService 创建宝宝服务
@@ -31,6 +35,8 @@ func NewBabyService(
 	invitationRepo repository.BabyInvitationRepository,
 	userRepo repository.UserRepository,
 	vaccineService *VaccineService,
+	wechatService *WechatService,
+	logger *zap.Logger,
 ) *BabyService {
 	return &BabyService{
 		babyRepo:         babyRepo,
@@ -38,6 +44,8 @@ func NewBabyService(
 		invitationRepo:   invitationRepo,
 		userRepo:         userRepo,
 		vaccineService:   vaccineService,
+		wechatService:    wechatService,
+		logger:           logger,
 	}
 }
 
@@ -287,6 +295,13 @@ func (s *BabyService) InviteCollaborator(ctx context.Context, babyID, openID str
 
 	// 生成临时token
 	token := s.generateInvitationToken()
+
+	// 生成6位短码 (用于小程序码scene参数)
+	shortCode, err := s.generateUniqueShortCode(ctx)
+	if err != nil {
+		return nil, errors.Wrap(errors.InternalError, "生成短码失败", err)
+	}
+
 	now := time.Now().UnixMilli()
 	validUntil := now + (7 * 24 * 60 * 60 * 1000) // 7天有效期
 
@@ -296,6 +311,7 @@ func (s *BabyService) InviteCollaborator(ctx context.Context, babyID, openID str
 		BabyID:       babyID,
 		InviterID:    openID,
 		Token:        token,
+		ShortCode:    shortCode, // 新增短码字段
 		InviteType:   req.InviteType,
 		Role:         req.Role,
 		AccessType:   req.AccessType,
@@ -304,7 +320,7 @@ func (s *BabyService) InviteCollaborator(ctx context.Context, babyID, openID str
 		CreateTime:   now,
 	}
 
-	if err := s.invitationRepo.Create(ctx, invitation); err != nil {
+	if err = s.invitationRepo.Create(ctx, invitation); err != nil {
 		return nil, err
 	}
 
@@ -318,25 +334,77 @@ func (s *BabyService) InviteCollaborator(ctx context.Context, babyID, openID str
 		ValidUntil:  validUntil,
 	}
 
-	// 根据邀请类型构建不同的参数
-	if req.InviteType == "share" {
-		// 微信分享参数
-		result.ShareParams = &dto.ShareParams{
-			Title:    fmt.Sprintf("邀请你一起记录%s的成长", baby.Name),
-			Path:     fmt.Sprintf("pages/baby/join?babyId=%s&token=%s", babyID, token),
-			ImageURL: baby.AvatarURL, // 使用宝宝头像,如果没有则前端使用默认图
-		}
-	} else if req.InviteType == "qrcode" {
-		// 二维码参数
-		scene := fmt.Sprintf("b=%s&t=%s", babyID, token)
-		result.QRCodeParams = &dto.QRCodeParams{
-			Scene: scene,
-			Page:  "pages/baby/join",
-			// QRCodeURL 由前端调用微信 API 生成或后端生成后返回
-		}
+	// // 根据邀请类型构建不同的参数
+	// if req.InviteType == "share" {
+	// 	// 微信分享参数
+	// 	result.ShareParams = &dto.ShareParams{
+	// 		Title:    fmt.Sprintf("邀请你一起记录%s的成长", baby.Name),
+	// 		Path:     fmt.Sprintf("pages/baby/join/join?babyId=%s&token=%s", babyID, token),
+	// 		ImageURL: baby.AvatarURL, // 使用宝宝头像,如果没有则前端使用默认图
+	// 	}
+	// } else if req.InviteType == "qrcode" {
+	// 二维码参数 - 使用短码避免32字符限制
+	scene := fmt.Sprintf("c=%s", shortCode) // 仅8个字符: "c=ABC123"
+
+	// 调用微信服务生成小程序码
+	qrcodeURL, err := s.wechatService.GenerateQRCode(ctx, scene, "pages/baby/join/join")
+	if err != nil {
+		s.logger.Error("Failed to generate QR code", zap.Error(err))
+		// 二维码生成失败不影响邀请创建,返回空URL
+		qrcodeURL = ""
 	}
 
+	result.QRCodeParams = &dto.QRCodeParams{
+		Scene:     scene,
+		Page:      "pages/baby/join/join",
+		QRCodeURL: qrcodeURL,
+	}
+	result.ShortCode = shortCode // 返回短码供前端使用
+	// }
+
 	return result, nil
+}
+
+// GetInvitationByShortCode 通过短码获取邀请详情
+func (s *BabyService) GetInvitationByShortCode(ctx context.Context, shortCode string) (*dto.InvitationDetailDTO, error) {
+	// 查找邀请记录
+	invitation, err := s.invitationRepo.FindByShortCode(ctx, shortCode)
+	if err != nil {
+		return nil, err
+	}
+
+	// 验证邀请是否有效
+	if invitation.IsExpired() {
+		return nil, errors.New(errors.ParamError, "邀请已过期")
+	}
+
+	if invitation.IsUsed() {
+		return nil, errors.New(errors.ParamError, "邀请已被使用")
+	}
+
+	// 获取宝宝信息
+	baby, err := s.babyRepo.FindByID(ctx, invitation.BabyID)
+	if err != nil {
+		return nil, err
+	}
+
+	// 获取邀请人信息
+	inviter, err := s.userRepo.FindByOpenID(ctx, invitation.InviterID)
+	if err != nil {
+		return nil, err
+	}
+
+	return &dto.InvitationDetailDTO{
+		BabyID:      baby.BabyID,
+		BabyName:    baby.Name,
+		BabyAvatar:  baby.AvatarURL,
+		InviterName: inviter.NickName,
+		Role:        invitation.Role,
+		AccessType:  invitation.AccessType,
+		ExpiresAt:   invitation.ExpiresAt,
+		ValidUntil:  invitation.ValidUntil,
+		Token:       invitation.Token,
+	}, nil
 }
 
 // JoinBaby 加入宝宝协作 (通过微信分享或二维码)
@@ -514,4 +582,33 @@ func (s *BabyService) generateInvitationToken() string {
 	bytes := make([]byte, 32) // 64位十六进制字符串
 	rand.Read(bytes)
 	return hex.EncodeToString(bytes)
+}
+
+// generateUniqueShortCode 生成唯一短码
+// 循环尝试生成直到找到唯一的短码
+func (s *BabyService) generateUniqueShortCode(ctx context.Context) (string, error) {
+	maxRetries := 10
+	for i := 0; i < maxRetries; i++ {
+		// 生成6位短码
+		shortCode, err := utils.GenerateShortCode()
+		if err != nil {
+			return "", err
+		}
+
+		// 检查短码是否已存在
+		_, err = s.invitationRepo.FindByShortCode(ctx, shortCode)
+		if err != nil {
+			// 检查是否是 NotFound 错误
+			if appErr, ok := err.(*errors.AppError); ok && appErr.Code == errors.NotFound {
+				// 短码不存在,可以使用
+				return shortCode, nil
+			}
+			// 其他错误直接返回
+			return "", err
+		}
+
+		// 短码已存在(没有错误),继续下一次尝试
+	}
+
+	return "", errors.New(errors.InternalError, "无法生成唯一短码,请稍后重试")
 }

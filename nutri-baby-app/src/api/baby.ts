@@ -67,6 +67,29 @@ export interface UpdateBabyRequest {
   weight?: number;
 }
 
+/**
+ * API 响应: 生成邀请二维码
+ */
+export interface QRCodeResponse {
+  qrcodeUrl: string;
+  scene: string;
+}
+
+/**
+ * API 响应: 邀请详情
+ */
+export interface InvitationDetailResponse {
+  babyId: string;
+  babyName: string;
+  babyAvatar?: string;
+  inviterName: string;
+  role: string;
+  accessType: string;
+  expiresAt?: number;
+  validUntil: number;
+  token: string;
+}
+
 // ============ API 函数 ============
 
 /**
@@ -152,4 +175,42 @@ export async function apiDeleteBaby(babyId: string): Promise<void> {
   if (response.code !== 0) {
     throw new Error(response.message || "删除宝宝失败");
   }
+}
+
+/**
+ * 生成邀请二维码
+ *
+ * @param babyId 宝宝ID
+ * @param shortCode 邀请短码
+ * @returns Promise<QRCodeResponse>
+ */
+export async function apiGenerateQRCode(
+  babyId: string,
+  shortCode: string,
+): Promise<QRCodeResponse> {
+  const response = await get<QRCodeResponse>(
+    `/babies/${babyId}/qrcode?shortCode=${shortCode}`,
+  );
+  if (!response.data) {
+    throw new Error(response.message || "生成二维码失败");
+  }
+  return response.data;
+}
+
+/**
+ * 通过短码获取邀请详情
+ *
+ * @param shortCode 邀请短码
+ * @returns Promise<InvitationDetailResponse>
+ */
+export async function apiGetInvitationByCode(
+  shortCode: string,
+): Promise<InvitationDetailResponse> {
+  const response = await get<InvitationDetailResponse>(
+    `/invitations/code/${shortCode}`,
+  );
+  if (!response.data) {
+    throw new Error(response.message || "获取邀请详情失败");
+  }
+  return response.data;
 }

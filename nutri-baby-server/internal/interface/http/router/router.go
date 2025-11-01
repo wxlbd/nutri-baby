@@ -64,6 +64,9 @@ func NewRouter(
 				babies.DELETE("/:babyId/collaborators/:openid", babyHandler.RemoveCollaborator)
 				babies.PUT("/:babyId/collaborators/:openid/role", babyHandler.UpdateCollaboratorRole)
 
+				// 小程序码生成
+				babies.GET("/:babyId/qrcode", babyHandler.GenerateInviteQRCode)
+
 				// 疫苗计划管理
 				babies.POST("/:babyId/vaccine-plans/initialize", vaccinePlanHandler.InitializePlans)
 				babies.GET("/:babyId/vaccine-plans", vaccinePlanHandler.GetPlans)
@@ -74,6 +77,12 @@ func NewRouter(
 				babies.GET("/:babyId/vaccine-records", vaccineHandler.GetVaccineRecords)
 				babies.GET("/:babyId/vaccine-reminders", vaccineHandler.GetVaccineReminders)
 				babies.GET("/:babyId/vaccine-statistics", vaccineHandler.GetVaccineStatistics)
+			}
+
+			// 邀请相关（通过短码查询）
+			invitations := authRequired.Group("/invitations")
+			{
+				invitations.GET("/code/:shortCode", babyHandler.GetInvitationByShortCode)
 			}
 
 			// 疫苗计划单个操作（不依赖babyId路径参数）

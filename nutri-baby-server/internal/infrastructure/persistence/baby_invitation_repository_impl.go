@@ -46,6 +46,23 @@ func (r *babyInvitationRepositoryImpl) FindByToken(ctx context.Context, token st
 	return &invitation, nil
 }
 
+// FindByShortCode 根据短码查找邀请
+func (r *babyInvitationRepositoryImpl) FindByShortCode(ctx context.Context, shortCode string) (*entity.BabyInvitation, error) {
+	var invitation entity.BabyInvitation
+	err := r.db.WithContext(ctx).
+		Where("short_code = ? AND deleted_at IS NULL", shortCode).
+		First(&invitation).Error
+
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, errors.New(errors.NotFound, "邀请不存在或已失效")
+	}
+	if err != nil {
+		return nil, errors.Wrap(errors.DatabaseError, "failed to find invitation by short code", err)
+	}
+
+	return &invitation, nil
+}
+
 // FindByBabyID 查找宝宝的所有邀请记录
 func (r *babyInvitationRepositoryImpl) FindByBabyID(ctx context.Context, babyID string) ([]*entity.BabyInvitation, error) {
 	var invitations []*entity.BabyInvitation

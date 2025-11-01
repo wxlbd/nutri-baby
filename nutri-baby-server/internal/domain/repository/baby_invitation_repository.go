@@ -14,6 +14,9 @@ type BabyInvitationRepository interface {
 	// FindByToken 根据token查找邀请
 	FindByToken(ctx context.Context, token string) (*entity.BabyInvitation, error)
 
+	// FindByShortCode 根据短码查找邀请
+	FindByShortCode(ctx context.Context, shortCode string) (*entity.BabyInvitation, error)
+
 	// FindByBabyID 查找宝宝的所有邀请记录
 	FindByBabyID(ctx context.Context, babyID string) ([]*entity.BabyInvitation, error)
 
