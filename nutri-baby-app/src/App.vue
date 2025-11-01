@@ -45,7 +45,6 @@ function handleQRCodeScan(options: any) {
     const sceneParam = options.query?.scene || options.scene;
 
     console.log("[App] Scene parameter:", sceneParam);
-
     if (sceneParam && typeof sceneParam === 'string') {
       // 解析 scene 参数
       const shortCode = parseSceneParameter(sceneParam);
@@ -77,15 +76,18 @@ function handleQRCodeScan(options: any) {
  */
 function parseSceneParameter(scene: string): string | null {
   try {
+    // 先尝试 URL 解码
+    const params = decodeURIComponent(scene);
+    if (params.startsWith('c=')) {
+      return params.substring(2);
+    }
+
     // scene 格式: c=ABC123
     if (scene.startsWith('c=')) {
       return scene.substring(2); // 提取 "=" 后面的部分
     }
-
-    // 尝试 URL 解码后再解析
-    const decoded = decodeURIComponent(scene);
-    if (decoded.startsWith('c=')) {
-      return decoded.substring(2);
+    if (params.startsWith('c=')) {
+      return params.substring(2);
     }
 
     console.warn("[App] Scene format not recognized:", scene);
