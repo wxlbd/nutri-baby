@@ -271,6 +271,7 @@ func (s *BabyService) GetCollaborators(ctx context.Context, babyID, openID strin
 }
 
 // InviteCollaborator 邀请协作者 (微信分享/二维码)
+// 注意:同一用户对同一宝宝只有一个有效邀请,重复调用会返回已有的邀请
 func (s *BabyService) InviteCollaborator(ctx context.Context, babyID, openID string, req *dto.InviteCollaboratorRequest) (*dto.BabyInvitationDTO, error) {
 	// 只有管理员和编辑者可以邀请
 	canEdit, err := s.collaboratorRepo.CanEdit(ctx, babyID, openID)
@@ -293,6 +294,44 @@ func (s *BabyService) InviteCollaborator(ctx context.Context, babyID, openID str
 		return nil, err
 	}
 
+	// 检查是否已经存在未使用的邀请 (邀请码唯一性)
+	existingInvitation, err := s.invitationRepo.FindByBabyAndInviter(ctx, babyID, openID)
+	if err != nil && !errors.Is(err, errors.ErrNotFound) {
+		return nil, err
+	}
+
+	// 如果存在未使用的邀请,直接返回已有邀请信息
+	if existingInvitation != nil {
+		s.logger.Info("邀请码已存在,直接返回已有记录",
+			zap.String("babyID", babyID),
+			zap.String("inviterID", openID),
+			zap.String("shortCode", existingInvitation.ShortCode),
+		)
+
+		// 重新生成小程序码的完整URL并返回
+		scene := fmt.Sprintf("c=%s", existingInvitation.ShortCode)
+		qrcodeURL, errQR := s.wechatService.GenerateQRCode(ctx, scene, "pages/baby/join/join")
+		if errQR != nil {
+			s.logger.Error("Failed to regenerate QR code", zap.Error(errQR))
+			qrcodeURL = ""
+		}
+
+		return &dto.BabyInvitationDTO{
+			BabyID:      babyID,
+			Name:        baby.Name,
+			InviterName: inviter.NickName,
+			Role:        existingInvitation.Role,
+			ExpiresAt:   existingInvitation.ExpiresAt,
+			ShortCode:   existingInvitation.ShortCode,
+			QRCodeParams: &dto.QRCodeParams{
+				Scene:     scene,
+				Page:      "pages/baby/join/join",
+				QRCodeURL: qrcodeURL,
+			},
+		}, nil
+	}
+
+	// 如果不存在邀请,创建新邀请
 	// 生成临时token
 	token := s.generateInvitationToken()
 
@@ -303,20 +342,18 @@ func (s *BabyService) InviteCollaborator(ctx context.Context, babyID, openID str
 	}
 
 	now := time.Now().UnixMilli()
-	validUntil := now + (7 * 24 * 60 * 60 * 1000) // 7天有效期
 
-	// 创建邀请记录
+	// 创建邀请记录 (不再设置ValidUntil,邀请永久有效)
 	invitation := &entity.BabyInvitation{
 		InvitationID: uuid.New().String(),
 		BabyID:       babyID,
 		InviterID:    openID,
 		Token:        token,
-		ShortCode:    shortCode, // 新增短码字段
+		ShortCode:    shortCode,
 		InviteType:   req.InviteType,
 		Role:         req.Role,
 		AccessType:   req.AccessType,
-		ExpiresAt:    req.ExpiresAt,
-		ValidUntil:   validUntil,
+		ExpiresAt:    req.ExpiresAt, // 只保留协作者权限的过期时间
 		CreateTime:   now,
 	}
 
@@ -331,18 +368,9 @@ func (s *BabyService) InviteCollaborator(ctx context.Context, babyID, openID str
 		InviterName: inviter.NickName,
 		Role:        req.Role,
 		ExpiresAt:   req.ExpiresAt,
-		ValidUntil:  validUntil,
+		ShortCode:   shortCode,
 	}
 
-	// // 根据邀请类型构建不同的参数
-	// if req.InviteType == "share" {
-	// 	// 微信分享参数
-	// 	result.ShareParams = &dto.ShareParams{
-	// 		Title:    fmt.Sprintf("邀请你一起记录%s的成长", baby.Name),
-	// 		Path:     fmt.Sprintf("pages/baby/join/join?babyId=%s&token=%s", babyID, token),
-	// 		ImageURL: baby.AvatarURL, // 使用宝宝头像,如果没有则前端使用默认图
-	// 	}
-	// } else if req.InviteType == "qrcode" {
 	// 二维码参数 - 使用短码避免32字符限制
 	scene := fmt.Sprintf("c=%s", shortCode) // 仅8个字符: "c=ABC123"
 
@@ -359,8 +387,6 @@ func (s *BabyService) InviteCollaborator(ctx context.Context, babyID, openID str
 		Page:      "pages/baby/join/join",
 		QRCodeURL: qrcodeURL,
 	}
-	result.ShortCode = shortCode // 返回短码供前端使用
-	// }
 
 	return result, nil
 }
@@ -373,11 +399,7 @@ func (s *BabyService) GetInvitationByShortCode(ctx context.Context, shortCode st
 		return nil, err
 	}
 
-	// 验证邀请是否有效
-	if invitation.IsExpired() {
-		return nil, errors.New(errors.ParamError, "邀请已过期")
-	}
-
+	// 验证邀请是否已被使用
 	if invitation.IsUsed() {
 		return nil, errors.New(errors.ParamError, "邀请已被使用")
 	}
@@ -402,7 +424,6 @@ func (s *BabyService) GetInvitationByShortCode(ctx context.Context, shortCode st
 		Role:        invitation.Role,
 		AccessType:  invitation.AccessType,
 		ExpiresAt:   invitation.ExpiresAt,
-		ValidUntil:  invitation.ValidUntil,
 		Token:       invitation.Token,
 	}, nil
 }
@@ -415,11 +436,7 @@ func (s *BabyService) JoinBaby(ctx context.Context, openID string, req *dto.Join
 		return nil, err
 	}
 
-	// 验证邀请是否有效
-	if invitation.IsExpired() {
-		return nil, errors.New(errors.ParamError, "邀请已过期")
-	}
-
+	// 验证邀请是否已被使用
 	if invitation.IsUsed() {
 		return nil, errors.New(errors.ParamError, "邀请已被使用")
 	}

@@ -116,9 +116,17 @@ func (s *WechatService) GenerateQRCode(ctx context.Context, scene, page string) 
 		zap.String("filePath", filePath),
 	)
 
-	// 返回可访问的URL路径 (相对路径)
-	// 注意: 实际部署时需要配置静态文件服务器或使用CDN
-	imageURL := fmt.Sprintf("/uploads/qrcodes/%s", filename)
+	// 拼接完整的URL访问地址
+	relativePath := fmt.Sprintf("/uploads/qrcodes/%s", filename)
+
+	// 从配置中获取服务器基础URL
+	baseURL := s.config.Server.BaseURL
+	if baseURL == "" {
+		baseURL = fmt.Sprintf("http://localhost:%d", s.config.Server.Port)
+	}
+
+	// 返回完整的URL路径
+	imageURL := fmt.Sprintf("%s%s", baseURL, relativePath)
 
 	s.logger.Info("🎉 [WechatService.GenerateQRCode] 小程序码生成完成",
 		zap.String("imageURL", imageURL),
