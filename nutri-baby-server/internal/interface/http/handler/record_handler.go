@@ -12,12 +12,25 @@ import (
 
 // RecordHandler 记录处理器
 type RecordHandler struct {
-	recordService *service.RecordService
+	feedingService *service.FeedingRecordService
+	sleepService   *service.SleepRecordService
+	diaperService  *service.DiaperRecordService
+	growthService  *service.GrowthRecordService
 }
 
 // NewRecordHandler 创建记录处理器
-func NewRecordHandler(recordService *service.RecordService) *RecordHandler {
-	return &RecordHandler{recordService: recordService}
+func NewRecordHandler(
+	feedingService *service.FeedingRecordService,
+	sleepService *service.SleepRecordService,
+	diaperService *service.DiaperRecordService,
+	growthService *service.GrowthRecordService,
+) *RecordHandler {
+	return &RecordHandler{
+		feedingService: feedingService,
+		sleepService:   sleepService,
+		diaperService:  diaperService,
+		growthService:  growthService,
+	}
 }
 
 // CreateFeedingRecord 创建喂养记录
@@ -31,7 +44,7 @@ func (h *RecordHandler) CreateFeedingRecord(c *gin.Context) {
 
 	openID := c.GetString("openid")
 
-	record, err := h.recordService.CreateFeedingRecord(c.Request.Context(), openID, &req)
+	record, err := h.feedingService.CreateFeedingRecord(c.Request.Context(), openID, &req)
 	if err != nil {
 		response.Error(c, err)
 		return
@@ -46,16 +59,16 @@ func (h *RecordHandler) GetFeedingRecords(c *gin.Context) {
 	query := h.parseRecordQuery(c)
 	openID := c.GetString("openid")
 
-	records, total, err := h.recordService.GetFeedingRecords(c.Request.Context(), openID, query)
+	records, total, err := h.feedingService.GetFeedingRecords(c.Request.Context(), openID, query)
 	if err != nil {
 		response.Error(c, err)
 		return
 	}
 
 	response.Success(c, gin.H{
-		"records": records,
-		"total":   total,
-		"page":    query.Page,
+		"records":  records,
+		"total":    total,
+		"page":     query.Page,
 		"pageSize": query.PageSize,
 	})
 }
@@ -71,7 +84,7 @@ func (h *RecordHandler) CreateSleepRecord(c *gin.Context) {
 
 	openID := c.GetString("openid")
 
-	record, err := h.recordService.CreateSleepRecord(c.Request.Context(), openID, &req)
+	record, err := h.sleepService.CreateSleepRecord(c.Request.Context(), openID, &req)
 	if err != nil {
 		response.Error(c, err)
 		return
@@ -86,16 +99,16 @@ func (h *RecordHandler) GetSleepRecords(c *gin.Context) {
 	query := h.parseRecordQuery(c)
 	openID := c.GetString("openid")
 
-	records, total, err := h.recordService.GetSleepRecords(c.Request.Context(), openID, query)
+	records, total, err := h.sleepService.GetSleepRecords(c.Request.Context(), openID, query)
 	if err != nil {
 		response.Error(c, err)
 		return
 	}
 
 	response.Success(c, gin.H{
-		"records": records,
-		"total":   total,
-		"page":    query.Page,
+		"records":  records,
+		"total":    total,
+		"page":     query.Page,
 		"pageSize": query.PageSize,
 	})
 }
@@ -111,7 +124,7 @@ func (h *RecordHandler) CreateDiaperRecord(c *gin.Context) {
 
 	openID := c.GetString("openid")
 
-	record, err := h.recordService.CreateDiaperRecord(c.Request.Context(), openID, &req)
+	record, err := h.diaperService.CreateDiaperRecord(c.Request.Context(), openID, &req)
 	if err != nil {
 		response.Error(c, err)
 		return
@@ -126,16 +139,16 @@ func (h *RecordHandler) GetDiaperRecords(c *gin.Context) {
 	query := h.parseRecordQuery(c)
 	openID := c.GetString("openid")
 
-	records, total, err := h.recordService.GetDiaperRecords(c.Request.Context(), openID, query)
+	records, total, err := h.diaperService.GetDiaperRecords(c.Request.Context(), openID, query)
 	if err != nil {
 		response.Error(c, err)
 		return
 	}
 
 	response.Success(c, gin.H{
-		"records": records,
-		"total":   total,
-		"page":    query.Page,
+		"records":  records,
+		"total":    total,
+		"page":     query.Page,
 		"pageSize": query.PageSize,
 	})
 }
@@ -151,7 +164,7 @@ func (h *RecordHandler) CreateGrowthRecord(c *gin.Context) {
 
 	openID := c.GetString("openid")
 
-	record, err := h.recordService.CreateGrowthRecord(c.Request.Context(), openID, &req)
+	record, err := h.growthService.CreateGrowthRecord(c.Request.Context(), openID, &req)
 	if err != nil {
 		response.Error(c, err)
 		return
@@ -166,16 +179,16 @@ func (h *RecordHandler) GetGrowthRecords(c *gin.Context) {
 	query := h.parseRecordQuery(c)
 	openID := c.GetString("openid")
 
-	records, total, err := h.recordService.GetGrowthRecords(c.Request.Context(), openID, query)
+	records, total, err := h.growthService.GetGrowthRecords(c.Request.Context(), openID, query)
 	if err != nil {
 		response.Error(c, err)
 		return
 	}
 
 	response.Success(c, gin.H{
-		"records": records,
-		"total":   total,
-		"page":    query.Page,
+		"records":  records,
+		"total":    total,
+		"page":     query.Page,
 		"pageSize": query.PageSize,
 	})
 }
