@@ -14,10 +14,10 @@ import (
 )
 
 type SubscribeService struct {
-	subscribeRepo             repository.SubscribeRepository
-	subscriptionCacheRepo     repository.SubscriptionCacheRepository
-	wechatService             *WechatService
-	logger                    *zap.Logger
+	subscribeRepo         repository.SubscribeRepository
+	subscriptionCacheRepo repository.SubscriptionCacheRepository
+	wechatService         *WechatService
+	logger                *zap.Logger
 }
 
 func NewSubscribeService(
