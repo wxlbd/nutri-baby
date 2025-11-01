@@ -12,7 +12,7 @@ type Baby struct {
 	AvatarURL   string     `gorm:"column:avatar_url;type:varchar(512)" json:"avatarUrl"`
 	Height      float64    `gorm:"column:height;type:decimal(10,2)" json:"height"`
 	Weight      float64    `gorm:"column:weight;type:decimal(10,2)" json:"weight"`
-	CreatorID   string     `gorm:"column:creator_id;type:varchar(64);index" json:"creatorId"` // 创建者 openid
+	CreatorID   string     `gorm:"column:creator_id;type:varchar(64);index" json:"creatorId"`     // 创建者 openid
 	FamilyGroup string     `gorm:"column:family_group;type:varchar(64);index" json:"familyGroup"` // 可选的家庭分组名称
 	CreateTime  int64      `gorm:"column:create_time;autoCreateTime:milli" json:"createTime"`
 	UpdateTime  int64      `gorm:"column:update_time;autoUpdateTime:milli" json:"updateTime"`
@@ -32,9 +32,9 @@ type BabyCollaborator struct {
 	ID         int64      `gorm:"primaryKey;autoIncrement" json:"id"`
 	BabyID     string     `gorm:"column:baby_id;type:varchar(64);index;uniqueIndex:idx_baby_user" json:"babyId"`
 	OpenID     string     `gorm:"column:openid;type:varchar(64);index;uniqueIndex:idx_baby_user" json:"openid"`
-	Role       string     `gorm:"column:role;type:varchar(16)" json:"role"` // admin, editor, viewer
+	Role       string     `gorm:"column:role;type:varchar(16)" json:"role"`                                  // admin, editor, viewer
 	AccessType string     `gorm:"column:access_type;type:varchar(16);default:'permanent'" json:"accessType"` // permanent, temporary
-	ExpiresAt  *int64     `gorm:"column:expires_at" json:"expiresAt"` // 临时权限过期时间(毫秒时间戳)
+	ExpiresAt  *int64     `gorm:"column:expires_at" json:"expiresAt"`                                        // 临时权限过期时间(毫秒时间戳)
 	JoinTime   int64      `gorm:"column:join_time;autoCreateTime:milli" json:"joinTime"`
 	UpdateTime int64      `gorm:"column:update_time;autoUpdateTime:milli" json:"updateTime"`
 	DeletedAt  *time.Time `gorm:"column:deleted_at;index" json:"-"`

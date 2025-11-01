@@ -27,8 +27,8 @@ type FeedingRecord struct {
 	CreateByAvatar string        `gorm:"column:create_by_avatar;type:varchar(512)" json:"createByAvatar"` // 冗余:创建者头像
 
 	// 提醒相关字段
-	ReminderInterval *int   `gorm:"column:reminder_interval" json:"reminderInterval,omitempty"` // 提醒间隔(分钟)
-	NextReminderTime *int64 `gorm:"column:next_reminder_time" json:"nextReminderTime,omitempty"` // 下次提醒时间戳(毫秒)
+	ReminderInterval *int   `gorm:"column:reminder_interval" json:"reminderInterval,omitempty"`   // 提醒间隔(分钟)
+	NextReminderTime *int64 `gorm:"column:next_reminder_time" json:"nextReminderTime,omitempty"`  // 下次提醒时间戳(毫秒)
 	ReminderSent     bool   `gorm:"column:reminder_sent;default:false;index" json:"reminderSent"` // 是否已发送提醒
 	ReminderTime     *int64 `gorm:"column:reminder_time" json:"reminderTime,omitempty"`           // 提醒发送时间戳(毫秒)
 
