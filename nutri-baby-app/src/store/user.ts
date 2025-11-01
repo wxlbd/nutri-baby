@@ -105,6 +105,10 @@ export function clearUserInfo() {
   token.value = null
   removeStorage(StorageKeys.USER_INFO)
   removeStorage(StorageKeys.TOKEN)
+
+  // 清除邀请码缓存，防止退出登录后重复跳转到加入页面
+  removeStorage(StorageKeys.PENDING_INVITE_CODE)
+  removeStorage(StorageKeys.AUTO_JOIN_AFTER_LOGIN)
 }
 
 /**
