@@ -2,24 +2,9 @@
     "version": "2.0.0",
     "tasks": [
         {
-            "label": "terminate-go-server",
+            "label": "关闭后端服务",
             "type": "shell",
-            "command": "pkill -f 'nutri-baby-server/cmd/server/main.go' || true",
-            "presentation": {
-                "reveal": "never",
-                "panel": "dedicated"
-            },
-            "problemMatcher": []
-        },
-        {
-            "label": "check-go-server-running",
-            "type": "shell",
-            "command": "if pgrep -f 'nutri-baby-server/cmd/server/main.go' > /dev/null 2>&1; then echo '检测到旧的 Go 服务进程，正在终止...'; pkill -f 'nutri-baby-server/cmd/server/main.go'; sleep 1; echo '旧进程已终止，准备启动新进程'; else echo '未检测到旧进程，准备启动新进程'; fi",
-            "presentation": {
-                "reveal": "always",
-                "panel": "dedicated"
-            },
-            "problemMatcher": []
+            "command": "pkill -f '__debug_bin|main.go.*-config' > /dev/null 2>&1"
         }
     ]
 }

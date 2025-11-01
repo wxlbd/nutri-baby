@@ -12,8 +12,6 @@
             "program": "${workspaceFolder}/nutri-baby-server/cmd/server/main.go",
             "cwd": "${workspaceFolder}/nutri-baby-server",
             "args": ["-config", "config/config.yaml"],
-            "preLaunchTask": "check-go-server-running",
-            "postDebugTask": "terminate-go-server",
             "internalConsoleOptions": "openOnSessionStart",
             "serverReadyAction": {
                 "pattern": "Server started at",
