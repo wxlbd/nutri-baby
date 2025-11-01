@@ -1,13 +1,72 @@
 <template>
-    <view class="index-page">
-        <!-- 自定义导航栏 -->
-        <custom-navbar ref="navbarRef" title="今日概览" />
+    <!-- 自定义导航栏 - 与胶囊按钮对称对齐 -->
+    <view class="navbar-wrapper" :style="{ paddingTop: statusBarHeight * 2 + 'rpx' }">
+        <view
+            class="navbar-content"
+            :style="{
+                height: menuButtonHeight * 2 + 18 + 'rpx'
+            }"
+        >
+            <!-- 左侧宝宝信息 - 对齐胶囊位置 -->
+            <view
+                class="baby-info"
+                @click="goToBabyList"
+                :style="{
+                    width: menuButtonWidth * 2 + 'rpx',
+                    height: menuButtonHeight * 2 + 'rpx',
+                }"
+            >
+                <view v-if="currentBaby" class="baby-content">
+                    <view class="baby-avatar">
+                        <image
+                            v-if="currentBaby.avatarUrl"
+                            :src="currentBaby.avatarUrl"
+                            mode="aspectFill"
+                            class="avatar-img"
+                        />
+                        <image
+                            v-else
+                            src="/static/default.png"
+                            mode="aspectFill"
+                            class="avatar-img"
+                        />
+                    </view>
+                    <view class="baby-text">
+                        <text class="baby-name">{{ currentBaby.name }}</text>
+                        <text class="baby-age">{{ babyAge }}</text>
+                    </view>
+                    <nut-icon
+                        name="right"
+                        size="12"
+                        color="#999"
+                        class="arrow-icon"
+                    />
+                </view>
+                <view v-else class="add-baby-hint">
+                    <text>添加宝宝</text>
+                </view>
+            </view>
+
+            <!-- 中间标题 -->
+            <view class="navbar-title">
+                <text>今日概览</text>
+            </view>
+
+            <!-- 右侧占位符（与胶囊等宽） -->
+            <view
+                class="navbar-right"
+                :style="{
+                    width: menuButtonWidth * 2 + 'rpx',
+                    height: menuButtonHeight * 2 + 'rpx',
+                }"
+            ></view>
+        </view>
+    </view>
+    <view class="index-page" :style="{ paddingTop: navbarTotalHeight - 8 + 'rpx' }">
+      
 
         <!-- 页面内容 -->
-        <view
-            class="page-content"
-            :style="{ paddingTop: pageContentPaddingTop }"
-        >
+        <view class="page-content">
             <!-- 游客模式提示横幅 -->
             <view v-if="!isLoggedIn" class="guest-banner">
                 <view class="banner-content">
@@ -61,7 +120,7 @@
                             <view class="stat-icon">🧷</view>
                             <view class="stat-value">{{
                                 todayStats.diaperCount
-                            }}</view>
+                            }}次</view>
                             <view class="stat-label">换尿布</view>
                         </view>
                     </view>
@@ -191,6 +250,7 @@ import {
     getFeedingGuidelineByAge,
     calculateAgeInMonths,
 } from "@/utils/feeding";
+import { calculateAge } from "@/utils/date";
 
 // 直接调用 API 层
 import * as feedingApi from "@/api/feeding";
@@ -204,10 +264,36 @@ import {
     requestAllFeedingSubscribeMessages,
 } from "@/utils/feeding-subscribe";
 
-// 导航栏引用
-const navbarRef = ref<any>(null);
-// 页面内容区域的 padding-top
-const pageContentPaddingTop = ref("152rpx"); // 默认值（状态栏44px + 内容88rpx + 间距20rpx）
+// ============ 导航栏相关 ============
+
+// 导航栏相关
+const statusBarHeight = ref(0); // 状态栏高度（px）
+const menuButtonWidth = ref(0); // 胶囊按钮宽度（px）
+const menuButtonHeight = ref(0); // 胶囊按钮高度（px）
+const menuButtonTop = ref(0); // 胶囊按钮顶部距离（px）
+
+// 宝宝年龄
+const babyAge = computed(() => {
+    if (!currentBaby.value) return "";
+    return calculateAge(currentBaby.value.birthDate);
+});
+
+// 导航栏总高度
+const navbarTotalHeight = computed(() => {
+    // 总高度计算与 join.vue 保持一致
+    // = 状态栏高度 (px×2→rpx) + 胶囊顶部距离 (px×2→rpx) + 导航栏内容高度
+    return (
+        Math.round(statusBarHeight.value * 2) +
+        Math.round(menuButtonTop.value * 2) 
+    );
+});
+
+// 跳转到宝宝列表
+const goToBabyList = () => {
+    uni.navigateTo({
+        url: "/pages/baby/list/list",
+    });
+};
 
 // ============ 响应式数据 ============
 
@@ -341,11 +427,43 @@ const formatVaccineDate = (timestamp: number): string => {
 // 页面加载 (仅在首次挂载时执行)
 onMounted(() => {
     console.log("[Index] onMounted");
-    // 延迟计算页面内容区域的 padding-top,确保导航栏组件已初始化
-    setTimeout(() => {
-        calculatePagePadding();
-    }, 100);
+    // 初始化导航栏
+    initializeNavbar();
 });
+
+// 初始化导航栏
+const initializeNavbar = () => {
+    // 获取系统信息
+    const systemInfo = uni.getSystemInfoSync();
+    statusBarHeight.value = systemInfo.statusBarHeight || 0;
+
+    // 获取胶囊按钮信息（仅微信小程序）
+    // #ifdef MP-WEIXIN
+    try {
+        const menuButton = uni.getMenuButtonBoundingClientRect();
+        if (menuButton) {
+            // 胶囊按钮的宽度和高度（保持 px，与导航栏样式中使用 rpx 统一处理）
+            menuButtonWidth.value = menuButton.width; // px
+            menuButtonHeight.value = menuButton.height; // px
+            menuButtonTop.value = menuButton.top; // px（状态栏下的距离）
+
+            console.log("[Index] 胶囊对齐:", {
+                statusBarHeight: statusBarHeight.value,
+                menuButtonTop: menuButtonTop.value,
+                menuButtonWidth: menuButton.width,
+                menuButtonHeight: menuButton.height,
+                menuButtonBottom: menuButton.top + menuButton.height,
+                navbarTotalHeight: navbarTotalHeight.value,
+            });
+        }
+    } catch (e) {
+        console.warn("[Index] 获取胶囊信息失败，使用默认高度", e);
+        // 使用默认值
+        menuButtonWidth.value = 88; // 默认宽度
+        menuButtonHeight.value = 32; // 默认高度
+    }
+    // #endif
+};
 
 // 页面显示 (每次页面显示时执行,包括 switchTab)
 onShow(async () => {
@@ -356,26 +474,7 @@ onShow(async () => {
 });
 
 // 计算页面内容的 padding-top
-const calculatePagePadding = () => {
-    console.log("[Index] calculatePagePadding - navbarRef:", navbarRef.value);
-
-    if (navbarRef.value && navbarRef.value.navbarTotalHeight) {
-        // navbarTotalHeight 是一个 computed,需要 .value 访问
-        const totalHeight =
-            navbarRef.value.navbarTotalHeight.value ||
-            navbarRef.value.navbarTotalHeight;
-        console.log("[Index] 导航栏总高度:", totalHeight, "rpx");
-        // 导航栏总高度 + 间距 20rpx
-        pageContentPaddingTop.value = `${totalHeight + 20}rpx`;
-    } else {
-        console.warn("[Index] 导航栏引用未就绪,使用默认高度");
-        // 如果导航栏未就绪,使用默认值
-        // 默认: 状态栏44px=88rpx + 内容88rpx + 间距20rpx = 196rpx
-        pageContentPaddingTop.value = "196rpx";
-    }
-
-    console.log("[Index] 最终 paddingTop:", pageContentPaddingTop.value);
-};
+// 已改为计算属性 pageContentPaddingTop，无需手动计算
 
 // 检查登录和宝宝信息
 const checkLoginAndBaby = async () => {
@@ -653,7 +752,120 @@ const goToVaccine = () => {
 // ===== 设计系统变量 =====
 $spacing: 20rpx; // 统一间距
 
+// ===== 导航栏样式 =====
+.navbar-wrapper {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    background: #ffffff;
+    z-index: 9999;
+}
+
+.navbar-content {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 20rpx; // 左右边距
+    // 高度由内联样式动态设置
+}
+
+// 左侧宝宝信息 - 对齐胶囊位置
+.baby-info {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    min-width: 80rpx;
+    // 宽高由内联样式动态设置
+}
+
+.baby-content {
+    display: flex;
+    align-items: center;
+    gap: 12rpx;
+    padding: 0rpx 24rpx 0rpx 0rpx;
+    background: #f5f7fa;
+    border-radius: 40rpx;
+    width: 100%;
+    height: 100%;
+}
+
+.baby-avatar {
+    width: 60rpx;
+    height: 60rpx;
+    border-radius: 50%;
+    overflow: hidden;
+    flex-shrink: 0;
+}
+
+.avatar-img {
+    width: 100%;
+    height: 100%;
+}
+
+.baby-text {
+    display: flex;
+    flex-direction: column;
+    gap: 2rpx;
+    flex: 1;
+    min-width: 0;
+}
+
+.baby-name {
+    font-size: 20rpx;
+    font-weight: 500;
+    color: #333;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    line-height: 1.2;
+}
+
+.baby-age {
+    font-size: 18rpx;
+    color: #999;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    line-height: 1.2;
+}
+
+.arrow-icon {
+    flex-shrink: 0;
+    margin-left: 4rpx;
+}
+
+.add-baby-hint {
+    padding: 16rpx 32rpx;
+    background: #f5f7fa;
+    border-radius: 40rpx;
+    font-size: 24rpx;
+    color: #999;
+}
+
+// 中间标题 - 居中显示
+.navbar-title {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 34rpx; // 标准导航栏标题大小 (17px = 34rpx)
+    font-weight: 600;
+    color: #000;
+    pointer-events: none;
+}
+
+// 右侧占位符（与胶囊等宽）
+.navbar-right {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    flex-shrink: 0;
+    // 宽高由内联样式动态设置
+}
+
 .index-page {
+    // padding-top 由内联样式动态设置
     min-height: 100vh;
     background: #f5f5f5;
 }
