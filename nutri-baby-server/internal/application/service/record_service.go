@@ -5,6 +5,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"go.uber.org/zap"
+
 	"github.com/wxlbd/nutri-baby-server/internal/application/dto"
 	"github.com/wxlbd/nutri-baby-server/internal/domain/entity"
 	"github.com/wxlbd/nutri-baby-server/internal/domain/repository"
@@ -19,6 +21,8 @@ type RecordService struct {
 	diaperRecordRepo  repository.DiaperRecordRepository
 	growthRecordRepo  repository.GrowthRecordRepository
 	collaboratorRepo  repository.BabyCollaboratorRepository // 替换 familyMemberRepo
+	schedulerService  *SchedulerService                     // 添加定时任务服务
+	logger            *zap.Logger                           // 添加日志
 }
 
 // NewRecordService 创建记录服务
@@ -29,6 +33,8 @@ func NewRecordService(
 	diaperRecordRepo repository.DiaperRecordRepository,
 	growthRecordRepo repository.GrowthRecordRepository,
 	collaboratorRepo repository.BabyCollaboratorRepository,
+	schedulerService *SchedulerService,
+	logger *zap.Logger,
 ) *RecordService {
 	return &RecordService{
 		babyRepo:          babyRepo,
@@ -37,6 +43,8 @@ func NewRecordService(
 		diaperRecordRepo:  diaperRecordRepo,
 		growthRecordRepo:  growthRecordRepo,
 		collaboratorRepo:  collaboratorRepo,
+		schedulerService:  schedulerService,
+		logger:            logger,
 	}
 }
 
@@ -90,8 +98,38 @@ func (s *RecordService) CreateFeedingRecord(ctx context.Context, openID string, 
 		UpdateTime:  now,
 	}
 
+	// 处理用户自定义的提醒间隔
+	if req.ReminderInterval != nil && *req.ReminderInterval > 0 {
+		record.ReminderInterval = req.ReminderInterval
+
+		// 计算下次提醒时间: 喂养时间 + 间隔(分钟)
+		nextReminderTime := feedingTime + int64(*req.ReminderInterval*60*1000)
+		record.NextReminderTime = &nextReminderTime
+
+		s.logger.Info("设置喂养提醒",
+			zap.String("babyID", req.BabyID),
+			zap.Int("intervalMinutes", *req.ReminderInterval),
+			zap.Int64("nextReminderTime", nextReminderTime))
+	}
+
 	if err := s.feedingRecordRepo.Create(ctx, record); err != nil {
 		return nil, err
+	}
+
+	// 如果设置了提醒时间,添加定时任务到 gocron
+	if record.NextReminderTime != nil && s.schedulerService != nil {
+		jobTag, err := s.schedulerService.AddFeedingReminderTask(ctx, record)
+		if err != nil {
+			// 定时任务添加失败不影响记录保存,仅记录警告日志
+			s.logger.Warn("添加喂养提醒定时任务失败,用户将无法收到提醒",
+				zap.String("recordID", record.RecordID),
+				zap.Error(err))
+			// 不返回错误,允许记录保存成功
+		} else if jobTag != "" {
+			s.logger.Info("喂养提醒定时任务已添加",
+				zap.String("recordID", record.RecordID),
+				zap.String("jobTag", jobTag))
+		}
 	}
 
 	// 将detail转换回FeedingDetail结构体
