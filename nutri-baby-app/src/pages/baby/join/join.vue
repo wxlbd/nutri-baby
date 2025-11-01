@@ -1,92 +1,123 @@
 <template>
   <view class="join-container">
-    <!-- 加载状态 -->
-    <view v-if="loading" class="loading-wrapper">
-      <view class="loading-spinner"></view>
-      <text class="loading-text">加载中...</text>
-    </view>
-
-    <!-- 邀请信息展示 -->
-    <view v-else-if="invitationInfo" class="content">
-      <!-- 宝宝信息卡片 -->
-      <view class="baby-card">
-        <view class="baby-avatar">
-          <image
-            v-if="invitationInfo.babyAvatar"
-            :src="invitationInfo.babyAvatar"
-            mode="aspectFill"
-          />
-          <text v-else class="avatar-placeholder">👶</text>
+    <!-- 自定义导航栏 - 精确对齐微信胶囊 -->
+    <view class="navbar-wrapper" :style="{ paddingTop: (statusBarHeight ) * 2  + 'rpx' }">
+      <view class="navbar-content" :style="{ height: menuButtonHeight*2  + 'rpx', marginTop: -(menuButtonHeight/4) + 'rpx'}">
+        <!-- 左侧首页图标 - 对齐胶囊位置 -->
+        <view class="navbar-left" :style="{
+          width: menuButtonWidth * 2 + 'rpx',
+          height: menuButtonHeight * 2 + 'rpx',
+        }" @click="goToHome">
+          <nut-icon name="home" size="22" color="#ffecd2" />
         </view>
 
-        <view class="baby-info">
-          <view class="baby-name">{{ invitationInfo.babyName }}</view>
-          <view class="inviter-info">
-            <text class="inviter-name">{{ invitationInfo.inviterName }}</text>
-            <text class="invite-text">邀请你一起记录宝宝的成长</text>
-          </view>
-        </view>
-      </view>
+        <!-- 中间标题 -->
+        <view class="navbar-title">加入宝宝</view>
 
-      <!-- 权限信息 -->
-      <view class="permission-card">
-        <view class="card-title">协作权限</view>
-        <view class="permission-list">
-          <view class="permission-item">
-            <text class="label">协作角色:</text>
-            <text class="value">{{ roleText }}</text>
-          </view>
-          <view class="permission-item">
-            <text class="label">访问权限:</text>
-            <text class="value">{{ accessTypeText }}</text>
-          </view>
-          <view v-if="invitationInfo.expiresAt" class="permission-item">
-            <text class="label">权限过期:</text>
-            <text class="value">{{ formatExpireTime }}</text>
-          </view>
-        </view>
-
-        <!-- 权限说明 -->
-        <view class="permission-desc">
-          <text v-if="role === 'admin'">管理员可管理宝宝信息、邀请/移除协作者</text>
-          <text v-else-if="role === 'editor'">编辑者可记录和编辑所有数据</text>
-          <text v-else>查看者仅可查看数据,不能编辑</text>
-        </view>
-      </view>
-
-      <!-- 操作按钮 -->
-      <view class="actions">
-        <nut-button type="primary" size="large" @click="handleJoin">
-          确认加入
-        </nut-button>
-        <nut-button type="default" size="large" @click="handleCancel">
-          取消
-        </nut-button>
-      </view>
-
-      <!-- 温馨提示 -->
-      <view class="tips">
-        <view class="tip-title">温馨提示</view>
-        <view class="tip-item">• 加入后可与家人共同记录宝宝的成长</view>
-        <view class="tip-item">• 所有协作者的记录将实时同步</view>
-        <view class="tip-item">• 请谨慎选择协作者,保护宝宝隐私</view>
+        <!-- 右侧占位符（与胶囊等宽）-->
+        <view class="navbar-right" :style="{
+          width: menuButtonWidth * 2 + 'rpx',
+          height: menuButtonHeight * 2 + 'rpx',
+        }"></view>
       </view>
     </view>
 
-    <!-- 错误状态 -->
-    <view v-else class="error-wrapper">
-      <text class="error-icon">⚠️</text>
-      <text class="error-text">{{ errorMessage }}</text>
-      <nut-button type="primary" @click="handleBack">返回</nut-button>
+    <!-- 内容区域（留出导航栏高度） -->
+    <view class="content-wrapper" :style="{ paddingTop: navbarTotalHeight + 'rpx' }">
+      <!-- 加载状态 -->
+      <view v-if="loading" class="loading-wrapper">
+        <view class="loading-spinner"></view>
+        <text class="loading-text">加载中...</text>
+      </view>
+
+      <!-- 邀请信息展示 -->
+      <view v-else-if="invitationInfo" class="content">
+        <!-- 宝宝信息卡片 -->
+        <view class="baby-card">
+          <view class="baby-avatar">
+            <image v-if="invitationInfo.babyAvatar" :src="invitationInfo.babyAvatar" mode="aspectFill" />
+            <text v-else class="avatar-placeholder">👶</text>
+          </view>
+
+          <view class="baby-info">
+            <view class="baby-name">{{ invitationInfo.babyName }}</view>
+            <view class="inviter-info">
+              <text class="inviter-name">{{ invitationInfo.inviterName }}</text>
+              <text class="invite-text">邀请你一起记录宝宝的成长</text>
+            </view>
+          </view>
+        </view>
+
+        <!-- 权限信息 -->
+        <view class="permission-card">
+          <view class="card-title">协作权限</view>
+          <view class="permission-list">
+            <view class="permission-item">
+              <text class="label">协作角色:</text>
+              <text class="value">{{ roleText }}</text>
+            </view>
+            <view class="permission-item">
+              <text class="label">访问权限:</text>
+              <text class="value">{{ accessTypeText }}</text>
+            </view>
+            <view v-if="invitationInfo.expiresAt" class="permission-item">
+              <text class="label">权限过期:</text>
+              <text class="value">{{ formatExpireTime }}</text>
+            </view>
+          </view>
+
+          <!-- 权限说明 -->
+          <view class="permission-desc">
+            <text v-if="role === 'admin'">管理员可管理宝宝信息、邀请/移除协作者</text>
+            <text v-else-if="role === 'editor'">编辑者可记录和编辑所有数据</text>
+            <text v-else>查看者仅可查看数据,不能编辑</text>
+          </view>
+        </view>
+
+        <!-- 操作按钮 -->
+        <view class="actions">
+          <nut-button type="primary" size="large" @click="handleJoin">
+            确认加入
+          </nut-button>
+          <nut-button type="default" size="large" @click="handleCancel">
+            取消
+          </nut-button>
+        </view>
+
+        <!-- 温馨提示 -->
+        <view class="tips">
+          <view class="tip-title">温馨提示</view>
+          <view class="tip-item">• 加入后可与家人共同记录宝宝的成长</view>
+          <view class="tip-item">• 所有协作者的记录将实时同步</view>
+          <view class="tip-item">• 请谨慎选择协作者,保护宝宝隐私</view>
+        </view>
+      </view>
+
+      <!-- 错误状态 -->
+      <view v-else class="error-wrapper">
+        <text class="error-icon">⚠️</text>
+        <text class="error-text">{{ errorMessage }}</text>
+        <nut-button type="primary" @click="handleBack">返回</nut-button>
+      </view>
     </view>
   </view>
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
-import { onLoad } from '@dcloudio/uni-app'
+import { ref, computed, onMounted } from 'vue'
+import { onLoad, onShow } from '@dcloudio/uni-app'
 import { joinBabyCollaboration } from '@/store/collaborator'
 import { apiGetInvitationByCode } from '@/api/baby'
+import { checkLoginStatus } from '@/store/user'
+import { StorageKeys } from '@/utils/storage'
+
+// 导航栏相关
+const statusBarHeight = ref(0)
+const navbarTotalHeight = ref(0)
+const navbarContentHeight = ref(88) // 导航栏内容高度（rpx）
+const menuButtonWidth = ref(0) // 胶囊按钮宽度（rpx）
+const menuButtonHeight = ref(0) // 胶囊按钮高度（rpx）
+const menuButtonTop = ref(0) // 胶囊按钮顶部距离（px）
 
 // 页面参数
 const babyId = ref('')
@@ -126,6 +157,58 @@ const formatExpireTime = computed(() => {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
 })
 
+// 初始化导航栏高度
+onMounted(() => {
+  const systemInfo = uni.getSystemInfoSync()
+  statusBarHeight.value = systemInfo.statusBarHeight || 0
+
+  // 获取胶囊按钮位置信息（微信小程序）
+  // #ifdef MP-WEIXIN
+  try {
+    const menuButton = uni.getMenuButtonBoundingClientRect()
+    if (menuButton) {
+      // 胶囊按钮的宽度和高度（保持 px，与导航栏样式中使用 rpx 统一处理）
+      menuButtonWidth.value = menuButton.width // px
+      menuButtonHeight.value = menuButton.height // px
+      menuButtonTop.value = menuButton.top // px（状态栏下的距离）
+
+      // 计算导航栏内容高度（rpx）
+      // navbar-content 的高度应该 = 胶囊按钮的高度
+      navbarContentHeight.value = Math.round(menuButton.height * 2) // 胶囊高度转为 rpx
+
+      // 总高度 = 状态栏高度 × 2（px→rpx） + 胶囊顶部距离 × 2（px→rpx） + 导航栏内容高度
+      navbarTotalHeight.value =
+        Math.round(statusBarHeight.value * 2) +
+        Math.round(menuButton.top * 2) +
+        navbarContentHeight.value
+
+      console.log('[Join Navbar] Capsule aligned:', {
+        statusBarHeight: statusBarHeight.value,
+        menuButtonTop: menuButtonTop.value,
+        menuButtonWidth: menuButton.width,
+        menuButtonHeight: menuButton.height,
+        menuButtonBottom: menuButton.top + menuButton.height,
+        navbarContentHeight: navbarContentHeight.value,
+        navbarTotalHeight: navbarTotalHeight.value,
+      })
+    }
+  } catch (e) {
+    console.warn('[Join Navbar] Failed to get menu button info, using defaults', e)
+    // 使用默认值
+    navbarContentHeight.value = 88
+    navbarTotalHeight.value = Math.round(statusBarHeight.value * 2) + 88
+  }
+  // #endif
+})
+
+// 返回首页
+function goToHome() {
+  console.log('[Join] 点击首页图标，跳转到首页')
+  uni.switchTab({
+    url: '/pages/index/index',
+  })
+}
+
 // 页面加载
 onLoad((options) => {
   console.log('Join page onLoad with options:', options)
@@ -146,6 +229,33 @@ onLoad((options) => {
 
   // 加载邀请信息
   loadInvitationInfo()
+})
+
+// 页面显示（从登录页返回时会触发）
+onShow(() => {
+  console.log('Join page onShow')
+
+  // 检查是否有待加入的邀请（从登录页返回）
+  const autoJoin = uni.getStorageSync(StorageKeys.AUTO_JOIN_AFTER_LOGIN)
+
+  if (autoJoin && checkLoginStatus()) {
+    console.log('Auto join after login:', autoJoin)
+
+    // 清除标记
+    uni.removeStorageSync(StorageKeys.AUTO_JOIN_AFTER_LOGIN)
+
+    // 恢复邀请信息
+    babyId.value = autoJoin.babyId
+    token.value = autoJoin.token
+    invitationInfo.value = autoJoin.invitationInfo
+    role.value = autoJoin.role
+    loading.value = false
+
+    // 自动执行加入操作
+    setTimeout(() => {
+      handleJoin()
+    }, 500)
+  }
 })
 
 // 加载邀请信息
@@ -219,6 +329,39 @@ async function handleJoin() {
     return
   }
 
+  // 检查登录状态
+  if (!checkLoginStatus()) {
+    console.log('[Join] User not logged in, redirect to login page')
+    console.log('[Join] Saving shortCode:', shortCode.value)
+
+    // 保存邀请信息到本地存储
+    uni.setStorageSync(StorageKeys.PENDING_INVITE_CODE, shortCode.value)
+    uni.setStorageSync(StorageKeys.AUTO_JOIN_AFTER_LOGIN, {
+      babyId: babyId.value,
+      token: token.value,
+      invitationInfo: invitationInfo.value,
+      role: role.value,
+    })
+
+    // 验证保存是否成功
+    const saved = uni.getStorageSync(StorageKeys.PENDING_INVITE_CODE)
+    console.log('[Join] Verification - saved PENDING_INVITE_CODE:', saved)
+
+    // 提示并跳转到登录页
+    uni.showModal({
+      title: '需要登录',
+      content: '请先登录后再加入宝宝协作',
+      showCancel: false,
+      success: () => {
+        uni.reLaunch({
+          url: '/pages/user/login',
+        })
+      },
+    })
+
+    return
+  }
+
   uni.showLoading({
     title: '加入中...',
   })
@@ -228,6 +371,11 @@ async function handleJoin() {
     const result = await joinBabyCollaboration(babyId.value, token.value)
 
     uni.hideLoading()
+
+    // 加入成功，清除缓存的邀请码，防止后续重复跳转
+    console.log('[Join] 加入成功，清除邀请码缓存')
+    uni.removeStorageSync(StorageKeys.PENDING_INVITE_CODE)
+    uni.removeStorageSync(StorageKeys.AUTO_JOIN_AFTER_LOGIN)
 
     // 显示成功提示
     uni.showModal({
@@ -263,6 +411,12 @@ function handleCancel() {
 
 // 返回
 function handleBack() {
+  console.log('[Join] 取消加入，清除邀请码缓存')
+
+  // 清除缓存的邀请码，防止后续重复跳转
+  uni.removeStorageSync(StorageKeys.PENDING_INVITE_CODE)
+  uni.removeStorageSync(StorageKeys.AUTO_JOIN_AFTER_LOGIN)
+
   // 如果是从分享链接进入,返回首页
   uni.reLaunch({
     url: '/pages/index/index',
@@ -274,7 +428,54 @@ function handleBack() {
 .join-container {
   min-height: 100vh;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  padding: 40rpx 20rpx;
+}
+
+// 导航栏样式
+.navbar-wrapper {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 100;
+}
+
+.navbar-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 20rpx;
+  height: 88rpx; // 会被动态样式覆盖
+}
+
+.navbar-left {
+  display: flex;
+  align-items: center;
+  justify-content: left;
+  // cursor: pointer;
+  transition: opacity 0.3s;
+
+  &:active {
+    opacity: 0.7;
+  }
+}
+
+.navbar-title {
+  flex: 1;
+  text-align: center;
+  font-size: 32rpx;
+  font-weight: bold;
+  color: white;
+  letter-spacing: 2rpx;
+}
+
+.navbar-right {
+  flex-shrink: 0;
+}
+
+// 内容区域样式 - 避免被导航栏遮挡
+.content-wrapper {
+  padding: 40rpx 20rpx 20rpx;
+  padding-top: 50rpx; // 会被动态样式覆盖
 }
 
 .loading-wrapper,

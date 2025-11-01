@@ -35,6 +35,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { wxLogin, isLoggedIn } from '@/store/user'
+import { StorageKeys } from '@/utils/storage'
 
 const loading = ref(false)
 
@@ -42,13 +43,36 @@ const loading = ref(false)
 /**
  * 登录后重定向逻辑
  *
- * 流程: 登录成功 -> 首页
+ * 流程:
+ * 1. 检查是否有待处理的邀请码 -> 跳转到加入页面
+ * 2. 否则 -> 跳转到首页
  *
  * 防止无限重定向:
  * 1. 使用 switchTab 代替 reLaunch (因为首页是 tabBar 页面)
  * 2. 设置延迟确保登录状态完全保存
  */
 const redirectAfterLogin = () => {
+  console.log('[Login] 登录成功,检查重定向目标')
+
+  // 检查是否有待处理的邀请码（从扫码进入但未登录的场景）
+  const pendingCode = uni.getStorageSync(StorageKeys.PENDING_INVITE_CODE)
+  console.log('[Login] Checking PENDING_INVITE_CODE:', pendingCode)
+
+  if (pendingCode) {
+    console.log('[Login] 检测到待处理的邀请码,跳转到加入页面:', pendingCode)
+
+    // 清除缓存（避免重复跳转）
+    uni.removeStorageSync(StorageKeys.PENDING_INVITE_CODE)
+
+    // 跳转回加入页面
+    uni.reLaunch({
+      url: `/pages/baby/join/join?code=${pendingCode}`,
+    })
+
+    return
+  }
+
+  // 正常跳转到首页
   console.log('[Login] 登录成功,跳转到首页')
 
   // 对于 tabBar 页面,应该使用 switchTab 而不是 reLaunch
