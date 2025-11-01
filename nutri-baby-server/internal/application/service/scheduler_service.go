@@ -6,23 +6,23 @@ import (
 	"time"
 
 	"github.com/go-co-op/gocron"
-	"go.uber.org/zap"
 	"github.com/wxlbd/nutri-baby-server/internal/application/dto"
 	"github.com/wxlbd/nutri-baby-server/internal/domain/entity"
 	"github.com/wxlbd/nutri-baby-server/internal/domain/repository"
 	"github.com/wxlbd/nutri-baby-server/internal/infrastructure/config"
+	"go.uber.org/zap"
 )
 
 // SchedulerService 定时任务服务
 type SchedulerService struct {
-	scheduler            *gocron.Scheduler
-	vaccineRepo          repository.VaccineRecordRepository
-	vaccineReminderRepo  repository.VaccineReminderRepository
-	babyVaccinePlanRepo  repository.BabyVaccinePlanRepository
-	feedingRecordRepo    repository.FeedingRecordRepository
-	subscribeService     *SubscribeService
-	strategyFactory      *FeedingReminderStrategyFactory
-	logger               *zap.Logger
+	scheduler           *gocron.Scheduler
+	vaccineRepo         repository.VaccineRecordRepository
+	vaccineReminderRepo repository.VaccineReminderRepository
+	babyVaccinePlanRepo repository.BabyVaccinePlanRepository
+	feedingRecordRepo   repository.FeedingRecordRepository
+	subscribeService    *SubscribeService
+	strategyFactory     *FeedingReminderStrategyFactory
+	logger              *zap.Logger
 }
 
 // NewSchedulerService 创建定时任务服务
@@ -154,7 +154,6 @@ func (s *SchedulerService) CheckVaccineReminders() error {
 
 	return nil
 }
-
 
 // AddFeedingReminderTask 添加喂养提醒一次性定时任务
 //
