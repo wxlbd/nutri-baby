@@ -17,13 +17,12 @@
                             mode="aspectFill"
                             class="avatar-img"
                         />
-                        <view v-else class="avatar-placeholder">
-                            {{
-                                currentBaby.name
-                                    ? currentBaby.name.charAt(0)
-                                    : "宝"
-                            }}
-                        </view>
+                        <image
+                            v-else
+                            src="/static/default.png"
+                            mode="aspectFill"
+                            class="avatar-img"
+                        />
                     </view>
                     <view class="baby-text">
                         <text class="baby-name">{{ currentBaby.name }}</text>
