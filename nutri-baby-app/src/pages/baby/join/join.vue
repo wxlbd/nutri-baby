@@ -380,7 +380,7 @@ async function handleJoin() {
     // 显示成功提示
     uni.showModal({
       title: '加入成功',
-      content: `你已成功加入${result.babyName}的协作团队`,
+      content: `你已成功加入${result.name}的协作团队`,
       showCancel: false,
       success: () => {
         // 跳转到宝宝列表页
