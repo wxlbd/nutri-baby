@@ -102,7 +102,7 @@ export async function inviteCollaborator(
 export async function joinBabyCollaboration(
   babyId: string,
   token: string
-): Promise<{ babyId: string; babyName: string; role: string }> {
+): Promise<{ babyId: string; name: string; role: string }> {
   try {
     const response = await post<any>('/babies/join', {
       babyId,
