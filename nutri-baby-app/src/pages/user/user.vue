@@ -6,14 +6,10 @@
                 <!-- 头像 -->
                 <view class="avatar">
                     <image
-                        v-if="!isLoggedIn"
-                        src="/static/default.png"
+                        :src="userInfo?.avatarUrl || '/static/default.png'"
                         class="avatar-image"
                         mode="aspectFill"
                     />
-                    <text v-else class="avatar-text">{{
-                        userInfo?.nickName?.charAt(0) || "用"
-                    }}</text>
                 </view>
 
                 <!-- 昵称/登录按钮 -->
@@ -433,11 +429,7 @@ const handleLogout = () => {
     align-items: center;
     justify-content: center;
     border: 4rpx solid rgba(255, 255, 255, 0.3);
-}
-
-.avatar-text {
-    font-size: 48rpx;
-    font-weight: bold;
+    overflow: hidden;
 }
 
 .avatar-image {
