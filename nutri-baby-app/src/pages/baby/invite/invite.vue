@@ -29,44 +29,103 @@
         <nut-radio label="temporary">临时</nut-radio>
       </nut-radio-group>
 
-      <!-- 临时权限时显示过期时间选择 -->
+      <!-- 临时权限时显示过期时间选择框 -->
       <view v-if="accessType === 'temporary'" class="expire-time">
-        <nut-cell title="过期时间" :desc="expiresAtText" @click="showDatePicker = true" />
-      </view>
-    </view>
-
-    <!-- 邀请方式选择 -->
-    <view class="section">
-      <view class="section-title">邀请方式</view>
-      <view class="invite-methods">
-        <view class="method-card" @click="handleInvite('share')">
-          <view class="method-icon">📱</view>
-          <view class="method-title">微信分享</view>
-          <view class="method-desc">分享给微信好友或群</view>
-        </view>
-        <view class="method-card" @click="handleInvite('qrcode')">
-          <view class="method-icon">📷</view>
-          <view class="method-title">面对面扫码</view>
-          <view class="method-desc">生成二维码供扫描</view>
+        <view class="time-selector" @click="showDatetimePickerModal = true">
+          <text class="time-label">过期时间</text>
+          <text class="time-value">{{ formatDateTime(expiresDate) }}</text>
+          <view class="time-icon">
+            <text>›</text>
+          </view>
         </view>
       </view>
     </view>
 
-    <!-- 日期时间选择器 -->
-    <nut-date-picker
-      v-model:visible="showDatePicker"
-      v-model="expiresDate"
-      type="datetime"
-      title="选择过期时间"
-      :min-date="minDate"
-      :max-date="maxDate"
-      @confirm="onDateConfirm"
-    />
+    <!-- 生成邀请按钮 -->
+    <view class="generate-section">
+      <nut-button
+        type="primary"
+        size="large"
+        @click="handleGenerateQRCode"
+        :loading="generating"
+      >
+        {{ generating ? '生成中...' : '生成邀请二维码' }}
+      </nut-button>
+    </view>
+
+    <!-- 二维码展示区域（生成后显示） -->
+    <view v-if="qrcodeUrl" class="qrcode-card">
+      <!-- 二维码显示区域 -->
+      <view class="qrcode-wrapper">
+        <image
+          :src="qrcodeUrl"
+          class="qrcode-image"
+          mode="aspectFit"
+        />
+      </view>
+
+      <!-- 提示信息 -->
+      <view class="qrcode-info">
+        <view class="info-item">
+          <text class="label">宝宝:</text>
+          <text class="value">{{ babyName }}</text>
+        </view>
+        <view class="info-item">
+          <text class="label">角色:</text>
+          <text class="value">{{ roleText }}</text>
+        </view>
+        <view class="info-item">
+          <text class="label">有效期:</text>
+          <text class="value">{{ validityText }}</text>
+        </view>
+      </view>
+
+      <!-- 操作提示 -->
+      <view class="tips">
+        <view class="tip-item">
+          <text class="tip-icon">📱</text>
+          <text class="tip-text">打开微信扫一扫</text>
+        </view>
+        <view class="tip-item">
+          <text class="tip-icon">📷</text>
+          <text class="tip-text">扫描上方二维码</text>
+        </view>
+        <view class="tip-item">
+          <text class="tip-icon">✅</text>
+          <text class="tip-text">确认加入协作</text>
+        </view>
+      </view>
+
+      <!-- 保存按钮 -->
+      <view class="actions">
+        <nut-button type="success" size="large" @click="saveQRCode">
+          保存二维码到相册
+        </nut-button>
+      </view>
+    </view>
+
+    <!-- 日期时间选择器弹窗 -->
+    <nut-popup
+      :visible="showDatetimePickerModal"
+      position="bottom"
+      round
+      @update:visible="showDatetimePickerModal = $event"
+    >
+      <nut-date-picker
+        v-model="expiresDate"
+        type="datetime"
+        title="选择过期时间"
+        :min-date="minDate"
+        :max-date="maxDate"
+        @confirm="onDateTimeConfirm"
+        @cancel="onDateTimeCancel"
+      ></nut-date-picker>
+    </nut-popup>
   </view>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { inviteCollaborator } from '@/store/collaborator'
 
@@ -78,14 +137,27 @@ const babyName = ref('')
 const selectedRole = ref<'admin' | 'editor' | 'viewer'>('editor')
 const accessType = ref<'permanent' | 'temporary'>('permanent')
 const expiresDate = ref<Date>(new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)) // 默认7天后
-const showDatePicker = ref(false)
+const showDatetimePickerModal = ref(false)
+
+// 二维码相关
+const qrcodeUrl = ref('')
+const generating = ref(false)
 
 // 日期选择器范围
 const minDate = new Date() // 最小日期为今天
 const maxDate = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000) // 最大1年后
 
-// 计算过期时间文本
-const expiresAtText = computed(() => {
+// 角色文本映射
+const roleTextMap: Record<string, string> = {
+  admin: '管理员',
+  editor: '编辑者',
+  viewer: '查看者',
+}
+
+const roleText = computed(() => roleTextMap[selectedRole.value] || '编辑者')
+
+// 有效期文本
+const validityText = computed(() => {
   if (accessType.value === 'permanent') {
     return '永久有效'
   }
@@ -112,13 +184,18 @@ function formatDateTime(date: Date): string {
   return `${year}-${month}-${day} ${hour}:${minute}`
 }
 
-// 日期选择确认
-function onDateConfirm() {
-  showDatePicker.value = false
+// 日期时间选择确认
+function onDateTimeConfirm() {
+  showDatetimePickerModal.value = false
 }
 
-// 处理邀请
-async function handleInvite(inviteType: 'share' | 'qrcode') {
+// 日期时间选择取消
+function onDateTimeCancel() {
+  showDatetimePickerModal.value = false
+}
+
+// 生成二维码
+async function handleGenerateQRCode() {
   if (!babyId.value) {
     uni.showToast({
       title: '宝宝ID不能为空',
@@ -127,9 +204,7 @@ async function handleInvite(inviteType: 'share' | 'qrcode') {
     return
   }
 
-  uni.showLoading({
-    title: '生成邀请中...',
-  })
+  generating.value = true
 
   try {
     // 计算过期时间戳
@@ -137,94 +212,82 @@ async function handleInvite(inviteType: 'share' | 'qrcode') {
       ? expiresDate.value.getTime()
       : undefined
 
-    // 调用API生成邀请
+    // 调用API生成邀请（二维码方式）
     const invitationData = await inviteCollaborator(
       babyId.value,
-      inviteType,
+      'qrcode',
       selectedRole.value,
       accessType.value,
       expiresAt
     )
 
-    uni.hideLoading()
+    const { qrcodeParams } = invitationData
 
-    // 根据邀请类型跳转到不同页面
-    if (inviteType === 'share') {
-      // 微信分享
-      handleWechatShare(invitationData)
-    } else {
-      // 二维码
-      handleQRCode(invitationData)
+    if (!qrcodeParams || !qrcodeParams.qrcodeUrl) {
+      uni.showToast({
+        title: '二维码生成失败',
+        icon: 'none',
+      })
+      return
     }
+
+    // 显示二维码
+    qrcodeUrl.value = qrcodeParams.qrcodeUrl
+
+    uni.showToast({
+      title: '二维码生成成功',
+      icon: 'success',
+    })
   } catch (error: any) {
-    uni.hideLoading()
-    console.error('invite error:', error)
+    console.error('Generate QR code error:', error)
+    uni.showToast({
+      title: error.message || '生成失败',
+      icon: 'none',
+    })
+  } finally {
+    generating.value = false
   }
 }
 
-// 处理微信分享
-function handleWechatShare(invitationData: any) {
-  const { shareParams } = invitationData
-
-  if (!shareParams) {
+// 保存二维码
+function saveQRCode() {
+  if (!qrcodeUrl.value) {
     uni.showToast({
-      title: '分享参数缺失',
+      title: '二维码未生成',
       icon: 'none',
     })
     return
   }
 
-  // 使用微信分享API
-  // @ts-ignore
-  if (typeof wx !== 'undefined') {
-    // @ts-ignore
-    wx.shareAppMessage({
-      title: shareParams.title,
-      path: shareParams.path,
-      imageUrl: shareParams.imageUrl,
-      success: () => {
-        uni.showToast({
-          title: '分享成功',
-          icon: 'success',
+  // 下载二维码图片
+  uni.downloadFile({
+    url: qrcodeUrl.value,
+    success: (res) => {
+      if (res.statusCode === 200) {
+        uni.saveImageToPhotosAlbum({
+          filePath: res.tempFilePath,
+          success: () => {
+            uni.showToast({
+              title: '保存成功',
+              icon: 'success',
+            })
+          },
+          fail: () => {
+            uni.showToast({
+              title: '保存失败,请授予相册权限',
+              icon: 'none',
+            })
+          },
         })
-        // 返回上一页
-        setTimeout(() => {
-          uni.navigateBack()
-        }, 1500)
-      },
-      fail: (err: any) => {
-        console.error('share error:', err)
-        uni.showToast({
-          title: '分享失败',
-          icon: 'none',
-        })
-      },
-    })
-  } else {
-    // 非微信环境,显示提示
-    uni.showModal({
-      title: '提示',
-      content: '请在微信小程序中使用分享功能',
-      showCancel: false,
-    })
-  }
-}
-
-// 处理二维码
-function handleQRCode(invitationData: any) {
-  const { qrcodeParams, babyId: returnedBabyId, shortCode } = invitationData
-
-  if (!qrcodeParams || !qrcodeParams.qrcodeUrl) {
-    uni.showToast({
-      title: '二维码生成失败',
-      icon: 'none',
-    })
-    return
-  }
-
-  // 跳转到二维码显示页面，传递完整的二维码URL
-  uni.navigateTo({
-    url: `/pages/baby/qrcode/qrcode?qrcodeUrl=${encodeURIComponent(qrcodeParams.qrcodeUrl)}&babyName=${encodeURIComponent(babyName.value)}&role=${selectedRole.value}&shortCode=${encodeURIComponent(shortCode || '')}`,
+      }
+    },
+    fail: (err) => {
+      console.error('Download QR code error:', err)
+      uni.showToast({
+        title: '下载失败',
+        icon: 'none',
+      })
+    },
   })
 }
 </script>
@@ -234,6 +297,7 @@ function handleQRCode(invitationData: any) {
   min-height: 100vh;
   background-color: #f8f8f8;
   padding: 20rpx;
+  padding-bottom: 40rpx;
 }
 
 .header {
@@ -279,43 +343,126 @@ function handleQRCode(invitationData: any) {
   }
 }
 
-.invite-methods {
+// 过期时间选择框
+.time-selector {
   display: flex;
-  gap: 20rpx;
+  align-items: center;
+  justify-content: space-between;
+  padding: 24rpx 28rpx;
+  background: #f7f8fa;
+  border-radius: 12rpx;
+  border: 2rpx solid #e5e5e5;
+  transition: all 0.2s;
 
-  .method-card {
+  &:active {
+    background: #f0f1f3;
+    border-color: #667eea;
+  }
+
+  .time-label {
+    font-size: 28rpx;
+    color: #666;
+  }
+
+  .time-value {
     flex: 1;
-    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-    border-radius: 16rpx;
-    padding: 40rpx 20rpx;
-    text-align: center;
-    color: white;
+    text-align: right;
+    font-size: 28rpx;
+    color: #667eea;
+    font-weight: 500;
+    margin: 0 16rpx;
+  }
+
+  .time-icon {
+    font-size: 32rpx;
+    color: #999;
+    line-height: 1;
+  }
+}
+
+// 生成按钮区域
+.generate-section {
+  margin-bottom: 20rpx;
+}
+
+// 二维码卡片
+.qrcode-card {
+  background: white;
+  border-radius: 16rpx;
+  padding: 40rpx;
+  margin-bottom: 20rpx;
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20rpx);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.qrcode-wrapper {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 40rpx;
+
+  .qrcode-image {
+    width: 560rpx;
+    height: 560rpx;
+    border-radius: 12rpx;
     box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.1);
-    transition: transform 0.2s;
+  }
+}
 
-    &:active {
-      transform: scale(0.98);
+.qrcode-info {
+  padding: 30rpx 0;
+  border-top: 1px solid #f0f0f0;
+  border-bottom: 1px solid #f0f0f0;
+
+  .info-item {
+    display: flex;
+    justify-content: space-between;
+    padding: 16rpx 0;
+    font-size: 28rpx;
+
+    .label {
+      color: #999;
     }
 
-    .method-icon {
-      font-size: 64rpx;
-      margin-bottom: 12rpx;
-    }
-
-    .method-title {
-      font-size: 32rpx;
-      font-weight: bold;
-      margin-bottom: 8rpx;
-    }
-
-    .method-desc {
-      font-size: 24rpx;
-      opacity: 0.9;
+    .value {
+      color: #333;
+      font-weight: 500;
     }
   }
+}
 
-  .method-card:last-child {
-    background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+.tips {
+  padding-top: 30rpx;
+
+  .tip-item {
+    display: flex;
+    align-items: center;
+    padding: 12rpx 0;
+    font-size: 28rpx;
+    color: #666;
+
+    .tip-icon {
+      font-size: 36rpx;
+      margin-right: 12rpx;
+    }
+
+    .tip-text {
+      flex: 1;
+    }
   }
+}
+
+.actions {
+  padding-top: 20rpx;
 }
 </style>
