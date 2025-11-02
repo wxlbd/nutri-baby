@@ -543,11 +543,11 @@ async function uploadAuthRecordsToBackend(authResults: Map<SubscribeMessageType,
 
     if (response.code === 0) {
       console.log('[Subscribe] Auth records uploaded successfully:', response.data)
-      uni.showToast({
-        title: '订阅设置已同步',
-        icon: 'success',
-        duration: 1500,
-      })
+      // uni.showToast({
+      //   title: '订阅设置已同步',
+      //   icon: 'success',
+      //   duration: 1500,
+      // })
     } else {
       console.error('[Subscribe] Failed to upload auth records:', response.message)
     }
