@@ -48,12 +48,6 @@
 			}
 		},
 		{
-			"path": "pages/baby/qrcode/qrcode",
-			"style": {
-				"navigationBarTitleText": "扫码加入"
-			}
-		},
-		{
 			"path": "pages/baby/join/join",
 			"style": {
 				"navigationBarTitleText": "加入协作",
