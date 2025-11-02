@@ -12,7 +12,7 @@
                 class="baby-info"
                 @click="goToBabyList"
                 :style="{
-                    width: menuButtonWidth * 2 + 'rpx',
+                    maxWidth: '360rpx',
                     height: menuButtonHeight * 2 + 'rpx',
                 }"
             >
@@ -774,26 +774,26 @@ $spacing: 20rpx; // 统一间距
 .baby-info {
     display: flex;
     align-items: center;
-    justify-content: center;
+    justify-content: flex-start;
     flex-shrink: 0;
-    min-width: 80rpx;
+    min-width: 200rpx;
     // 宽高由内联样式动态设置
 }
 
 .baby-content {
     display: flex;
     align-items: center;
-    gap: 12rpx;
-    padding: 0rpx 24rpx 0rpx 0rpx;
+    gap: 8rpx;
+    padding: 6rpx 16rpx 6rpx 6rpx;
     background: #f5f7fa;
     border-radius: 40rpx;
-    width: 100%;
     height: 100%;
+    max-width: 100%;
 }
 
 .baby-avatar {
-    width: 60rpx;
-    height: 60rpx;
+    width: 52rpx;
+    height: 52rpx;
     border-radius: 50%;
     overflow: hidden;
     flex-shrink: 0;
@@ -810,20 +810,21 @@ $spacing: 20rpx; // 统一间距
     gap: 2rpx;
     flex: 1;
     min-width: 0;
+    max-width: 200rpx;
 }
 
 .baby-name {
-    font-size: 20rpx;
+    font-size: 26rpx;
     font-weight: 500;
     color: #333;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    line-height: 1.2;
+    line-height: 1.3;
 }
 
 .baby-age {
-    font-size: 18rpx;
+    font-size: 22rpx;
     color: #999;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -833,7 +834,7 @@ $spacing: 20rpx; // 统一间距
 
 .arrow-icon {
     flex-shrink: 0;
-    margin-left: 4rpx;
+    margin-left: 2rpx;
 }
 
 .add-baby-hint {
