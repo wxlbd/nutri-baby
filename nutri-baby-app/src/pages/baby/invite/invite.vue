@@ -38,12 +38,15 @@
           </wd-radio-group>
         </wd-cell>
 
-        <wd-cell
+        <wd-datetime-picker
           v-if="accessType === 'temporary'"
-          title="过期时间"
-          :value="validityText"
-          is-link
-          @click="showDatetimePickerModal = true"
+          label="到期时间"
+          v-model="expiresDateValue"
+          type="datetime"
+          :min-date="minDate"
+          :max-date="maxDate"
+          @confirm="onDateTimeConfirm"
+          @cancel="showDatetimePickerModal = false"
         />
       </wd-cell-group>
 
@@ -84,19 +87,6 @@
           </view>
         </wd-card>
       </view>
-
-      <!-- 日期时间选择器 -->
-      <wd-popup v-model="showDatetimePickerModal" position="bottom">
-        <wd-datetime-picker
-          v-model="expiresDateValue"
-          type="datetime"
-          title="选择过期时间"
-          :min-date="minDate"
-          :max-date="maxDate"
-          @confirm="onDateTimeConfirm"
-          @cancel="showDatetimePickerModal = false"
-        />
-      </wd-popup>
     </view>
   </view>
 </template>
