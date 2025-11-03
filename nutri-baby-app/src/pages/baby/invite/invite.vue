@@ -1,243 +1,205 @@
 <template>
-  <view class="invite-container">
-    <!-- 页面标题 -->
-    <view class="header">
-      <view class="title">邀请协作者</view>
-      <view class="subtitle">邀请家人一起记录{{ babyName }}的成长</view>
-    </view>
-
-    <!-- 角色选择 -->
-    <view class="section">
-      <view class="section-title">协作者角色</view>
-      <wd-radio-group v-model="selectedRole" direction="horizontal">
-        <wd-radio value="admin">管理员</wd-radio>
-        <wd-radio value="editor">编辑者</wd-radio>
-        <wd-radio value="viewer">查看者</wd-radio>
-      </wd-radio-group>
-      <view class="role-desc">
-        <text v-if="selectedRole === 'admin'">可管理宝宝信息、邀请/移除协作者</text>
-        <text v-else-if="selectedRole === 'editor'">可记录和编辑所有数据</text>
-        <text v-else>仅可查看数据,不能编辑</text>
+  <view>
+    <wd-navbar
+      title="邀请协作者"
+      left-arrow
+      safeAreaInsetTop
+      @click-left="handleBack"
+    >
+      <template #capsule>
+    <wd-navbar-capsule @back="handleBack" @back-home="handleBackHome" />
+  </template>
+    </wd-navbar>
+    <view class="invite-page">
+      <!-- 顶部信息卡片 -->
+      <view class="header-card">
+        <view class="baby-info">
+          <text class="baby-icon">👶</text>
+          <view class="baby-detail">
+            <text class="baby-name">{{ babyName }}</text>
+            <text class="baby-desc">邀请家人共同记录成长</text>
+          </view>
+        </view>
       </view>
-    </view>
 
-    <!-- 访问权限 -->
-    <view class="section">
-      <view class="section-title">访问权限</view>
-      <wd-radio-group v-model="accessType" direction="horizontal">
-        <wd-radio value="permanent">永久</wd-radio>
-        <wd-radio value="temporary">临时</wd-radio>
-      </wd-radio-group>
+      <!-- 设置表单 -->
+      <wd-cell-group border>
+        <wd-cell title="协作者角色">
+          <wd-radio-group v-model="selectedRole">
+            <wd-radio value="editor">编辑者</wd-radio>
+            <wd-radio value="viewer">查看者</wd-radio>
+          </wd-radio-group>
+        </wd-cell>
 
-      <!-- 临时权限时显示过期时间选择框 -->
-      <wd-datetime-picker v-model="expiresDate" type="datetime" :min-date="minDate" :max-date="maxDate" />
-    </view>
+        <wd-cell title="访问权限">
+          <wd-radio-group v-model="accessType">
+            <wd-radio value="permanent">永久</wd-radio>
+            <wd-radio value="temporary">临时</wd-radio>
+          </wd-radio-group>
+        </wd-cell>
 
-    <!-- 生成邀请按钮 -->
-    <view class="generate-section">
-      <wd-button
-        type="primary"
-        size="large"
-        @click="handleGenerateQRCode"
-        :loading="generating"
-      >
-        {{ generating ? '生成中...' : '生成邀请二维码' }}
-      </wd-button>
-    </view>
-
-    <!-- 二维码展示区域（生成后显示） -->
-    <view v-if="qrcodeUrl" class="qrcode-card">
-      <!-- 二维码显示区域 -->
-      <view class="qrcode-wrapper">
-        <image
-          :src="qrcodeUrl"
-          class="qrcode-image"
-          mode="aspectFit"
+        <wd-cell
+          v-if="accessType === 'temporary'"
+          title="过期时间"
+          :value="validityText"
+          is-link
+          @click="showDatetimePickerModal = true"
         />
+      </wd-cell-group>
+
+      <!-- 角色说明 -->
+      <view class="role-tips">
+        <text class="tip-icon">ℹ️</text>
+        <text class="tip-text" v-if="selectedRole === 'editor'">
+          编辑者可以记录和编辑所有数据
+        </text>
+        <text class="tip-text" v-else> 查看者只能查看数据，不能编辑 </text>
       </view>
 
-      <!-- 提示信息 -->
-      <view class="qrcode-info">
-        <view class="info-item">
-          <text class="label">宝宝:</text>
-          <text class="value">{{ babyName }}</text>
-        </view>
-        <view class="info-item">
-          <text class="label">角色:</text>
-          <text class="value">{{ roleText }}</text>
-        </view>
-        <view class="info-item">
-          <text class="label">有效期:</text>
-          <text class="value">{{ validityText }}</text>
-        </view>
-      </view>
-
-      <!-- 操作提示 -->
-      <view class="tips">
-        <view class="tip-item">
-          <text class="tip-icon">📱</text>
-          <text class="tip-text">打开微信扫一扫</text>
-        </view>
-        <view class="tip-item">
-          <text class="tip-icon">📷</text>
-          <text class="tip-text">扫描上方二维码</text>
-        </view>
-        <view class="tip-item">
-          <text class="tip-icon">✅</text>
-          <text class="tip-text">确认加入协作</text>
-        </view>
-      </view>
-
-      <!-- 保存按钮 -->
-      <view class="actions">
-        <wd-button type="success" size="large" @click="saveQRCode">
-          保存二维码到相册
+      <!-- 生成按钮 -->
+      <view class="button-wrapper">
+        <wd-button
+          type="primary"
+          size="large"
+          block
+          @click="handleGenerateQRCode"
+          :loading="generating"
+        >
+          {{ generating ? "生成中..." : "生成邀请二维码" }}
         </wd-button>
       </view>
-    </view>
 
-    <!-- 日期时间选择器弹窗 -->
-    <wd-popup
-      :visible="showDatetimePickerModal"
-      position="bottom"
-      round
-      @update:visible="showDatetimePickerModal = $event"
-    >
-      <wd-datetime-picker
-        v-model="expiresDate"
-        type="datetime"
-        title="选择过期时间"
-        :min-date="minDate"
-        :max-date="maxDate"
-        @confirm="onDateTimeConfirm"
-        @cancel="onDateTimeCancel"
-      ></wd-datetime-picker>
-    </wd-popup>
+      <!-- 二维码展示 -->
+      <view v-if="qrcodeUrl" class="qrcode-section">
+        <wd-card>
+          <view class="qrcode-wrapper">
+            <image :src="qrcodeUrl" class="qrcode-image" mode="aspectFit" />
+          </view>
+
+          <view class="qrcode-footer">
+            <text class="footer-text">长按识别二维码或保存到相册</text>
+            <wd-button type="success" size="small" @click="saveQRCode">
+              保存到相册
+            </wd-button>
+          </view>
+        </wd-card>
+      </view>
+
+      <!-- 日期时间选择器 -->
+      <wd-popup v-model="showDatetimePickerModal" position="bottom">
+        <wd-datetime-picker
+          v-model="expiresDateValue"
+          type="datetime"
+          title="选择过期时间"
+          :min-date="minDate"
+          :max-date="maxDate"
+          @confirm="onDateTimeConfirm"
+          @cancel="showDatetimePickerModal = false"
+        />
+      </wd-popup>
+    </view>
   </view>
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
-import { onLoad } from '@dcloudio/uni-app'
-import { inviteCollaborator } from '@/store/collaborator'
+import { ref, computed } from "vue";
+import { onLoad } from "@dcloudio/uni-app";
+import { inviteCollaborator } from "@/store/collaborator";
+import { formatDate } from "@/utils";
 
 // 页面参数
-const babyId = ref('')
-const babyName = ref('')
+const babyId = ref("");
+const babyName = ref("");
 
 // 表单数据
-const selectedRole = ref<'admin' | 'editor' | 'viewer'>('editor')
-const accessType = ref<'permanent' | 'temporary'>('permanent')
-const expiresDate = ref<Date>(new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)) // 默认7天后
-const showDatetimePickerModal = ref(false)
+const selectedRole = ref<"editor" | "viewer">("editor");
+const accessType = ref<"permanent" | "temporary">("permanent");
+const expiresDateValue = ref<number>(Date.now() + 7 * 24 * 60 * 60 * 1000); // 默认7天后
+const showDatetimePickerModal = ref(false);
 
 // 二维码相关
-const qrcodeUrl = ref('')
-const generating = ref(false)
+const qrcodeUrl = ref("");
+const generating = ref(false);
 
 // 日期选择器范围
-const minDate = new Date() // 最小日期为今天
-const maxDate = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000) // 最大1年后
-
-// 角色文本映射
-const roleTextMap: Record<string, string> = {
-  admin: '管理员',
-  editor: '编辑者',
-  viewer: '查看者',
-}
-
-const roleText = computed(() => roleTextMap[selectedRole.value] || '编辑者')
+const minDate = Date.now();
+const maxDate = Date.now() + 365 * 24 * 60 * 60 * 1000;
 
 // 有效期文本
 const validityText = computed(() => {
-  if (accessType.value === 'permanent') {
-    return '永久有效'
+  if (accessType.value === "permanent") {
+    return "永久有效";
   }
-  return formatDateTime(expiresDate.value)
-})
+  return formatDate(expiresDateValue.value, "YYYY-MM-DD HH:mm");
+});
 
 // 页面加载
 onLoad((options) => {
   if (options?.babyId) {
-    babyId.value = options.babyId
+    babyId.value = options.babyId;
   }
   if (options?.babyName) {
-    babyName.value = decodeURIComponent(options.babyName)
+    babyName.value = decodeURIComponent(options.babyName);
   }
-})
-
-// 格式化日期时间
-function formatDateTime(date: Date): string {
-  const year = date.getFullYear()
-  const month = String(date.getMonth() + 1).padStart(2, '0')
-  const day = String(date.getDate()).padStart(2, '0')
-  const hour = String(date.getHours()).padStart(2, '0')
-  const minute = String(date.getMinutes()).padStart(2, '0')
-  return `${year}-${month}-${day} ${hour}:${minute}`
-}
+});
 
 // 日期时间选择确认
-function onDateTimeConfirm() {
-  showDatetimePickerModal.value = false
-}
-
-// 日期时间选择取消
-function onDateTimeCancel() {
-  showDatetimePickerModal.value = false
+function onDateTimeConfirm({ value }: { value: number }) {
+  expiresDateValue.value = value;
+  showDatetimePickerModal.value = false;
 }
 
 // 生成二维码
 async function handleGenerateQRCode() {
   if (!babyId.value) {
     uni.showToast({
-      title: '宝宝ID不能为空',
-      icon: 'none',
-    })
-    return
+      title: "宝宝ID不能为空",
+      icon: "none",
+    });
+    return;
   }
 
-  generating.value = true
+  generating.value = true;
 
   try {
     // 计算过期时间戳
-    const expiresAt = accessType.value === 'temporary'
-      ? expiresDate.value.getTime()
-      : undefined
+    const expiresAt =
+      accessType.value === "temporary" ? expiresDateValue.value : undefined;
 
     // 调用API生成邀请（二维码方式）
     const invitationData = await inviteCollaborator(
       babyId.value,
-      'qrcode',
+      "qrcode",
       selectedRole.value,
       accessType.value,
       expiresAt
-    )
+    );
 
-    const { qrcodeParams } = invitationData
+    const { qrcodeParams } = invitationData;
 
     if (!qrcodeParams || !qrcodeParams.qrcodeUrl) {
       uni.showToast({
-        title: '二维码生成失败',
-        icon: 'none',
-      })
-      return
+        title: "二维码生成失败",
+        icon: "none",
+      });
+      return;
     }
 
     // 显示二维码
-    qrcodeUrl.value = qrcodeParams.qrcodeUrl
+    qrcodeUrl.value = qrcodeParams.qrcodeUrl;
 
     uni.showToast({
-      title: '二维码生成成功',
-      icon: 'success',
-    })
+      title: "二维码生成成功",
+      icon: "success",
+    });
   } catch (error: any) {
-    console.error('Generate QR code error:', error)
+    console.error("Generate QR code error:", error);
     uni.showToast({
-      title: error.message || '生成失败',
-      icon: 'none',
-    })
+      title: error.message || "生成失败",
+      icon: "none",
+    });
   } finally {
-    generating.value = false
+    generating.value = false;
   }
 }
 
@@ -245,10 +207,10 @@ async function handleGenerateQRCode() {
 function saveQRCode() {
   if (!qrcodeUrl.value) {
     uni.showToast({
-      title: '二维码未生成',
-      icon: 'none',
-    })
-    return
+      title: "二维码未生成",
+      icon: "none",
+    });
+    return;
   }
 
   // 下载二维码图片
@@ -260,130 +222,114 @@ function saveQRCode() {
           filePath: res.tempFilePath,
           success: () => {
             uni.showToast({
-              title: '保存成功',
-              icon: 'success',
-            })
+              title: "保存成功",
+              icon: "success",
+            });
           },
           fail: () => {
             uni.showToast({
-              title: '保存失败,请授予相册权限',
-              icon: 'none',
-            })
+              title: "保存失败,请授予相册权限",
+              icon: "none",
+            });
           },
-        })
+        });
       }
     },
     fail: (err) => {
-      console.error('Download QR code error:', err)
+      console.error("Download QR code error:", err);
       uni.showToast({
-        title: '下载失败',
-        icon: 'none',
-      })
+        title: "下载失败",
+        icon: "none",
+      });
     },
-  })
+  });
+}
+function handleBackHome() {
+  uni.switchTab({
+    url: "/pages/index/index",
+  });
+}
+function handleBack() {
+  uni.navigateBack();
 }
 </script>
 
 <style lang="scss" scoped>
-.invite-container {
+.invite-page {
   min-height: 100vh;
-  background-color: #f8f8f8;
+  background-color: #f5f5f5;
   padding: 20rpx;
-  padding-bottom: 40rpx;
 }
 
-.header {
+.header-card {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   border-radius: 16rpx;
-  padding: 40rpx;
+  padding: 32rpx;
   margin-bottom: 20rpx;
-  color: white;
 
-  .title {
-    font-size: 40rpx;
-    font-weight: bold;
-    margin-bottom: 12rpx;
-  }
+  .baby-info {
+    display: flex;
+    align-items: center;
+    gap: 24rpx;
 
-  .subtitle {
-    font-size: 28rpx;
-    opacity: 0.9;
+    .baby-icon {
+      font-size: 64rpx;
+      line-height: 1;
+    }
+
+    .baby-detail {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 8rpx;
+
+      .baby-name {
+        font-size: 36rpx;
+        font-weight: bold;
+        color: white;
+      }
+
+      .baby-desc {
+        font-size: 26rpx;
+        color: rgba(255, 255, 255, 0.85);
+      }
+    }
   }
 }
 
-.section {
-  background: white;
-  border-radius: 16rpx;
-  padding: 30rpx;
-  margin-bottom: 20rpx;
-
-  .section-title {
-    font-size: 32rpx;
-    font-weight: bold;
-    margin-bottom: 24rpx;
-    color: #333;
-  }
-
-  .role-desc {
-    margin-top: 16rpx;
-    font-size: 28rpx;
-    color: #999;
-  }
-
-  .expire-time {
-    margin-top: 20rpx;
-  }
-}
-
-// 过期时间选择框
-.time-selector {
+// 角色提示
+.role-tips {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding: 24rpx 28rpx;
-  background: #f7f8fa;
+  gap: 12rpx;
+  padding: 20rpx 24rpx;
+  margin-top: 20rpx;
+  background: #fff8e1;
   border-radius: 12rpx;
-  border: 2rpx solid #e5e5e5;
-  transition: all 0.2s;
+  border-left: 6rpx solid #ffc107;
 
-  &:active {
-    background: #f0f1f3;
-    border-color: #667eea;
-  }
-
-  .time-label {
-    font-size: 28rpx;
-    color: #666;
-  }
-
-  .time-value {
-    flex: 1;
-    text-align: right;
-    font-size: 28rpx;
-    color: #667eea;
-    font-weight: 500;
-    margin: 0 16rpx;
-  }
-
-  .time-icon {
+  .tip-icon {
     font-size: 32rpx;
-    color: #999;
-    line-height: 1;
+  }
+
+  .tip-text {
+    flex: 1;
+    font-size: 26rpx;
+    color: #f57c00;
+    line-height: 1.5;
   }
 }
 
-// 生成按钮区域
-.generate-section {
-  margin-bottom: 20rpx;
+// 按钮包装器
+.button-wrapper {
+  margin-top: 40rpx;
+  margin-bottom: 40rpx;
 }
 
-// 二维码卡片
-.qrcode-card {
-  background: white;
-  border-radius: 16rpx;
-  padding: 40rpx;
-  margin-bottom: 20rpx;
-  animation: fadeIn 0.3s ease-in-out;
+// 二维码区域
+.qrcode-section {
+  margin-top: 20rpx;
+  animation: fadeIn 0.3s ease;
 }
 
 @keyframes fadeIn {
@@ -400,61 +346,27 @@ function saveQRCode() {
 .qrcode-wrapper {
   display: flex;
   justify-content: center;
-  align-items: center;
-  padding: 40rpx;
+  padding: 40rpx 20rpx;
 
   .qrcode-image {
-    width: 560rpx;
-    height: 560rpx;
+    width: 480rpx;
+    height: 480rpx;
     border-radius: 12rpx;
-    box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.1);
+    background: white;
   }
 }
 
-.qrcode-info {
-  padding: 30rpx 0;
+.qrcode-footer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20rpx;
+  padding: 20rpx 0;
   border-top: 1px solid #f0f0f0;
-  border-bottom: 1px solid #f0f0f0;
 
-  .info-item {
-    display: flex;
-    justify-content: space-between;
-    padding: 16rpx 0;
-    font-size: 28rpx;
-
-    .label {
-      color: #999;
-    }
-
-    .value {
-      color: #333;
-      font-weight: 500;
-    }
+  .footer-text {
+    font-size: 26rpx;
+    color: #999;
   }
-}
-
-.tips {
-  padding-top: 30rpx;
-
-  .tip-item {
-    display: flex;
-    align-items: center;
-    padding: 12rpx 0;
-    font-size: 28rpx;
-    color: #666;
-
-    .tip-icon {
-      font-size: 36rpx;
-      margin-right: 12rpx;
-    }
-
-    .tip-text {
-      flex: 1;
-    }
-  }
-}
-
-.actions {
-  padding-top: 20rpx;
 }
 </style>
