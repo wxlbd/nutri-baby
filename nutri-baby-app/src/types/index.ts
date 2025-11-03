@@ -55,14 +55,30 @@ export interface BabyCollaborator {
 export type FeedingType = 'breast' | 'bottle' | 'food'
 
 /**
+ * 喂养侧
+ */
+export type BreastSide = 'left' | 'right' | 'both'
+
+/**
+ * 单次喂养会话(多段式记录)
+ */
+export interface FeedingSession {
+  side: BreastSide
+  startTime: number   // 开始时间戳(毫秒)
+  endTime?: number    // 结束时间戳(毫秒,可选)
+  duration: number    // 时长(秒)
+}
+
+/**
  * 母乳喂养记录
  */
 export interface BreastFeeding {
   type: 'breast'
-  side: 'left' | 'right' | 'both' // 喂养侧
+  side: BreastSide // 主要喂养侧(向后兼容)
   duration: number // 总时长(秒)
-  leftDuration?: number // 左侧时长(秒)
-  rightDuration?: number // 右侧时长(秒)
+  leftDuration?: number // 左侧总时长(秒)
+  rightDuration?: number // 右侧总时长(秒)
+  sessions?: FeedingSession[] // 多段式记录(可选,新功能)
 }
 
 /**
