@@ -27,11 +27,6 @@ const FEEDING_MESSAGE_TYPES: SubscribeMessageType[] = [
 ]
 
 /**
- * 提醒配置 - 多久后可以再次显示申请
- */
-const FEEDING_SUBSCRIBE_INTERVAL = 7 * 24 * 60 * 60 * 1000 // 7天
-
-/**
  * 喂养订阅申请记录
  */
 interface FeedingSubscribeRecord {
@@ -84,13 +79,6 @@ export function shouldShowFeedingSubscribeRequest(): { shouldShow: boolean; bann
     return { shouldShow: false, bannedCount: 0 }
   }
 
-  // 检查时间间隔
-  const now = Date.now()
-  // if (now - record.lastRequestTime < FEEDING_SUBSCRIBE_INTERVAL) {
-  //   console.log('[FeedingSubscribe] 距离上次申请时间未达到间隔')
-  //   return { shouldShow: false, bannedCount: 0 }
-  // }
-
   // 检查是否所有消息都已被Ban
   let bannedCount = 0
   for (const type of FEEDING_MESSAGE_TYPES) {
@@ -127,12 +115,6 @@ export async function requestAllFeedingSubscribeMessages(): Promise<Map<Subscrib
       title: '请求授权中...',
       mask: true,
     })
-
-    // console.log('[FeedingSubscribe] 调用 requestSubscribeMessage，模板IDs:', [
-    //   '2JRV0DnOHnasHzzamWFoWGaUxrgW6GY69-eGn4tBFZE',
-    //   'ssttSBSWM_IXh5zVOu9GBeuabX8NFcwM2IG-VK-RXNY',
-    //   'QSMUFLFfRiEVbMRL0DfWNIPoN3kNN8nA0mRpwXyinNw'
-    // ])
 
     // 一次性请求所有三个消息
     const results = await requestSubscribeMessage(FEEDING_MESSAGE_TYPES)
