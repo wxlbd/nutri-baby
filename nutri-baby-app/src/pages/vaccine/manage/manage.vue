@@ -174,7 +174,7 @@ const loadVaccinePlans = async () => {
   if (!currentBaby.value) return
 
   try {
-    const data = await vaccineApi.apiFetchVaccinePlans({ babyId: currentBaby.value.babyId })
+    const data = await vaccineApi.apiFetchVaccinePlans(currentBaby.value.babyId)
     vaccinePlans.value = data.plans
   } catch (error) {
     console.error('加载疫苗计划失败:', error)
@@ -189,7 +189,7 @@ const loadVaccinePlans = async () => {
 const isCustomPlan = (plan: vaccineApi.VaccinePlanResponse): boolean => {
   // 简单判断:从模板生成的计划通常ID长度不同或有特定前缀
   // 这里可以根据实际情况调整判断逻辑
-  return plan.vaccineName.includes('自定义') || !plan.description.includes('个月接种')
+  return plan.vaccineName.includes('自定义') || !(plan.description || '').includes('个月接种')
 }
 
 // 编辑计划
@@ -203,7 +203,7 @@ const handleEdit = (plan: vaccineApi.VaccinePlanResponse) => {
     doseNumber: plan.doseNumber,
     reminderDays: plan.reminderDays,
     isRequired: plan.isRequired,
-    description: plan.description
+    description: plan.description || ''
   }
   showAddDialog.value = true
 }
