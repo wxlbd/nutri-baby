@@ -261,7 +261,7 @@ import { ref, computed, onMounted } from "vue";
 import { currentBaby, currentBabyId } from "@/store/baby";
 import { userInfo } from "@/store/user";
 import { formatDate } from "@/utils/date";
-import type { VaccinePlan, VaccineReminder } from "@/types";
+import type { VaccinePlan } from "@/types";
 import SubscribeGuide from "@/components/SubscribeGuide.vue";
 import { shouldShowGuide } from "@/store/subscribe";
 
@@ -415,7 +415,7 @@ const getVaccinePlanById = (
 };
 
 // 处理记录接种(通过提醒)
-const handleRecordVaccine = (reminder: VaccineReminder) => {
+const handleRecordVaccine = (reminder: vaccineApi.VaccineReminderResponse) => {
     const plan = getVaccinePlanById(reminder.planId);
     if (!plan) return;
 
@@ -483,8 +483,6 @@ const handleSaveRecord = async () => {
         await vaccineApi.apiCreateVaccineRecord({
             babyId: currentBaby.value.babyId,
             planId: recordForm.value.planId,
-            vaccineName: recordForm.value.vaccineName,
-            doseNumber: recordForm.value.doseNumber,
             vaccineDate: recordForm.value.vaccineDate,
             hospital: recordForm.value.hospital.trim(),
             batchNumber: recordForm.value.batchNumber.trim() || undefined,
