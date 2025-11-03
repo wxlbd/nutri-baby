@@ -133,7 +133,7 @@
 
         <!-- 退出登录 -->
         <view v-if="isLoggedIn" class="logout-section">
-            <wd-button type="default" size="large" block @click="handleLogout">
+            <wd-button size="large" block @click="handleLogout">
                 退出登录
             </wd-button>
         </view>
