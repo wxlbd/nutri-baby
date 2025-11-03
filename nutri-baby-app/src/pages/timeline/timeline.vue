@@ -135,16 +135,28 @@ const allRecords = computed<TimelineRecord[]>(() => {
 
       if (record.feedingType === "breast") {
         detail = `母乳喂养 ${formatDuration(record.duration || 0)}`;
-        const breastSide = record.detail?.breastSide;
-        if (breastSide === "left") detail += " (左侧)";
-        else if (breastSide === "right") detail += " (右侧)";
-        else if (breastSide === "both") detail += " (双侧)";
+        const feedingDetail = record.detail;
+        if (feedingDetail && feedingDetail.type === 'breast') {
+          const breastSide = feedingDetail.side;
+          if (breastSide === "left") detail += " (左侧)";
+          else if (breastSide === "right") detail += " (右侧)";
+          else if (breastSide === "both") detail += " (双侧)";
+        }
       } else if (record.feedingType === "bottle") {
-        detail = `奶瓶喂养 ${record.amount}${record.detail?.unit || "ml"}`;
-        detail +=
-          record.detail?.bottleType === "formula" ? " (配方奶)" : " (母乳)";
+        const feedingDetail = record.detail;
+        if (feedingDetail && feedingDetail.type === 'bottle') {
+          detail = `奶瓶喂养 ${record.amount}${feedingDetail.unit || "ml"}`;
+          detail += feedingDetail.bottleType === "formula" ? " (配方奶)" : " (母乳)";
+        } else {
+          detail = `奶瓶喂养 ${record.amount}ml`;
+        }
       } else {
-        detail = `辅食: ${record.detail?.foodName || "未知"}`;
+        const feedingDetail = record.detail;
+        if (feedingDetail && feedingDetail.type === 'food') {
+          detail = `辅食: ${feedingDetail.foodName || "未知"}`;
+        } else {
+          detail = "辅食";
+        }
       }
     } else if (item.recordType === "diaper") {
       const record = item.detail as diaperApi.DiaperRecordResponse;
