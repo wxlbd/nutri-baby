@@ -80,59 +80,62 @@
         </wd-cell>
       </wd-cell-group>
     </view>
-  </view>
-
-  <!-- 快速补记睡眠对话框 -->
-  <wd-popup
-    v-model="showQuickRecordModal"
-    position="bottom"
-    :safe-area-inset-bottom="true"
-  >
-    <view class="quick-record-modal">
-      <view class="modal-header">
-        <view class="modal-title">补记睡眠</view>
-        <view class="close-btn" @click="showQuickRecordModal = false">✕</view>
-      </view>
-
-      <view class="quick-record-form">
-        <!-- 睡眠类型 -->
-        <view class="form-item">
-          <view class="form-label">睡眠类型</view>
-          <wd-radio-group v-model="quickRecord.type" shape="button">
-            <wd-radio :value="'nap'">小睡</wd-radio>
-            <wd-radio :value="'night'">夜间长睡</wd-radio>
-          </wd-radio-group>
+    <!-- 快速补记睡眠对话框 -->
+    <wd-popup
+      v-model="showQuickRecordModal"
+      position="bottom"
+      :safe-area-inset-bottom="true"
+    >
+      <view class="quick-record-modal">
+        <view class="modal-header">
+          <view class="modal-title">补记睡眠</view>
+          <view class="close-btn" @click="showQuickRecordModal = false">✕</view>
         </view>
 
-        <!-- 开始时间 -->
-        <wd-datetime-picker
-          label="开始时间"
-          size="large"
-          v-model="quickRecord.startTime"
-        />
-        <!-- 结束时间 -->
-        <wd-datetime-picker
-          label="结束时间"
-          size="large"
-          v-model="quickRecord.endTime"
-        />
+        <view class="quick-record-form">
+          <!-- 睡眠类型 -->
+          <view class="form-item">
+            <view class="form-label">睡眠类型</view>
+            <wd-radio-group v-model="quickRecord.type" shape="button">
+              <wd-radio :value="'nap'">小睡</wd-radio>
+              <wd-radio :value="'night'">夜间长睡</wd-radio>
+            </wd-radio-group>
+          </view>
 
-        <!-- 操作按钮 -->
-        <view class="modal-actions">
-          <wd-button size="large" @click="showQuickRecordModal = false" type="info">
-            取消
-          </wd-button>
-          <wd-button
-            type="primary"
+          <!-- 开始时间 -->
+          <wd-datetime-picker
+            label="开始时间"
             size="large"
-            @click="handleQuickSleepConfirm"
-          >
-            确定
-          </wd-button>
+            v-model="quickRecord.startTime"
+          />
+          <!-- 结束时间 -->
+          <wd-datetime-picker
+            label="结束时间"
+            size="large"
+            v-model="quickRecord.endTime"
+          />
+
+          <!-- 操作按钮 -->
+          <view class="modal-actions">
+            <wd-button
+              size="large"
+              @click="showQuickRecordModal = false"
+              type="info"
+            >
+              取消
+            </wd-button>
+            <wd-button
+              type="primary"
+              size="large"
+              @click="handleQuickSleepConfirm"
+            >
+              确定
+            </wd-button>
+          </view>
         </view>
       </view>
-    </view>
-  </wd-popup>
+    </wd-popup>
+  </view>
 </template>
 
 <script setup lang="ts">
