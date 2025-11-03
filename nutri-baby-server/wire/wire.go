@@ -51,6 +51,7 @@ func InitApp(cfg *config.Config) (*App, error) {
 		service.NewSleepRecordService,   // 睡眠记录服务
 		service.NewDiaperRecordService,  // 尿布记录服务
 		service.NewGrowthRecordService,  // 成长记录服务
+		service.NewTimelineService,      // 时间线聚合服务
 		service.NewVaccineService,
 		service.NewVaccinePlanService, // 疫苗计划管理服务
 		service.NewSchedulerService,   // 定时任务服务

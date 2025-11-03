@@ -1,0 +1,29 @@
+package dto
+
+// TimelineQuery 时间线查询参数
+type TimelineQuery struct {
+	BabyID    string `form:"babyId" binding:"required"`
+	StartTime int64  `form:"startTime"`
+	EndTime   int64  `form:"endTime"`
+	Page      int    `form:"page"`
+	PageSize  int    `form:"pageSize"`
+}
+
+// TimelineItem 时间线记录项
+type TimelineItem struct {
+	RecordType string `json:"recordType"` // "feeding" | "sleep" | "diaper" | "growth"
+	RecordID   string `json:"recordId"`
+	BabyID     string `json:"babyId"`
+	EventTime  int64  `json:"eventTime"` // 统一时间戳
+	Detail     any    `json:"detail"`    // 具体记录详情
+	CreateBy   string `json:"createBy"`
+	CreateTime int64  `json:"createTime"`
+}
+
+// TimelineResponse 时间线响应
+type TimelineResponse struct {
+	Items    []TimelineItem `json:"items"`
+	Total    int64          `json:"total"`
+	Page     int            `json:"page"`
+	PageSize int            `json:"pageSize"`
+}
