@@ -174,7 +174,11 @@ export function getFeedingGuidelineByAge(ageInMonths: number): FeedingGuideline 
     }
   }
   // 如果超过所有范围，返回最后一个（12月龄以上）
-  return FEEDING_GUIDELINES[FEEDING_GUIDELINES.length - 1];
+  const lastGuideline = FEEDING_GUIDELINES[FEEDING_GUIDELINES.length - 1];
+  if (!lastGuideline) {
+    throw new Error('FEEDING_GUIDELINES is empty');
+  }
+  return lastGuideline;
 }
 
 /**

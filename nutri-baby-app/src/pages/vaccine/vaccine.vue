@@ -37,7 +37,7 @@
             <view class="reminder-list">
                 <view
                     v-for="reminder in upcomingReminders"
-                    :key="reminder.id"
+                    :key="reminder.reminderId"
                     class="reminder-item"
                     :class="`status-${reminder.status}`"
                     @click="handleRecordVaccine(reminder)"
@@ -94,9 +94,9 @@
             <view class="plan-list">
                 <view
                     v-for="plan in filteredPlans"
-                    :key="plan.id"
+                    :key="plan.planId"
                     class="plan-item"
-                    :class="{ completed: isPlanCompleted(plan.id) }"
+                    :class="{ completed: isPlanCompleted(plan.planId) }"
                 >
                     <view class="plan-header">
                         <view class="plan-name">
@@ -115,11 +115,11 @@
                         }}</text>
                     </view>
 
-                    <view v-if="isPlanCompleted(plan.id)" class="plan-record">
+                    <view v-if="isPlanCompleted(plan.planId)" class="plan-record">
                         <text class="completed-icon">✓</text>
                         <text class="completed-text">已接种</text>
                         <text class="completed-date">
-                            {{ getRecordDate(plan.id) }}
+                            {{ getRecordDate(plan.planId) }}
                         </text>
                     </view>
 
@@ -366,10 +366,12 @@ const vaccineGuideContext = computed(() => {
     const reminders = upcomingReminders.value;
     if (reminders && reminders.length > 0) {
         const nextReminder = reminders[0];
-        const daysLeft = Math.ceil(
-            (nextReminder.scheduledDate - Date.now()) / (1000 * 60 * 60 * 24),
-        );
-        return `宝宝下次需要接种「${nextReminder.vaccineName}第${nextReminder.doseNumber}针」,距离接种日期还有 ${daysLeft}天`;
+        if (nextReminder) {
+            const daysLeft = Math.ceil(
+                (nextReminder.scheduledDate - Date.now()) / (1000 * 60 * 60 * 24),
+            );
+            return `宝宝下次需要接种「${nextReminder.vaccineName}第${nextReminder.doseNumber}针」,距离接种日期还有 ${daysLeft}天`;
+        }
     }
     return "下次接种前我们会提前3天提醒您哦~";
 });
@@ -481,7 +483,6 @@ const handleSaveRecord = async () => {
         await vaccineApi.apiCreateVaccineRecord({
             babyId: currentBaby.value.babyId,
             planId: recordForm.value.planId,
-            vaccineType: recordForm.value.vaccineType,
             vaccineName: recordForm.value.vaccineName,
             doseNumber: recordForm.value.doseNumber,
             vaccineDate: recordForm.value.vaccineDate,
