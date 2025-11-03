@@ -10,7 +10,7 @@
 
       <!-- 登录按钮 -->
       <view class="login-actions">
-        <nut-button
+        <wd-button
           type="primary"
           size="large"
           block
@@ -19,7 +19,7 @@
         >
           <text v-if="!loading">微信一键登录</text>
           <text v-else>登录中...</text>
-        </nut-button>
+        </wd-button>
 
         <view class="privacy-tips">
           登录即表示同意

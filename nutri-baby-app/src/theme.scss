@@ -1,0 +1,34 @@
+/**
+ * Wot Design Uni 全局主题配置
+ *
+ * 通过覆盖 Wot UI 的 CSS 变量来自定义主题
+ * 文档: https://wot-ui.cn/component/config-provider.html
+ */
+
+/* 覆盖 Wot UI 默认主题色 */
+page {
+  /* 主题色：与喂养类型选中红色保持一致 */
+  --wot-color-theme: #fa2c19;
+
+  /* 按钮 */
+  --wd-button-primary-bg: #fa2c19;
+  --wd-button-primary-color: #ffffff;
+
+  /* 其他使用主题色的组件 */
+  --wd-color-primary: #fa2c19;
+
+  /* Radio 单选框 */
+  --wd-radio-checked-color: #fa2c19;
+
+  /* Checkbox 复选框 */
+  --wd-checkbox-checked-color: #fa2c19;
+
+  /* Switch 开关 */
+  --wd-switch-on-color: #fa2c19;
+
+  /* Tabs 标签页 */
+  --wd-tabs-line-color: #fa2c19;
+
+  /* Picker 选择器 */
+  --wd-picker-title-color: #fa2c19;
+}

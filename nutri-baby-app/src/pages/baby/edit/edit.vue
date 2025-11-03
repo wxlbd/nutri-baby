@@ -1,9 +1,9 @@
 <template>
   <view class="baby-edit-page">
     <view class="form-container">
-      <nut-form ref="formRef" :model-value="formData">
+      <wd-form ref="formRef" :model="formData">
         <!-- 头像 -->
-        <nut-form-item label="宝宝头像">
+        <wd-form-item label="宝宝头像">
           <view class="avatar-upload" @click="chooseAvatar">
             <image
               v-if="formData.avatarUrl"
@@ -12,63 +12,63 @@
               class="avatar"
             />
             <view v-else class="avatar-placeholder">
-              <nut-icon name="photograph" size="40" />
+              <wd-icon name="photograph" size="40" />
               <text>点击上传</text>
             </view>
           </view>
-        </nut-form-item>
+        </wd-form-item>
 
         <!-- 姓名 -->
-        <nut-form-item label="宝宝姓名" required>
-          <nut-input
+        <wd-form-item label="宝宝姓名" required>
+          <wd-input
             v-model="formData.name"
             placeholder="请输入宝宝姓名"
             clearable
           />
-        </nut-form-item>
+        </wd-form-item>
 
         <!-- 昵称 -->
-        <nut-form-item label="小名昵称">
-          <nut-input
+        <wd-form-item label="小名昵称">
+          <wd-input
             v-model="formData.nickname"
             placeholder="请输入小名或昵称(可选)"
             clearable
           />
-        </nut-form-item>
+        </wd-form-item>
 
         <!-- 性别 -->
-        <nut-form-item label="性别" required>
-          <nut-radio-group v-model="formData.gender" direction="horizontal">
-            <nut-radio label="male">男孩 👦</nut-radio>
-            <nut-radio label="female">女孩 👧</nut-radio>
-          </nut-radio-group>
-        </nut-form-item>
+        <wd-form-item label="性别" required>
+          <wd-radio-group v-model="formData.gender" direction="horizontal">
+            <wd-radio label="male">男孩 👦</wd-radio>
+            <wd-radio label="female">女孩 👧</wd-radio>
+          </wd-radio-group>
+        </wd-form-item>
 
         <!-- 出生日期 -->
-        <nut-form-item label="出生日期" required>
+        <wd-form-item label="出生日期" required>
           <view class="date-picker" @click="showDatePicker = true">
             <text v-if="formData.birthDate">{{ formData.birthDate }}</text>
             <text v-else class="placeholder">请选择出生日期</text>
-            <nut-icon name="right" />
+            <wd-icon name="right" />
           </view>
-        </nut-form-item>
-      </nut-form>
+        </wd-form-item>
+      </wd-form>
 
       <!-- 提交按钮 -->
       <view class="submit-button">
-        <nut-button
+        <wd-button
           type="primary"
           size="large"
           block
           @click="handleSubmit"
         >
           {{ isEdit ? '保存' : '添加宝宝' }}
-        </nut-button>
+        </wd-button>
       </view>
     </view>
 
     <!-- 日期选择器 -->
-    <nut-date-picker
+    <wd-datetime-picker
       v-model:visible="showDatePicker"
       v-model="selectedDate"
       type="date"

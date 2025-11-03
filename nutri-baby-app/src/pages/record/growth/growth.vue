@@ -41,14 +41,14 @@
 
             <!-- 添加记录按钮 -->
             <view class="add-section">
-                <nut-button
+                <wd-button
                     type="primary"
                     size="large"
                     block
                     @click="showAddDialog = true"
                 >
                     + 添加成长记录
-                </nut-button>
+                </wd-button>
             </view>
 
             <!-- 历史记录列表 -->
@@ -56,7 +56,7 @@
                 <view class="section-title">历史记录</view>
 
                 <view v-if="recordList.length === 0" class="empty-state">
-                    <nut-empty description="暂无成长记录" />
+                    <wd-status-tip description="暂无成长记录" />
                 </view>
 
                 <view v-else class="record-list">
@@ -71,13 +71,13 @@
                                     formatDate(record.measureTime, "YYYY-MM-DD")
                                 }}
                             </view>
-                            <nut-button
+                            <wd-button
                                 size="small"
                                 type="default"
                                 @click="handleDelete(record.id)"
                             >
                                 删除
-                            </nut-button>
+                            </wd-button>
                         </view>
 
                         <view class="record-data">
@@ -115,7 +115,7 @@
         </view>
 
         <!-- 添加记录对话框 -->
-        <nut-popup
+        <wd-popup
             v-model:visible="showAddDialog"
             position="bottom"
             round
@@ -131,7 +131,7 @@
                             <text class="icon">📏</text>
                             <text>身高 (cm)</text>
                         </view>
-                        <nut-input
+                        <wd-input
                             v-model="formData.height"
                             type="digit"
                             placeholder="请输入身高"
@@ -145,7 +145,7 @@
                             <text class="icon">⚖️</text>
                             <text>体重 (kg)</text>
                         </view>
-                        <nut-input
+                        <wd-input
                             v-model="formData.weight"
                             type="digit"
                             placeholder="请输入体重"
@@ -159,7 +159,7 @@
                             <text class="icon">📐</text>
                             <text>头围 (cm)</text>
                         </view>
-                        <nut-input
+                        <wd-input
                             v-model="formData.headCircumference"
                             type="digit"
                             placeholder="请输入头围"
@@ -173,8 +173,8 @@
                             <text class="icon">📅</text>
                             <text>记录时间</text>
                         </view>
-                        <nut-input
-                            :model-value="
+                        <wd-input
+                            :model="
                                 formatDate(formData.time, 'YYYY-MM-DD HH:mm')
                             "
                             readonly
@@ -188,7 +188,7 @@
                             <text class="icon">📝</text>
                             <text>备注</text>
                         </view>
-                        <nut-textarea
+                        <wd-textarea
                             v-model="formData.note"
                             placeholder="可选,记录特殊情况"
                             :max-length="200"
@@ -199,28 +199,28 @@
                 </view>
 
                 <view class="dialog-footer">
-                    <nut-button
+                    <wd-button
                         type="default"
                         size="large"
                         block
                         @click="showAddDialog = false"
                     >
                         取消
-                    </nut-button>
-                    <nut-button
+                    </wd-button>
+                    <wd-button
                         type="primary"
                         size="large"
                         block
                         @click="handleSubmit"
                     >
                         保存
-                    </nut-button>
+                    </wd-button>
                 </view>
             </view>
-        </nut-popup>
+        </wd-popup>
 
         <!-- 日期选择器 -->
-        <nut-date-picker
+        <wd-datetime-picker
             v-model:visible="showDatePicker"
             v-model="selectedDate"
             type="datetime"

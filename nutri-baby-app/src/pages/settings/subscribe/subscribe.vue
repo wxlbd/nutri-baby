@@ -33,10 +33,10 @@
         </view>
 
         <view class="item-right">
-          <nut-switch
-            :model-value="getReminderEnabled(template.type)"
+          <wd-switch
+            :model="getReminderEnabled(template.type)"
             :disabled="getAuthStatus(template.type) === 'ban'"
-            @update:model-value="(val: boolean) => handleSwitchChange(template, val)"
+            @update:model="(val: boolean) => handleSwitchChange(template, val)"
           />
         </view>
       </view>
@@ -49,7 +49,7 @@
       <!-- 疫苗提醒提前天数 -->
       <view v-if="vaccineReminderEnabled" class="setting-item">
         <text class="setting-label">疫苗提醒提前天数</text>
-        <nut-input-number
+        <wd-input-number
           v-model="vaccineAdvanceDays"
           :min="1"
           :max="7"
@@ -60,7 +60,7 @@
       <!-- 喂养提醒间隔 -->
       <view v-if="feedingReminderEnabled" class="setting-item">
         <text class="setting-label">喂养提醒间隔(分钟)</text>
-        <nut-input-number
+        <wd-input-number
           v-model="feedingIntervalMinutes"
           :min="60"
           :max="360"
@@ -79,9 +79,9 @@
 
     <!-- 清除授权记录(仅开发调试用) -->
     <!-- <view class="debug-section">
-      <nut-button type="warning" size="small" @click="handleClearRecords">
+      <wd-button type="warning" size="small" @click="handleClearRecords">
         清除授权记录(调试)
-      </nut-button>
+      </wd-button>
     </view> -->
   </view>
 </template>

@@ -68,8 +68,8 @@
                         </view>
                     </view>
                     <view class="reminder-action">
-                        <nut-button size="small" type="primary"
-                            >记录接种</nut-button
+                        <wd-button size="small" type="primary"
+                            >记录接种</wd-button
                         >
                     </view>
                 </view>
@@ -80,16 +80,16 @@
         <view class="plan-section">
             <view class="section-header">
                 <text class="section-title">📋 疫苗计划</text>
-                <nut-button size="small" @click="goToManage">
+                <wd-button size="small" @click="goToManage">
                     管理计划
-                </nut-button>
+                </wd-button>
             </view>
 
-            <nut-tabs v-model="activeTab">
-                <nut-tab-pane title="全部" pane-key="all" />
-                <nut-tab-pane title="已完成" pane-key="completed" />
-                <nut-tab-pane title="未完成" pane-key="pending" />
-            </nut-tabs>
+            <wd-tabs v-model="activeTab">
+                <wd-tab title="全部" pane-key="all" />
+                <wd-tab title="已完成" pane-key="completed" />
+                <wd-tab title="未完成" pane-key="pending" />
+            </wd-tabs>
 
             <view class="plan-list">
                 <view
@@ -124,20 +124,20 @@
                     </view>
 
                     <view v-else class="plan-action">
-                        <nut-button
+                        <wd-button
                             size="small"
                             type="primary"
                             @click="handleRecordByPlan(plan)"
                         >
                             记录接种
-                        </nut-button>
+                        </wd-button>
                     </view>
                 </view>
             </view>
         </view>
 
         <!-- 接种记录对话框 -->
-        <nut-popup
+        <wd-popup
             v-model:visible="showRecordDialog"
             position="bottom"
             :style="{ height: '75%' }"
@@ -153,7 +153,7 @@
                     <view class="form-section">
                         <view class="form-item">
                             <view class="form-label">疫苗名称</view>
-                            <nut-input
+                            <wd-input
                                 v-model="recordForm.vaccineName"
                                 placeholder="疫苗名称"
                                 readonly
@@ -162,8 +162,8 @@
 
                         <view class="form-item">
                             <view class="form-label">接种日期</view>
-                            <nut-input
-                                :model-value="
+                            <wd-input
+                                :model="
                                     formatDate(
                                         recordForm.vaccineDate,
                                         'YYYY-MM-DD',
@@ -178,7 +178,7 @@
                             <view class="form-label"
                                 >接种医院 <text class="required">*</text></view
                             >
-                            <nut-input
+                            <wd-input
                                 v-model="recordForm.hospital"
                                 placeholder="请输入医院名称"
                                 clearable
@@ -187,7 +187,7 @@
 
                         <view class="form-item">
                             <view class="form-label">疫苗批号</view>
-                            <nut-input
+                            <wd-input
                                 v-model="recordForm.batchNumber"
                                 placeholder="请输入疫苗批号(可选)"
                                 clearable
@@ -196,7 +196,7 @@
 
                         <view class="form-item">
                             <view class="form-label">不良反应</view>
-                            <nut-textarea
+                            <wd-textarea
                                 v-model="recordForm.reaction"
                                 placeholder="如有不良反应请记录(可选)"
                                 :max-length="200"
@@ -207,7 +207,7 @@
 
                         <view class="form-item">
                             <view class="form-label">备注</view>
-                            <nut-textarea
+                            <wd-textarea
                                 v-model="recordForm.note"
                                 placeholder="其他备注信息(可选)"
                                 :max-length="200"
@@ -219,26 +219,26 @@
                 </scroll-view>
 
                 <view class="dialog-footer">
-                    <nut-button
+                    <wd-button
                         type="primary"
                         size="large"
                         @click="handleSaveRecord"
                     >
                         保存
-                    </nut-button>
-                    <nut-button
+                    </wd-button>
+                    <wd-button
                         type="default"
                         size="large"
                         @click="showRecordDialog = false"
                     >
                         取消
-                    </nut-button>
+                    </wd-button>
                 </view>
             </view>
-        </nut-popup>
+        </wd-popup>
 
         <!-- 日期选择器 -->
-        <nut-date-picker
+        <wd-datetime-picker
             v-model:visible="showDatePicker"
             v-model="selectedDate"
             type="date"
