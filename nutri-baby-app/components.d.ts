@@ -13,7 +13,6 @@ declare module 'vue' {
     WdCard: typeof import('wot-design-uni/components/wd-card/wd-card.vue')['default']
     WdCell: typeof import('wot-design-uni/components/wd-cell/wd-cell.vue')['default']
     WdCellGroup: typeof import('wot-design-uni/components/wd-cell-group/wd-cell-group.vue')['default']
-    WdDatePicker: typeof import('wot-design-uni/components/wd-date-picker/wd-date-picker.vue')['default']
     WdDatetimePicker: typeof import('wot-design-uni/components/wd-datetime-picker/wd-datetime-picker.vue')['default']
     WdForm: typeof import('wot-design-uni/components/wd-form/wd-form.vue')['default']
     WdFormItem: typeof import('wot-design-uni/components/wd-form-item/wd-form-item.vue')['default']
