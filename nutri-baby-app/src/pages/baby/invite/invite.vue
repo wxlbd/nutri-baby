@@ -7,8 +7,8 @@
       @click-left="handleBack"
     >
       <template #capsule>
-    <wd-navbar-capsule @back="handleBack" @back-home="handleBackHome" />
-  </template>
+        <wd-navbar-capsule @back="handleBack" @back-home="handleBackHome" />
+      </template>
     </wd-navbar>
     <view class="invite-page">
       <!-- 顶部信息卡片 -->
