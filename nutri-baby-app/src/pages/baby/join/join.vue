@@ -1,27 +1,11 @@
 <template>
+
+<wd-navbar title="邀请详情" left-text="返回" right-text="设置" left-arrow safeAreaInsetTop>
+  <template #capsule>
+    <wd-navbar-capsule @back="handleBack" @back-home="goToHome" height="auto" />
+  </template>
+</wd-navbar>
   <view class="join-container">
-    <!-- 自定义导航栏 - 精确对齐微信胶囊 -->
-    <view class="navbar-wrapper" :style="{ paddingTop: (statusBarHeight ) * 2  + 'rpx' }">
-      <view class="navbar-content" :style="{ height: menuButtonHeight*2  + 'rpx', marginTop: -(menuButtonHeight/4) + 'rpx'}">
-        <!-- 左侧首页图标 - 对齐胶囊位置 -->
-        <view class="navbar-left" :style="{
-          width: menuButtonWidth * 2 + 'rpx',
-          height: menuButtonHeight * 2 + 'rpx',
-        }" @click="goToHome">
-          <nut-icon name="home" size="22" color="#ffecd2" />
-        </view>
-
-        <!-- 中间标题 -->
-        <view class="navbar-title">加入宝宝</view>
-
-        <!-- 右侧占位符（与胶囊等宽）-->
-        <view class="navbar-right" :style="{
-          width: menuButtonWidth * 2 + 'rpx',
-          height: menuButtonHeight * 2 + 'rpx',
-        }"></view>
-      </view>
-    </view>
-
     <!-- 内容区域（留出导航栏高度） -->
     <view class="content-wrapper" :style="{ paddingTop: navbarTotalHeight + 'rpx' }">
       <!-- 加载状态 -->
@@ -76,12 +60,12 @@
 
         <!-- 操作按钮 -->
         <view class="actions">
-          <nut-button type="primary" size="large" @click="handleJoin">
+          <wd-button type="primary" size="large" @click="handleJoin">
             确认加入
-          </nut-button>
-          <nut-button type="default" size="large" @click="handleCancel">
+          </wd-button>
+          <wd-button type="default" size="large" @click="handleCancel">
             取消
-          </nut-button>
+          </wd-button>
         </view>
 
         <!-- 温馨提示 -->
@@ -97,7 +81,7 @@
       <view v-else class="error-wrapper">
         <text class="error-icon">⚠️</text>
         <text class="error-text">{{ errorMessage }}</text>
-        <nut-button type="primary" @click="handleBack">返回</nut-button>
+        <wd-button type="primary" @click="handleBack">返回</wd-button>
       </view>
     </view>
   </view>
