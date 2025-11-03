@@ -18,7 +18,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **前端** (nutri-baby-app):
 - uni-app (Vue 3 + TypeScript)
-- nutui-uniapp (UI 组件库)
+- WotUI  (UI 组件库)
 - Vite 5.2.8
 - 目标平台：微信小程序（主要）+ 多端支持
 
