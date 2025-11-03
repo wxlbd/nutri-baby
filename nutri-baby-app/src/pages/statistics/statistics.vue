@@ -516,6 +516,23 @@ const growthStats = computed(() => {
   // 最新数据
   const latestRecord = growthRecords.value[0]
 
+  if (!latestRecord) {
+    return {
+      hasData: false,
+      latestHeight: 0,
+      latestWeight: 0,
+      latestHead: 0,
+      dates: [],
+      heightData: [],
+      weightData: [],
+      headData: [],
+      heightMin: 0,
+      heightMax: 0,
+      weightMin: 0,
+      weightMax: 0
+    }
+  }
+
   // 准备曲线数据（按时间正序）
   const sortedRecords = [...growthRecords.value].reverse()
   const dates: string[] = []

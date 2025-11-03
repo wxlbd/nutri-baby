@@ -14,7 +14,7 @@
     <view class="plan-list">
       <view
         v-for="plan in vaccinePlans"
-        :key="plan.id"
+        :key="plan.planId"
         class="plan-item"
       >
         <view class="plan-header">

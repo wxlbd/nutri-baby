@@ -74,7 +74,7 @@
         >
           <template #link>
             <text class="duration-text">{{
-              formatDuration(lastRecord.duration)
+              formatDuration(lastRecord.duration || 0)
             }}</text>
           </template>
         </wd-cell>
