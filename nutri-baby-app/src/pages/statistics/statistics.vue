@@ -311,7 +311,9 @@ const feedingStats = computed(() => {
   feedingRecords.value.forEach(record => {
     // 只统计奶瓶喂养的奶量，母乳喂养不计入
     if (record.feedingType === 'bottle') {
-      const amount = record.detail.unit === 'oz'
+      const feedingDetail = record.detail
+      const unit = (feedingDetail && feedingDetail.type === 'bottle') ? feedingDetail.unit : 'ml'
+      const amount = unit === 'oz'
         ? (record.amount || 0) * 29.5735
         : (record.amount || 0)
 
