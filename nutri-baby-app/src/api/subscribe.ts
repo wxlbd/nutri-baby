@@ -2,7 +2,7 @@
  * 订阅消息 API 接口封装
  */
 
-import { request } from './request'
+import { request } from '@/utils/request'
 
 /**
  * 订阅授权记录
