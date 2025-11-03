@@ -123,7 +123,7 @@ onMounted(async () => {
       const baby = await babyApi.apiFetchBabyDetail(options.id)
       if (baby) {
         formData.value = {
-          name: baby.babyName,
+          name: baby.name,
           nickname: baby.nickname || '',
           gender: baby.gender,
           birthDate: baby.birthDate,
@@ -150,7 +150,7 @@ const chooseAvatar = () => {
     sizeType: ['compressed'],
     sourceType: ['album', 'camera'],
     success: (res) => {
-      formData.value.avatarUrl = res.tempFilePaths[0]
+      formData.value.avatarUrl = res.tempFilePaths[0] || ''
       // 这里可以上传到服务器
       // uploadFile(res.tempFilePaths[0])
     }
@@ -194,7 +194,7 @@ const handleSubmit = async () => {
     if (isEdit.value) {
       // 更新
       await babyApi.apiUpdateBaby(editId.value, {
-        babyName: formData.value.name,
+        name: formData.value.name,
         nickname: formData.value.nickname,
         gender: formData.value.gender,
         birthDate: formData.value.birthDate,
@@ -212,7 +212,7 @@ const handleSubmit = async () => {
     } else {
       // 添加（去家庭化架构 - 不需要传 familyId）
       const newBaby = await babyApi.apiCreateBaby({
-        babyName: formData.value.name,
+        name: formData.value.name,
         nickname: formData.value.nickname,
         gender: formData.value.gender,
         birthDate: formData.value.birthDate,
@@ -220,16 +220,16 @@ const handleSubmit = async () => {
       })
 
       // ✨ 为新宝宝自动获取疫苗计划
-      console.log('[BabyEdit] 为新宝宝获取疫苗计划:', newBaby.babyName)
+      console.log('[BabyEdit] 为新宝宝获取疫苗计划:', newBaby.name)
 
       try {
         // 从服务器获取该宝宝的疫苗计划
-        await vaccineApi.apiFetchVaccinePlans({ babyId: newBaby.babyId })
+        await vaccineApi.apiFetchVaccinePlans(newBaby.babyId)
 
         // 显示友好的提示
         uni.showModal({
           title: '✅ 宝宝添加成功',
-          content: `已为 ${newBaby.babyName} 自动生成国家免疫规划疫苗计划和接种提醒，可在"疫苗管理"页面查看详情。`,
+          content: `已为 ${newBaby.name} 自动生成国家免疫规划疫苗计划和接种提醒，可在"疫苗管理"页面查看详情。`,
           showCancel: false,
           confirmText: '好的',
           success: () => {

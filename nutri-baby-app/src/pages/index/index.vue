@@ -136,7 +136,7 @@
                 <view class="vaccine-list">
                     <view
                         v-for="vaccine in upcomingVaccines"
-                        :key="vaccine.id"
+                        :key="vaccine.reminderId"
                         class="vaccine-item"
                         :class="`status-${vaccine.status}`"
                     >
@@ -340,6 +340,8 @@ const lastFeedingTime = computed(() => {
     );
     const lastRecord = sortedRecords[0];
 
+    if (!lastRecord) return "暂无记录";
+
     return formatRelativeTime(lastRecord.feedingTime);
 });
 
@@ -352,6 +354,8 @@ const nextFeedingTime = computed(() => {
         (a, b) => b.feedingTime - a.feedingTime,
     );
     const lastRecord = sortedRecords[0];
+
+    if (!lastRecord) return "";
 
     // 计算宝宝精确月龄
     const ageInMonths = calculateAgeInMonths(currentBaby.value.birthDate);

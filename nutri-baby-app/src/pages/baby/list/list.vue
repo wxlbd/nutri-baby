@@ -151,8 +151,11 @@ const loadBabyList = async () => {
 
     // 如果只有一个宝宝且没有选中任何宝宝,默认选中这个宝宝
     if (babyList.value.length === 1 && !currentBabyId.value) {
-      setCurrentBaby(babyList.value[0].babyId);
-      console.log("[BabyList] 自动选中唯一的宝宝:", babyList.value[0].name);
+      const firstBaby = babyList.value[0];
+      if (firstBaby) {
+        setCurrentBaby(firstBaby.babyId);
+        console.log("[BabyList] 自动选中唯一的宝宝:", firstBaby.name);
+      }
     }
   } catch (error) {
     console.error("[BabyList] 加载宝宝列表失败:", error);

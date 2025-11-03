@@ -62,7 +62,7 @@
                 <view v-else class="record-list">
                     <view
                         v-for="record in recordList"
-                        :key="record.id"
+                        :key="record.recordId"
                         class="record-item"
                     >
                         <view class="record-header">
@@ -74,7 +74,7 @@
                             <wd-button
                                 size="small"
                                 type="default"
-                                @click="handleDelete(record.id)"
+                                @click="handleDelete(record.recordId)"
                             >
                                 删除
                             </wd-button>
