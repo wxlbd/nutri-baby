@@ -99,8 +99,8 @@ function parseSceneParameter(scene: string): string | null {
 }
 </script>
 <style lang="scss">
-/* 引入 nutui-uniapp 基础样式,避免导入有问题的 index.scss */
-@import 'nutui-uniapp/styles/reset.css';
-@import 'nutui-uniapp/styles/iconfont/iconfont.css';
+/* 引入 Wot Design Uni 主题配置 */
+@import '@/theme.scss';
+
 /* 组件样式通过按需引入插件自动加载,无需手动导入 */
 </style>
