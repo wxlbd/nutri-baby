@@ -42,7 +42,8 @@
 		{
 			"path": "pages/baby/invite/invite",
 			"style": {
-				"navigationBarTitleText": "邀请协作者"
+				"navigationBarTitleText": "邀请协作者",
+				"navigationStyle": "custom"
 			}
 		},
 		{
