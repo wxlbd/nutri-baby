@@ -12,10 +12,11 @@ import (
 
 // RecordHandler 记录处理器
 type RecordHandler struct {
-	feedingService *service.FeedingRecordService
-	sleepService   *service.SleepRecordService
-	diaperService  *service.DiaperRecordService
-	growthService  *service.GrowthRecordService
+	feedingService  *service.FeedingRecordService
+	sleepService    *service.SleepRecordService
+	diaperService   *service.DiaperRecordService
+	growthService   *service.GrowthRecordService
+	timelineService *service.TimelineService
 }
 
 // NewRecordHandler 创建记录处理器
@@ -24,12 +25,14 @@ func NewRecordHandler(
 	sleepService *service.SleepRecordService,
 	diaperService *service.DiaperRecordService,
 	growthService *service.GrowthRecordService,
+	timelineService *service.TimelineService,
 ) *RecordHandler {
 	return &RecordHandler{
-		feedingService: feedingService,
-		sleepService:   sleepService,
-		diaperService:  diaperService,
-		growthService:  growthService,
+		feedingService:  feedingService,
+		sleepService:    sleepService,
+		diaperService:   diaperService,
+		growthService:   growthService,
+		timelineService: timelineService,
 	}
 }
 
@@ -191,6 +194,26 @@ func (h *RecordHandler) GetGrowthRecords(c *gin.Context) {
 		"page":     query.Page,
 		"pageSize": query.PageSize,
 	})
+}
+
+// GetTimeline 获取时间线记录
+// @Router /timeline [get]
+func (h *RecordHandler) GetTimeline(c *gin.Context) {
+	var query dto.TimelineQuery
+	if err := c.ShouldBindQuery(&query); err != nil {
+		response.ErrorWithMessage(c, 1001, "参数错误: "+err.Error())
+		return
+	}
+
+	openID := c.GetString("openid")
+
+	result, err := h.timelineService.GetTimeline(c.Request.Context(), openID, &query)
+	if err != nil {
+		response.Error(c, err)
+		return
+	}
+
+	response.Success(c, result)
 }
 
 // parseRecordQuery 解析记录查询参数

@@ -23,7 +23,7 @@ func NewRouter(
 	gin.SetMode(cfg.Server.Mode)
 
 	r := gin.New()
-	
+
 	// 全局中间件
 	r.Use(middleware.CORS())
 	r.Use(middleware.Logger())
@@ -123,6 +123,9 @@ func NewRouter(
 				growthRecords.POST("", recordHandler.CreateGrowthRecord)
 				growthRecords.GET("", recordHandler.GetGrowthRecords)
 			}
+
+			// 时间线聚合接口
+			authRequired.GET("record/timeline", recordHandler.GetTimeline)
 
 			// 订阅消息管理
 			subscribe := authRequired.Group("/subscribe")
