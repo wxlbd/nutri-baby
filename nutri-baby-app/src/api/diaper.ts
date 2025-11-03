@@ -31,12 +31,14 @@ export interface DiaperRecordsListResponse {
   pageSize: number
 }
 
+type DiaperType = 'pee' | 'poop' | 'both'
+
 /**
  * API 请求: 创建换尿布记录
  */
 export interface CreateDiaperRecordRequest {
   babyId: string
-  diaperType: 'pee' | 'poo' | 'both'
+  diaperType: DiaperType
   pooColor?: string
   pooTexture?: string
   note?: string

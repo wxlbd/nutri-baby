@@ -1,5 +1,5 @@
 <template>
-  <nut-popup
+  <wd-popup
     v-model:visible="visible"
     position="bottom"
     :closeable="true"
@@ -32,12 +32,12 @@
 
       <!-- 操作按钮 -->
       <view class="guide-actions">
-        <nut-button size="large" type="primary" class="btn-confirm" @click="handleConfirm">
+        <wd-button size="large" type="primary" class="btn-confirm" @click="handleConfirm">
           {{ confirmText }}
-        </nut-button>
-        <nut-button size="large" type="default" class="btn-cancel" @click="handleDismiss">
+        </wd-button>
+        <wd-button size="large" type="default" class="btn-cancel" @click="handleDismiss">
           {{ dismissText }}
-        </nut-button>
+        </wd-button>
       </view>
 
       <!-- 不再提示选项 -->
@@ -45,7 +45,7 @@
         <text class="never-show-text">不再提示</text>
       </view>
     </view>
-  </nut-popup>
+  </wd-popup>
 </template>
 
 <script setup lang="ts">

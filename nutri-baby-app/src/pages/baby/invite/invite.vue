@@ -9,11 +9,11 @@
     <!-- 角色选择 -->
     <view class="section">
       <view class="section-title">协作者角色</view>
-      <nut-radio-group v-model="selectedRole" direction="horizontal">
-        <nut-radio label="admin">管理员</nut-radio>
-        <nut-radio label="editor">编辑者</nut-radio>
-        <nut-radio label="viewer">查看者</nut-radio>
-      </nut-radio-group>
+      <wd-radio-group v-model="selectedRole" direction="horizontal">
+        <wd-radio label="admin">管理员</wd-radio>
+        <wd-radio label="editor">编辑者</wd-radio>
+        <wd-radio label="viewer">查看者</wd-radio>
+      </wd-radio-group>
       <view class="role-desc">
         <text v-if="selectedRole === 'admin'">可管理宝宝信息、邀请/移除协作者</text>
         <text v-else-if="selectedRole === 'editor'">可记录和编辑所有数据</text>
@@ -24,10 +24,10 @@
     <!-- 访问权限 -->
     <view class="section">
       <view class="section-title">访问权限</view>
-      <nut-radio-group v-model="accessType" direction="horizontal">
-        <nut-radio label="permanent">永久</nut-radio>
-        <nut-radio label="temporary">临时</nut-radio>
-      </nut-radio-group>
+      <wd-radio-group v-model="accessType" direction="horizontal">
+        <wd-radio label="permanent">永久</wd-radio>
+        <wd-radio label="temporary">临时</wd-radio>
+      </wd-radio-group>
 
       <!-- 临时权限时显示过期时间选择框 -->
       <view v-if="accessType === 'temporary'" class="expire-time">
@@ -43,14 +43,14 @@
 
     <!-- 生成邀请按钮 -->
     <view class="generate-section">
-      <nut-button
+      <wd-button
         type="primary"
         size="large"
         @click="handleGenerateQRCode"
         :loading="generating"
       >
         {{ generating ? '生成中...' : '生成邀请二维码' }}
-      </nut-button>
+      </wd-button>
     </view>
 
     <!-- 二维码展示区域（生成后显示） -->
@@ -98,20 +98,20 @@
 
       <!-- 保存按钮 -->
       <view class="actions">
-        <nut-button type="success" size="large" @click="saveQRCode">
+        <wd-button type="success" size="large" @click="saveQRCode">
           保存二维码到相册
-        </nut-button>
+        </wd-button>
       </view>
     </view>
 
     <!-- 日期时间选择器弹窗 -->
-    <nut-popup
+    <wd-popup
       :visible="showDatetimePickerModal"
       position="bottom"
       round
       @update:visible="showDatetimePickerModal = $event"
     >
-      <nut-date-picker
+      <wd-datetime-picker
         v-model="expiresDate"
         type="datetime"
         title="选择过期时间"
@@ -119,8 +119,8 @@
         :max-date="maxDate"
         @confirm="onDateTimeConfirm"
         @cancel="onDateTimeCancel"
-      ></nut-date-picker>
-    </nut-popup>
+      ></wd-datetime-picker>
+    </wd-popup>
   </view>
 </template>
 

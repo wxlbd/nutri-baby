@@ -41,26 +41,24 @@
                         <text class="timer-time">{{ formattedTime }}</text>
                         <text class="timer-status">{{ timerRunning ? '进行中' : '未开始' }}</text>
                     </view>
-                    <view class="timer-buttons">
-                        <nut-button
-                            v-if="!timerRunning"
-                            type="primary"
-                            size="large"
-                            block
-                            @click="startTimer"
-                        >
-                            开始计时
-                        </nut-button>
-                        <nut-button
-                            v-else
-                            type="success"
-                            size="large"
-                            block
-                            @click="stopTimer"
-                        >
-                            停止计时
-                        </nut-button>
-                    </view>
+                    <wd-button
+                        v-if="!timerRunning"
+                        type="primary"
+                        size="large"
+                        block
+                        @click="startTimer"
+                    >
+                        开始计时
+                    </wd-button>
+                    <wd-button
+                        v-else
+                        type="success"
+                        size="large"
+                        block
+                        @click="stopTimer"
+                    >
+                        停止计时
+                    </wd-button>
                 </view>
             </view>
 
@@ -142,15 +140,17 @@
             <!-- 记录时间 -->
             <view class="form-section">
                 <view class="section-title">记录时间</view>
-                <view
-                    class="time-selector"
-                    @click="showDatetimePickerModal = true"
-                >
-                    <text class="time-value">{{ formatRecordTime(recordDateTime) }}</text>
-                    <view class="time-icon">
-                        <text>›</text>
-                    </view>
-                </view>
+    
+                      <!-- 日期选择器 -->
+        <wd-datetime-picker
+            v-model="recordDateTime"
+            v-model:visible="showDatetimePickerModal"
+            type="datetime"
+            :min-date="minDateTime"
+            :max-date="maxDateTime"
+            @confirm="onDateTimeConfirm"
+            @cancel="onDateTimeCancel"
+        />
             </view>
 
             <!-- 提醒设置 -->
@@ -202,33 +202,18 @@
             </view>
         </view>
 
-        <!-- 日期选择器 Popup -->
-        <nut-popup
-            :visible="showDatetimePickerModal"
-            position="bottom"
-            round
-            @update:visible="showDatetimePickerModal = $event"
-        >
-            <nut-date-picker
-                v-model="recordDateTime"
-                type="datetime"
-                :min-date="minDateTime"
-                :max-date="maxDateTime"
-                @confirm="onDateTimeConfirm"
-                @cancel="onDateTimeCancel"
-            ></nut-date-picker>
-        </nut-popup>
+     
 
         <!-- 提交按钮 -->
         <view class="submit-section">
-            <nut-button
+            <wd-button
                 type="primary"
                 size="large"
                 block
                 @click="handleSubmit"
             >
                 保存记录
-            </nut-button>
+            </wd-button>
         </view>
     </view>
 </template>
@@ -309,10 +294,10 @@ const tempRecordCheckDone = ref(false) // 防止重复检测临时记录
 let timerInterval: number | null = null
 
 // 日期时间选择器
-const recordDateTime = ref<Date>(new Date()) // 记录时间,初始为当前时间
+const recordDateTime = ref(new Date().getTime()) // 记录时间,初始为当前时间戳
 const showDatetimePickerModal = ref(false)
-const minDateTime = ref<Date>(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)) // 最小: 30天前
-const maxDateTime = ref<Date>(new Date()) // 最大: 当前时间
+const minDateTime = ref(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).getTime()) // 最小: 30天前
+const maxDateTime = ref(new Date().getTime()) // 最大: 当前时间
 
 // 提醒设置相关
 const reminderEnabled = ref(true)
@@ -330,15 +315,15 @@ const quickReminderOptions = [
 const formatNextReminderTime = computed(() => {
   if (!reminderEnabled.value) return '不提醒'
 
-  const nextTime = new Date(recordDateTime.value.getTime() + reminderInterval.value * 60 * 1000)
+  const nextTime = recordDateTime.value + reminderInterval.value * 60 * 1000
   return formatRecordTime(nextTime)
 })
 
 // 确认日期时间选择
-const onDateTimeConfirm = (value: Date) => {
+const onDateTimeConfirm = ({ value }: { value: number }) => {
     recordDateTime.value = value
     showDatetimePickerModal.value = false
-    console.log('[Feeding] 记录时间已更改为:', value)
+    console.log('[Feeding] 记录时间已更改为:', new Date(value))
 }
 
 // 取消日期时间选择
@@ -347,7 +332,8 @@ const onDateTimeCancel = () => {
 }
 
 // 格式化记录时间显示
-const formatRecordTime = (date: Date): string => {
+const formatRecordTime = (timestamp: number): string => {
+    const date = new Date(timestamp)
     const year = date.getFullYear()
     const month = String(date.getMonth() + 1).padStart(2, '0')
     const day = String(date.getDate()).padStart(2, '0')
@@ -685,7 +671,7 @@ const handleSubmit = async () => {
         const requestData: feedingApi.CreateFeedingRecordRequest = {
             babyId: currentBabyId.value,
             feedingType: detail.type,
-            feedingTime: recordDateTime.value.getTime(),
+            feedingTime: recordDateTime.value,
             detail: {}
         }
 
@@ -742,7 +728,7 @@ const handleSubmit = async () => {
         breastForm.value = { side: 'left', leftDuration: 0, rightDuration: 0 }
         bottleForm.value = { bottleType: 'formula', amount: 60, unit: 'ml', remaining: 0 }
         foodForm.value = { foodName: '', note: '' }
-        recordDateTime.value = new Date()
+        recordDateTime.value = new Date().getTime()
         reminderEnabled.value = true
         reminderInterval.value = 180
 
@@ -994,7 +980,7 @@ const handleSubmit = async () => {
     background: linear-gradient(135deg, #fff7f0 0%, #fff9f7 100%);
     border: 1rpx solid #ffe0cc;
     border-radius: 12rpx;
-    padding: 28rpx 24rpx;
+    padding: 28rpx;
     text-align: center;
     margin-top: 16rpx;
 }
@@ -1017,17 +1003,6 @@ const handleSubmit = async () => {
     display: block;
     font-size: 26rpx;
     color: #999;
-}
-
-.timer-buttons {
-    display: flex;
-    gap: 12rpx;
-
-    :deep(.nut-button) {
-        flex: 1;
-        height: 80rpx;
-        font-size: 28rpx;
-    }
 }
 
 // 时间选择器

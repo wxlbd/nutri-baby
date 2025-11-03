@@ -2,12 +2,12 @@
   <view class="vaccine-plan-manage-page">
     <!-- 顶部操作栏 -->
     <view class="action-bar">
-      <nut-button type="primary" size="small" @click="showAddDialog = true">
+      <wd-button type="primary" size="small" @click="showAddDialog = true">
         <view class="button-content">
-          <nut-icon name="plus" />
+          <wd-icon name="plus" />
           <text>添加自定义计划</text>
         </view>
-      </nut-button>
+      </wd-button>
     </view>
 
     <!-- 疫苗计划列表 -->
@@ -24,8 +24,8 @@
             {{ plan.vaccineName }}
           </view>
           <view class="plan-actions">
-            <nut-button size="small" type="default" @click="handleEdit(plan)">编辑</nut-button>
-            <nut-button v-if="isCustomPlan(plan)" size="small" type="danger" @click="handleDelete(plan)">删除</nut-button>
+            <wd-button size="small" type="default" @click="handleEdit(plan)">编辑</wd-button>
+            <wd-button v-if="isCustomPlan(plan)" size="small" type="danger" @click="handleDelete(plan)">删除</wd-button>
           </view>
         </view>
 
@@ -51,7 +51,7 @@
     </view>
 
     <!-- 添加/编辑对话框 -->
-    <nut-popup
+    <wd-popup
       v-model:visible="showAddDialog"
       position="bottom"
       :style="{ height: '80%' }"
@@ -62,84 +62,84 @@
         <view class="dialog-title">{{ isEdit ? '编辑疫苗计划' : '添加疫苗计划' }}</view>
 
         <view class="form-section">
-          <nut-form ref="formRef">
-            <nut-form-item label="疫苗名称" required>
-              <nut-input
+          <wd-form ref="formRef">
+            <wd-form-item label="疫苗名称" required>
+              <wd-input
                 v-model="form.vaccineName"
                 placeholder="请输入疫苗名称"
                 clearable
               />
-            </nut-form-item>
+            </wd-form-item>
 
-            <nut-form-item label="疫苗类型" required>
-              <nut-input
+            <wd-form-item label="疫苗类型" required>
+              <wd-input
                 v-model="form.vaccineType"
                 placeholder="例如: HepB, BCG, DTaP"
                 clearable
               />
-            </nut-form-item>
+            </wd-form-item>
 
-            <nut-form-item label="接种月龄" required>
-              <nut-input
+            <wd-form-item label="接种月龄" required>
+              <wd-input
                 v-model.number="form.ageInMonths"
                 type="number"
                 placeholder="请输入月龄"
                 clearable
               />
-            </nut-form-item>
+            </wd-form-item>
 
-            <nut-form-item label="剂次" required>
-              <nut-input
+            <wd-form-item label="剂次" required>
+              <wd-input
                 v-model.number="form.doseNumber"
                 type="number"
                 placeholder="请输入剂次"
                 clearable
               />
-            </nut-form-item>
+            </wd-form-item>
 
-            <nut-form-item label="提醒天数">
-              <nut-input
+            <wd-form-item label="提醒天数">
+              <wd-input
                 v-model.number="form.reminderDays"
                 type="number"
                 placeholder="提前几天提醒"
                 clearable
               />
-            </nut-form-item>
+            </wd-form-item>
 
-            <nut-form-item label="是否必打">
-              <nut-switch v-model="form.isRequired" />
-            </nut-form-item>
+            <wd-form-item label="是否必打">
+              <wd-switch v-model="form.isRequired" />
+            </wd-form-item>
 
-            <nut-form-item label="说明">
-              <nut-textarea
+            <wd-form-item label="说明">
+              <wd-textarea
                 v-model="form.description"
                 placeholder="疫苗说明(可选)"
                 :max-length="200"
               />
-            </nut-form-item>
-          </nut-form>
+            </wd-form-item>
+          </wd-form>
         </view>
 
         <view class="dialog-footer">
-          <nut-button
+          <wd-button
             type="default"
             size="large"
             block
             @click="showAddDialog = false"
           >
             取消
-          </nut-button>
-          <nut-button
+          </wd-button>
+          <wd-button
             type="primary"
             size="large"
             block
             @click="handleSubmit"
           >
             {{ isEdit ? '保存' : '添加' }}
-          </nut-button>
+          </wd-button>
         </view>
       </view>
-    </nut-popup>
+    </wd-popup>
   </view>
 </template>
 

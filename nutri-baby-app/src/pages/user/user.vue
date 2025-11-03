@@ -33,8 +33,8 @@
         <!-- 宝宝信息 -->
         <view class="section">
             <view class="section-title">我的宝宝</view>
-            <nut-cell-group>
-                <nut-cell
+            <wd-cell-group>
+                <wd-cell
                     title="宝宝管理"
                     :desc="`共 ${babyList?.length || 0} 个宝宝`"
                     is-link
@@ -43,8 +43,8 @@
                     <template #icon>
                         <text class="cell-icon">👶</text>
                     </template>
-                </nut-cell>
-                <nut-cell
+                </wd-cell>
+                <wd-cell
                     title="家庭管理"
                     desc="成员协作"
                     is-link
@@ -53,8 +53,8 @@
                     <template #icon>
                         <text class="cell-icon">👨‍👩‍👧‍👦</text>
                     </template>
-                </nut-cell>
-                <nut-cell
+                </wd-cell>
+                <wd-cell
                     title="疫苗提醒"
                     desc="接种计划"
                     is-link
@@ -63,15 +63,15 @@
                     <template #icon>
                         <text class="cell-icon">💉</text>
                     </template>
-                </nut-cell>
-            </nut-cell-group>
+                </wd-cell>
+            </wd-cell-group>
         </view>
 
         <!-- 数据管理 -->
         <view class="section">
             <view class="section-title">数据管理</view>
-            <nut-cell-group>
-                <nut-cell
+            <wd-cell-group>
+                <wd-cell
                     title="数据导出"
                     desc="导出记录数据"
                     is-link
@@ -80,8 +80,8 @@
                     <template #icon>
                         <text class="cell-icon">📊</text>
                     </template>
-                </nut-cell>
-                <nut-cell
+                </wd-cell>
+                <wd-cell
                     title="数据导入"
                     desc="从剪贴板导入"
                     is-link
@@ -90,8 +90,8 @@
                     <template #icon>
                         <text class="cell-icon">📥</text>
                     </template>
-                </nut-cell>
-                <nut-cell
+                </wd-cell>
+                <wd-cell
                     title="数据统计"
                     :desc="`共 ${totalRecords} 条记录`"
                     is-link
@@ -100,15 +100,15 @@
                     <template #icon>
                         <text class="cell-icon">📈</text>
                     </template>
-                </nut-cell>
-            </nut-cell-group>
+                </wd-cell>
+            </wd-cell-group>
         </view>
 
         <!-- 设置 -->
         <view class="section">
             <view class="section-title">设置</view>
-            <nut-cell-group>
-                <nut-cell
+            <wd-cell-group>
+                <wd-cell
                     title="消息提醒设置"
                     desc="管理订阅消息"
                     is-link
@@ -117,25 +117,25 @@
                     <template #icon>
                         <text class="cell-icon">🔔</text>
                     </template>
-                </nut-cell>
-                <nut-cell title="关于我们" is-link @click="showAbout">
+                </wd-cell>
+                <wd-cell title="关于我们" is-link @click="showAbout">
                     <template #icon>
                         <text class="cell-icon">ℹ️</text>
                     </template>
-                </nut-cell>
-                <nut-cell title="清除缓存" is-link @click="clearCache">
+                </wd-cell>
+                <wd-cell title="清除缓存" is-link @click="clearCache">
                     <template #icon>
                         <text class="cell-icon">🗑️</text>
                     </template>
-                </nut-cell>
-            </nut-cell-group>
+                </wd-cell>
+            </wd-cell-group>
         </view>
 
         <!-- 退出登录 -->
         <view v-if="isLoggedIn" class="logout-section">
-            <nut-button type="default" size="large" block @click="handleLogout">
+            <wd-button type="default" size="large" block @click="handleLogout">
                 退出登录
-            </nut-button>
+            </wd-button>
         </view>
 
         <!-- 版本信息 -->

@@ -2,10 +2,10 @@
   <view class="statistics-page">
     <!-- 时间范围选择 -->
     <view class="time-range">
-      <nut-tabs v-model="timeRange" size="large">
-        <nut-tab-pane title="本周" pane-key="week" />
-        <nut-tab-pane title="本月" pane-key="month" />
-      </nut-tabs>
+      <wd-tabs v-model="timeRange">
+        <wd-tab title="本周" name="week" />
+        <wd-tab title="本月" name="month" />
+      </wd-tabs>
     </view>
 
     <!-- 未登录提示 -->
@@ -245,7 +245,7 @@ import * as diaperApi from '@/api/diaper'
 import * as growthApi from '@/api/growth'
 
 // 时间范围
-const timeRange = ref<'week' | 'month'>('week')
+const timeRange = ref<string>('week')
 
 // 获取时间范围
 const getTimeRange = () => {

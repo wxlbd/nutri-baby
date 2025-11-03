@@ -1,13 +1,8 @@
 <template>
-    <!-- 自定义导航栏 - 与胶囊按钮对称对齐 -->
-    <view class="navbar-wrapper" :style="{ paddingTop: statusBarHeight * 2 + 'rpx' }">
-        <view
-            class="navbar-content"
-            :style="{
-                height: menuButtonHeight * 2 + 18 + 'rpx'
-            }"
-        >
-            <!-- 左侧宝宝信息 - 对齐胶囊位置 -->
+    
+
+      <wd-navbar fixed placeholder title="今日概览" left-arrow safeAreaInsetTop>
+        <template #left>
             <view
                 class="baby-info"
                 @click="goToBabyList"
@@ -35,7 +30,7 @@
                         <text class="baby-name">{{ currentBaby.name }}</text>
                         <text class="baby-age">{{ babyAge }}</text>
                     </view>
-                    <nut-icon
+                    <wd-icon
                         name="right"
                         size="12"
                         color="#999"
@@ -46,27 +41,11 @@
                     <text>添加宝宝</text>
                 </view>
             </view>
-
-            <!-- 中间标题 -->
-            <view class="navbar-title">
-                <text>今日概览</text>
-            </view>
-
-            <!-- 右侧占位符（与胶囊等宽） -->
-            <view
-                class="navbar-right"
-                :style="{
-                    width: menuButtonWidth * 2 + 'rpx',
-                    height: menuButtonHeight * 2 + 'rpx',
-                }"
-            ></view>
-        </view>
-    </view>
-    <view class="index-page" :style="{ paddingTop: navbarTotalHeight - 8 + 'rpx' }">
-      
-
+        </template>
+      </wd-navbar>
+    <view class="index-page">
         <!-- 页面内容 -->
-        <view class="page-content">
+        <view class="page-content" >
             <!-- 游客模式提示横幅 -->
             <view v-if="!isLoggedIn" class="guest-banner">
                 <view class="banner-content">
@@ -74,9 +53,9 @@
                         <text class="banner-title">欢迎使用宝宝喂养日志</text>
                         <text class="banner-desc">登录后记录您的宝宝成长数据</text>
                     </view>
-                    <nut-button size="small" type="primary" @click="goToLogin">
+                    <wd-button size="small" type="primary" @click="goToLogin">
                         立即登录
-                    </nut-button>
+                    </wd-button>
                 </view>
             </view>
 
@@ -151,7 +130,7 @@
                     </view>
                     <view class="header-right">
                         <text class="view-all">查看全部</text>
-                        <nut-icon name="right" size="14" />
+                        <wd-icon name="right" size="14" />
                     </view>
                 </view>
                 <view class="vaccine-list">
@@ -185,7 +164,7 @@
                 <view class="action-title">快捷记录</view>
                 <view class="action-buttons">
                     <view class="button-row">
-                        <nut-button
+                        <wd-button
                             type="primary"
                             size="large"
                             @click="handleFeeding"
@@ -194,8 +173,8 @@
                                 <text class="icon">🍼</text>
                                 <text>喂养</text>
                             </view>
-                        </nut-button>
-                        <nut-button
+                        </wd-button>
+                        <wd-button
                             type="success"
                             size="large"
                             @click="handleDiaper"
@@ -204,10 +183,10 @@
                                 <text class="icon">🧷</text>
                                 <text>换尿布</text>
                             </view>
-                        </nut-button>
+                        </wd-button>
                     </view>
                     <view class="button-row">
-                        <nut-button
+                        <wd-button
                             type="info"
                             size="large"
                             @click="handleSleep"
@@ -216,8 +195,8 @@
                                 <text class="icon">💤</text>
                                 <text>睡觉</text>
                             </view>
-                        </nut-button>
-                        <nut-button
+                        </wd-button>
+                        <wd-button
                             type="warning"
                             size="large"
                             @click="handleGrowth"
@@ -226,7 +205,7 @@
                                 <text class="icon">📏</text>
                                 <text>成长</text>
                             </view>
-                        </nut-button>
+                        </wd-button>
                     </view>
                 </view>
             </view>
@@ -869,6 +848,7 @@ $spacing: 20rpx; // 统一间距
     // padding-top 由内联样式动态设置
     min-height: 100vh;
     background: #f5f5f5;
+    padding-top: 20rpx;
 }
 
 // 页面内容区域 - 修复布局
