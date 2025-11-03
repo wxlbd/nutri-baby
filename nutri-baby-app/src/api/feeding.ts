@@ -3,6 +3,7 @@
  * 职责: 纯 API 调用,无状态,无副作用
  */
 import { get, post, put, del } from '@/utils/request'
+import type { FeedingDetail } from '@/types'
 
 // ============ 类型定义 ============
 
@@ -15,9 +16,10 @@ export interface FeedingRecordResponse {
   feedingType: 'breast' | 'bottle' | 'food'
   amount?: number
   duration?: number
-  detail: any
+  detail: FeedingDetail // 强类型 Detail
   note?: string
   feedingTime: number
+  actualCompleteTime?: number // 实际喂养完成时间戳(毫秒)
   createBy: string
   createTime: number
 }
@@ -40,9 +42,10 @@ export interface CreateFeedingRecordRequest {
   feedingType: 'breast' | 'bottle' | 'food'
   amount?: number
   duration?: number
-  detail: any
+  detail: FeedingDetail // 强类型 Detail
   note?: string
   feedingTime: number
+  actualCompleteTime?: number // 实际喂养完成时间戳(毫秒)，用于准确计算提醒时间
   // 新增：用户自定义提醒间隔
   reminderInterval?: number // 提醒间隔(分钟)
 }

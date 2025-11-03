@@ -10,9 +10,9 @@
     <view class="section">
       <view class="section-title">协作者角色</view>
       <wd-radio-group v-model="selectedRole" direction="horizontal">
-        <wd-radio label="admin">管理员</wd-radio>
-        <wd-radio label="editor">编辑者</wd-radio>
-        <wd-radio label="viewer">查看者</wd-radio>
+        <wd-radio value="admin">管理员</wd-radio>
+        <wd-radio value="editor">编辑者</wd-radio>
+        <wd-radio value="viewer">查看者</wd-radio>
       </wd-radio-group>
       <view class="role-desc">
         <text v-if="selectedRole === 'admin'">可管理宝宝信息、邀请/移除协作者</text>
@@ -25,20 +25,12 @@
     <view class="section">
       <view class="section-title">访问权限</view>
       <wd-radio-group v-model="accessType" direction="horizontal">
-        <wd-radio label="permanent">永久</wd-radio>
-        <wd-radio label="temporary">临时</wd-radio>
+        <wd-radio value="permanent">永久</wd-radio>
+        <wd-radio value="temporary">临时</wd-radio>
       </wd-radio-group>
 
       <!-- 临时权限时显示过期时间选择框 -->
-      <view v-if="accessType === 'temporary'" class="expire-time">
-        <view class="time-selector" @click="showDatetimePickerModal = true">
-          <text class="time-label">过期时间</text>
-          <text class="time-value">{{ formatDateTime(expiresDate) }}</text>
-          <view class="time-icon">
-            <text>›</text>
-          </view>
-        </view>
-      </view>
+      <wd-datetime-picker v-model="expiresDate" type="datetime" :min-date="minDate" :max-date="maxDate" />
     </view>
 
     <!-- 生成邀请按钮 -->
