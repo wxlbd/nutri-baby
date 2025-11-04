@@ -138,3 +138,145 @@ func (s *SleepRecordService) GetSleepRecords(ctx context.Context, openID string,
 
 	return result, total, nil
 }
+
+// GetSleepRecordById 根据ID获取单条睡眠记录
+func (s *SleepRecordService) GetSleepRecordById(ctx context.Context, openID, recordID string) (*dto.SleepRecordDTO, error) {
+	// 先获取记录
+	record, err := s.sleepRecordRepo.FindByID(ctx, recordID)
+	if err != nil {
+		s.logger.Error("获取睡眠记录失败",
+			zap.String("recordID", recordID),
+			zap.Error(err))
+		return nil, err
+	}
+
+	// 验证用户是否有权限访问该宝宝的记录
+	if err := s.CheckBabyAccess(ctx, record.BabyID, openID); err != nil {
+		return nil, err
+	}
+
+	endTime := int64(0)
+	if record.EndTime != nil {
+		endTime = *record.EndTime
+	}
+
+	duration := 0
+	if record.Duration != nil {
+		duration = *record.Duration
+	}
+
+	return &dto.SleepRecordDTO{
+		RecordID:   record.RecordID,
+		BabyID:     record.BabyID,
+		StartTime:  record.StartTime,
+		EndTime:    endTime,
+		Duration:   duration,
+		Quality:    record.Type,
+		Note:       "",
+		CreateBy:   record.CreateBy,
+		CreateTime: record.CreateTime,
+	}, nil
+}
+
+// UpdateSleepRecord 更新睡眠记录
+func (s *SleepRecordService) UpdateSleepRecord(ctx context.Context, openID, recordID string, req *dto.UpdateSleepRecordRequest) (*dto.SleepRecordDTO, error) {
+	// 先获取记录
+	record, err := s.sleepRecordRepo.FindByID(ctx, recordID)
+	if err != nil {
+		s.logger.Error("获取睡眠记录失败",
+			zap.String("recordID", recordID),
+			zap.Error(err))
+		return nil, err
+	}
+
+	// 验证权限
+	if err := s.CheckBabyAccess(ctx, record.BabyID, openID); err != nil {
+		return nil, err
+	}
+
+	// 更新字段 (只更新非nil字段)
+	now := time.Now().UnixMilli()
+	updated := false
+
+	if req.StartTime != nil && *req.StartTime != record.StartTime {
+		record.StartTime = *req.StartTime
+		updated = true
+	}
+
+	if req.EndTime != nil {
+		record.EndTime = req.EndTime
+		updated = true
+	}
+
+	if req.Duration != nil {
+		record.Duration = req.Duration
+		updated = true
+	}
+
+	if req.Quality != nil && *req.Quality != record.Type {
+		record.Type = *req.Quality
+		updated = true
+	}
+
+	if req.Note != nil {
+		// Note 字段在睡眠记录中不存储，因此这里不做更新
+		// 但仍然标记为已更新，以保持与其他服务的一致性
+		updated = true
+	}
+
+	// 如果没有更新任何字段,直接返回
+	if !updated {
+		s.logger.Info("没有更新任何字段",
+			zap.String("recordID", recordID))
+		return s.GetSleepRecordById(ctx, openID, recordID)
+	}
+
+	// 更新时间戳
+	record.UpdateTime = now
+
+	// 保存更新
+	if err := s.sleepRecordRepo.Update(ctx, record); err != nil {
+		s.logger.Error("更新睡眠记录失败",
+			zap.String("recordID", recordID),
+			zap.Error(err))
+		return nil, err
+	}
+
+	s.logger.Info("睡眠记录更新成功",
+		zap.String("recordID", record.RecordID),
+		zap.String("babyID", record.BabyID))
+
+	// 返回更新后的记录
+	return s.GetSleepRecordById(ctx, openID, recordID)
+}
+
+// DeleteSleepRecord 删除睡眠记录
+func (s *SleepRecordService) DeleteSleepRecord(ctx context.Context, openID, recordID string) error {
+	// 先获取记录
+	record, err := s.sleepRecordRepo.FindByID(ctx, recordID)
+	if err != nil {
+		s.logger.Error("获取睡眠记录失败",
+			zap.String("recordID", recordID),
+			zap.Error(err))
+		return err
+	}
+
+	// 验证权限
+	if err := s.CheckBabyAccess(ctx, record.BabyID, openID); err != nil {
+		return err
+	}
+
+	// 删除记录 (软删除)
+	if err := s.sleepRecordRepo.Delete(ctx, recordID); err != nil {
+		s.logger.Error("删除睡眠记录失败",
+			zap.String("recordID", recordID),
+			zap.Error(err))
+		return err
+	}
+
+	s.logger.Info("睡眠记录删除成功",
+		zap.String("recordID", recordID),
+		zap.String("babyID", record.BabyID))
+
+	return nil
+}

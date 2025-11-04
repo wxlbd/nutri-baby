@@ -252,3 +252,203 @@ func parseInt64(s string) int64 {
 	}
 	return val
 }
+
+// GetFeedingRecordById 获取单条喂养记录
+// @Router /feeding-records/:id [get]
+func (h *RecordHandler) GetFeedingRecordById(c *gin.Context) {
+	recordID := c.Param("id")
+	openID := c.GetString("openid")
+
+	record, err := h.feedingService.GetFeedingRecordById(c.Request.Context(), openID, recordID)
+	if err != nil {
+		response.Error(c, err)
+		return
+	}
+
+	response.Success(c, record)
+}
+
+// UpdateFeedingRecord 更新喂养记录
+// @Router /feeding-records/:id [put]
+func (h *RecordHandler) UpdateFeedingRecord(c *gin.Context) {
+	recordID := c.Param("id")
+	openID := c.GetString("openid")
+
+	var req dto.UpdateFeedingRecordRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.ErrorWithMessage(c, 1001, "参数错误: "+err.Error())
+		return
+	}
+
+	record, err := h.feedingService.UpdateFeedingRecord(c.Request.Context(), openID, recordID, &req)
+	if err != nil {
+		response.Error(c, err)
+		return
+	}
+
+	response.Success(c, record)
+}
+
+// DeleteFeedingRecord 删除喂养记录
+// @Router /feeding-records/:id [delete]
+func (h *RecordHandler) DeleteFeedingRecord(c *gin.Context) {
+	recordID := c.Param("id")
+	openID := c.GetString("openid")
+
+	if err := h.feedingService.DeleteFeedingRecord(c.Request.Context(), openID, recordID); err != nil {
+		response.Error(c, err)
+		return
+	}
+
+	response.Success(c, nil)
+}
+
+// GetSleepRecordById 获取单条睡眠记录
+// @Router /sleep-records/:id [get]
+func (h *RecordHandler) GetSleepRecordById(c *gin.Context) {
+	recordID := c.Param("id")
+	openID := c.GetString("openid")
+
+	record, err := h.sleepService.GetSleepRecordById(c.Request.Context(), openID, recordID)
+	if err != nil {
+		response.Error(c, err)
+		return
+	}
+
+	response.Success(c, record)
+}
+
+// UpdateSleepRecord 更新睡眠记录
+// @Router /sleep-records/:id [put]
+func (h *RecordHandler) UpdateSleepRecord(c *gin.Context) {
+	recordID := c.Param("id")
+	openID := c.GetString("openid")
+
+	var req dto.UpdateSleepRecordRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.ErrorWithMessage(c, 1001, "参数错误: "+err.Error())
+		return
+	}
+
+	record, err := h.sleepService.UpdateSleepRecord(c.Request.Context(), openID, recordID, &req)
+	if err != nil {
+		response.Error(c, err)
+		return
+	}
+
+	response.Success(c, record)
+}
+
+// DeleteSleepRecord 删除睡眠记录
+// @Router /sleep-records/:id [delete]
+func (h *RecordHandler) DeleteSleepRecord(c *gin.Context) {
+	recordID := c.Param("id")
+	openID := c.GetString("openid")
+
+	if err := h.sleepService.DeleteSleepRecord(c.Request.Context(), openID, recordID); err != nil {
+		response.Error(c, err)
+		return
+	}
+
+	response.Success(c, nil)
+}
+
+// GetDiaperRecordById 获取单条尿布记录
+// @Router /diaper-records/:id [get]
+func (h *RecordHandler) GetDiaperRecordById(c *gin.Context) {
+	recordID := c.Param("id")
+	openID := c.GetString("openid")
+
+	record, err := h.diaperService.GetDiaperRecordById(c.Request.Context(), openID, recordID)
+	if err != nil {
+		response.Error(c, err)
+		return
+	}
+
+	response.Success(c, record)
+}
+
+// UpdateDiaperRecord 更新尿布记录
+// @Router /diaper-records/:id [put]
+func (h *RecordHandler) UpdateDiaperRecord(c *gin.Context) {
+	recordID := c.Param("id")
+	openID := c.GetString("openid")
+
+	var req dto.UpdateDiaperRecordRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.ErrorWithMessage(c, 1001, "参数错误: "+err.Error())
+		return
+	}
+
+	record, err := h.diaperService.UpdateDiaperRecord(c.Request.Context(), openID, recordID, &req)
+	if err != nil {
+		response.Error(c, err)
+		return
+	}
+
+	response.Success(c, record)
+}
+
+// DeleteDiaperRecord 删除尿布记录
+// @Router /diaper-records/:id [delete]
+func (h *RecordHandler) DeleteDiaperRecord(c *gin.Context) {
+	recordID := c.Param("id")
+	openID := c.GetString("openid")
+
+	if err := h.diaperService.DeleteDiaperRecord(c.Request.Context(), openID, recordID); err != nil {
+		response.Error(c, err)
+		return
+	}
+
+	response.Success(c, nil)
+}
+
+// GetGrowthRecordById 获取单条成长记录
+// @Router /growth-records/:id [get]
+func (h *RecordHandler) GetGrowthRecordById(c *gin.Context) {
+	recordID := c.Param("id")
+	openID := c.GetString("openid")
+
+	record, err := h.growthService.GetGrowthRecordById(c.Request.Context(), openID, recordID)
+	if err != nil {
+		response.Error(c, err)
+		return
+	}
+
+	response.Success(c, record)
+}
+
+// UpdateGrowthRecord 更新成长记录
+// @Router /growth-records/:id [put]
+func (h *RecordHandler) UpdateGrowthRecord(c *gin.Context) {
+	recordID := c.Param("id")
+	openID := c.GetString("openid")
+
+	var req dto.UpdateGrowthRecordRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.ErrorWithMessage(c, 1001, "参数错误: "+err.Error())
+		return
+	}
+
+	record, err := h.growthService.UpdateGrowthRecord(c.Request.Context(), openID, recordID, &req)
+	if err != nil {
+		response.Error(c, err)
+		return
+	}
+
+	response.Success(c, record)
+}
+
+// DeleteGrowthRecord 删除成长记录
+// @Router /growth-records/:id [delete]
+func (h *RecordHandler) DeleteGrowthRecord(c *gin.Context) {
+	recordID := c.Param("id")
+	openID := c.GetString("openid")
+
+	if err := h.growthService.DeleteGrowthRecord(c.Request.Context(), openID, recordID); err != nil {
+		response.Error(c, err)
+		return
+	}
+
+	response.Success(c, nil)
+}

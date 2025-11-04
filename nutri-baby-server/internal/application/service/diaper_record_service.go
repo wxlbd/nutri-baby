@@ -117,3 +117,127 @@ func (s *DiaperRecordService) GetDiaperRecords(ctx context.Context, openID strin
 
 	return result, total, nil
 }
+
+// GetDiaperRecordById 根据ID获取单条尿布记录
+func (s *DiaperRecordService) GetDiaperRecordById(ctx context.Context, openID, recordID string) (*dto.DiaperRecordDTO, error) {
+	// 先获取记录
+	record, err := s.diaperRecordRepo.FindByID(ctx, recordID)
+	if err != nil {
+		s.logger.Error("获取尿布记录失败",
+			zap.String("recordID", recordID),
+			zap.Error(err))
+		return nil, err
+	}
+
+	// 验证用户是否有权限访问该宝宝的记录
+	if err := s.CheckBabyAccess(ctx, record.BabyID, openID); err != nil {
+		return nil, err
+	}
+
+	note := ""
+	if record.Note != nil {
+		note = *record.Note
+	}
+
+	return &dto.DiaperRecordDTO{
+		RecordID:   record.RecordID,
+		BabyID:     record.BabyID,
+		DiaperType: record.Type,
+		Note:       note,
+		ChangeTime: record.Time,
+		CreateBy:   record.CreateBy,
+		CreateTime: record.CreateTime,
+	}, nil
+}
+
+// UpdateDiaperRecord 更新尿布记录
+func (s *DiaperRecordService) UpdateDiaperRecord(ctx context.Context, openID, recordID string, req *dto.UpdateDiaperRecordRequest) (*dto.DiaperRecordDTO, error) {
+	// 先获取记录
+	record, err := s.diaperRecordRepo.FindByID(ctx, recordID)
+	if err != nil {
+		s.logger.Error("获取尿布记录失败",
+			zap.String("recordID", recordID),
+			zap.Error(err))
+		return nil, err
+	}
+
+	// 验证权限
+	if err := s.CheckBabyAccess(ctx, record.BabyID, openID); err != nil {
+		return nil, err
+	}
+
+	// 更新字段 (只更新非nil字段)
+	now := time.Now().UnixMilli()
+	updated := false
+
+	if req.DiaperType != nil && *req.DiaperType != record.Type {
+		record.Type = *req.DiaperType
+		updated = true
+	}
+
+	if req.ChangeTime != nil && *req.ChangeTime != record.Time {
+		record.Time = *req.ChangeTime
+		updated = true
+	}
+
+	if req.Note != nil {
+		record.Note = req.Note
+		updated = true
+	}
+
+	// 如果没有更新任何字段,直接返回
+	if !updated {
+		s.logger.Info("没有更新任何字段",
+			zap.String("recordID", recordID))
+		return s.GetDiaperRecordById(ctx, openID, recordID)
+	}
+
+	// 更新时间戳
+	record.UpdateTime = now
+
+	// 保存更新
+	if err := s.diaperRecordRepo.Update(ctx, record); err != nil {
+		s.logger.Error("更新尿布记录失败",
+			zap.String("recordID", recordID),
+			zap.Error(err))
+		return nil, err
+	}
+
+	s.logger.Info("尿布记录更新成功",
+		zap.String("recordID", record.RecordID),
+		zap.String("babyID", record.BabyID))
+
+	// 返回更新后的记录
+	return s.GetDiaperRecordById(ctx, openID, recordID)
+}
+
+// DeleteDiaperRecord 删除尿布记录
+func (s *DiaperRecordService) DeleteDiaperRecord(ctx context.Context, openID, recordID string) error {
+	// 先获取记录
+	record, err := s.diaperRecordRepo.FindByID(ctx, recordID)
+	if err != nil {
+		s.logger.Error("获取尿布记录失败",
+			zap.String("recordID", recordID),
+			zap.Error(err))
+		return err
+	}
+
+	// 验证权限
+	if err := s.CheckBabyAccess(ctx, record.BabyID, openID); err != nil {
+		return err
+	}
+
+	// 删除记录 (软删除)
+	if err := s.diaperRecordRepo.Delete(ctx, recordID); err != nil {
+		s.logger.Error("删除尿布记录失败",
+			zap.String("recordID", recordID),
+			zap.Error(err))
+		return err
+	}
+
+	s.logger.Info("尿布记录删除成功",
+		zap.String("recordID", recordID),
+		zap.String("babyID", record.BabyID))
+
+	return nil
+}

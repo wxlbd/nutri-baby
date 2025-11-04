@@ -150,3 +150,154 @@ func (s *GrowthRecordService) GetGrowthRecords(ctx context.Context, openID strin
 
 	return result, total, nil
 }
+
+// GetGrowthRecordById 根据ID获取单条生长记录
+func (s *GrowthRecordService) GetGrowthRecordById(ctx context.Context, openID, recordID string) (*dto.GrowthRecordDTO, error) {
+	// 先获取记录
+	record, err := s.growthRecordRepo.FindByID(ctx, recordID)
+	if err != nil {
+		s.logger.Error("获取生长记录失败",
+			zap.String("recordID", recordID),
+			zap.Error(err))
+		return nil, err
+	}
+
+	// 验证用户是否有权限访问该宝宝的记录
+	if err := s.CheckBabyAccess(ctx, record.BabyID, openID); err != nil {
+		return nil, err
+	}
+
+	note := ""
+	if record.Note != nil {
+		note = *record.Note
+	}
+
+	return &dto.GrowthRecordDTO{
+		RecordID:          record.RecordID,
+		BabyID:            record.BabyID,
+		Height:            record.Height,
+		Weight:            record.Weight,
+		HeadCircumference: record.HeadCircumference,
+		Note:              note,
+		MeasureTime:       record.Time,
+		CreateBy:          record.CreateBy,
+		CreateTime:        record.CreateTime,
+	}, nil
+}
+
+// UpdateGrowthRecord 更新生长记录
+func (s *GrowthRecordService) UpdateGrowthRecord(ctx context.Context, openID, recordID string, req *dto.UpdateGrowthRecordRequest) (*dto.GrowthRecordDTO, error) {
+	// 先获取记录
+	record, err := s.growthRecordRepo.FindByID(ctx, recordID)
+	if err != nil {
+		s.logger.Error("获取生长记录失败",
+			zap.String("recordID", recordID),
+			zap.Error(err))
+		return nil, err
+	}
+
+	// 验证权限
+	if err := s.CheckBabyAccess(ctx, record.BabyID, openID); err != nil {
+		return nil, err
+	}
+
+	// 更新字段 (只更新非nil字段)
+	now := time.Now().UnixMilli()
+	updated := false
+
+	if req.Height != nil {
+		record.Height = req.Height
+		updated = true
+	}
+
+	if req.Weight != nil {
+		record.Weight = req.Weight
+		updated = true
+	}
+
+	if req.HeadCircumference != nil {
+		record.HeadCircumference = req.HeadCircumference
+		updated = true
+	}
+
+	if req.MeasureTime != nil && *req.MeasureTime != record.Time {
+		record.Time = *req.MeasureTime
+		updated = true
+	}
+
+	if req.Note != nil {
+		record.Note = req.Note
+		updated = true
+	}
+
+	// 如果没有更新任何字段,直接返回
+	if !updated {
+		s.logger.Info("没有更新任何字段",
+			zap.String("recordID", recordID))
+		return s.GetGrowthRecordById(ctx, openID, recordID)
+	}
+
+	// 更新时间戳
+	record.UpdateTime = now
+
+	// 保存更新
+	if err := s.growthRecordRepo.Update(ctx, record); err != nil {
+		s.logger.Error("更新生长记录失败",
+			zap.String("recordID", recordID),
+			zap.Error(err))
+		return nil, err
+	}
+
+	// 如果更新了身高体重,同时更新宝宝档案中的身高体重
+	if req.Height != nil || req.Weight != nil {
+		baby, err := s.babyRepo.FindByID(ctx, record.BabyID)
+		if err == nil {
+			if req.Height != nil {
+				baby.Height = *req.Height
+			}
+			if req.Weight != nil {
+				baby.Weight = *req.Weight
+			}
+			baby.UpdateTime = now
+			_ = s.babyRepo.Update(ctx, baby)
+		}
+	}
+
+	s.logger.Info("生长记录更新成功",
+		zap.String("recordID", record.RecordID),
+		zap.String("babyID", record.BabyID))
+
+	// 返回更新后的记录
+	return s.GetGrowthRecordById(ctx, openID, recordID)
+}
+
+// DeleteGrowthRecord 删除生长记录
+func (s *GrowthRecordService) DeleteGrowthRecord(ctx context.Context, openID, recordID string) error {
+	// 先获取记录
+	record, err := s.growthRecordRepo.FindByID(ctx, recordID)
+	if err != nil {
+		s.logger.Error("获取生长记录失败",
+			zap.String("recordID", recordID),
+			zap.Error(err))
+		return err
+	}
+
+	// 验证权限
+	if err := s.CheckBabyAccess(ctx, record.BabyID, openID); err != nil {
+		return err
+	}
+
+	// 删除记录 (软删除)
+	if err := s.growthRecordRepo.Delete(ctx, recordID); err != nil {
+		s.logger.Error("删除生长记录失败",
+			zap.String("recordID", recordID),
+			zap.Error(err))
+		return err
+	}
+
+	s.logger.Info("生长记录删除成功",
+		zap.String("recordID", recordID),
+		zap.String("babyID", record.BabyID))
+
+	return nil
+}

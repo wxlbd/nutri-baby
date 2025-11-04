@@ -244,3 +244,33 @@ type RecordListQuery struct {
 	Page      int    `form:"page"`
 	PageSize  int    `form:"pageSize"`
 }
+
+// ============ 更新记录 DTO ============
+
+// UpdateSleepRecordRequest 更新睡眠记录请求
+// 所有字段使用指针类型，支持部分更新（只更新非nil字段）
+type UpdateSleepRecordRequest struct {
+	StartTime *int64  `json:"startTime,omitempty"`
+	EndTime   *int64  `json:"endTime,omitempty"`
+	Duration  *int    `json:"duration,omitempty"`
+	Quality   *string `json:"quality,omitempty" binding:"omitempty,oneof=good fair poor"`
+	Note      *string `json:"note,omitempty"`
+}
+
+// UpdateDiaperRecordRequest 更新尿布记录请求
+// 所有字段使用指针类型，支持部分更新（只更新非nil字段）
+type UpdateDiaperRecordRequest struct {
+	DiaperType *string `json:"diaperType,omitempty" binding:"omitempty,oneof=pee poop both"`
+	Note       *string `json:"note,omitempty"`
+	ChangeTime *int64  `json:"changeTime,omitempty"`
+}
+
+// UpdateGrowthRecordRequest 更新生长记录请求
+// 所有字段使用指针类型，支持部分更新（只更新非nil字段）
+type UpdateGrowthRecordRequest struct {
+	Height            *float64 `json:"height,omitempty"`
+	Weight            *float64 `json:"weight,omitempty"`
+	HeadCircumference *float64 `json:"headCircumference,omitempty"`
+	Note              *string  `json:"note,omitempty"`
+	MeasureTime       *int64   `json:"measureTime,omitempty"`
+}
