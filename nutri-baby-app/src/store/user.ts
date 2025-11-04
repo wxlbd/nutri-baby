@@ -244,6 +244,34 @@ export async function fetchUserInfo(): Promise<UserInfo> {
 }
 
 /**
+ * 更新用户信息
+ *
+ * API: PUT /auth/user-info
+ *
+ * ⚠️ 向后兼容: 函数签名保持不变
+ */
+export async function updateUserInfo(nickName: string, avatarUrl: string): Promise<UserInfo> {
+  try {
+    const response = await authApi.apiUpdateUserInfo({ nickName, avatarUrl })
+
+    setUserInfo(response)
+    uni.showToast({
+      title: '更新成功',
+      icon: 'success',
+    })
+
+    return response
+  } catch (error: any) {
+    console.error('update user info error:', error)
+    uni.showToast({
+      title: error.message || '更新失败',
+      icon: 'none',
+    })
+    throw error
+  }
+}
+
+/**
  * 设置默认宝宝
  *
  * API: PUT /auth/default-baby

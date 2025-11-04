@@ -10,7 +10,7 @@ database:
   port: 5432
   user: postgres
   password: 3f2z5C2zwaPDsmLG
-  dbname: postgres
+  dbname: test
   sslmode: disable
   max_open_conns: 100
   max_idle_conns: 10

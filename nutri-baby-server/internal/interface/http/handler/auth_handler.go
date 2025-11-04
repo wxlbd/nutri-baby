@@ -85,3 +85,24 @@ func (h *AuthHandler) SetDefaultBaby(c *gin.Context) {
 
 	response.Success(c, nil)
 }
+
+// UpdateUserInfo 更新用户信息
+// @Router /auth/user-info [put]
+func (h *AuthHandler) UpdateUserInfo(c *gin.Context) {
+	// 从context获取当前用户openid
+	openID := c.GetString("openid")
+
+	var req dto.UpdateUserInfoRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.ErrorWithMessage(c, 1001, "参数错误: "+err.Error())
+		return
+	}
+
+	userInfo, err := h.authService.UpdateUserInfo(c.Request.Context(), openID, &req)
+	if err != nil {
+		response.Error(c, err)
+		return
+	}
+
+	response.Success(c, userInfo)
+}

@@ -34,3 +34,9 @@ type RefreshTokenResponse struct {
 type SetDefaultBabyRequest struct {
 	BabyID string `json:"babyId" binding:"required"`
 }
+
+// UpdateUserInfoRequest 更新用户信息请求
+type UpdateUserInfoRequest struct {
+	NickName  string `json:"nickName" binding:"required"`
+	AvatarURL string `json:"avatarUrl"`
+}
