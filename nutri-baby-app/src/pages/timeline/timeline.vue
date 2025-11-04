@@ -16,73 +16,84 @@
 
     <!-- 记录列表 -->
     <view class="timeline-list">
-      <view v-if="groupedRecords.length === 0" class="empty-state">
-        <wd-status-tip :description="emptyDescription" />
-      </view>
+      <view v-if="isLoggedIn">
+        <view v-if="groupedRecords.length === 0" class="empty-state">
+          <wd-status-tip
+            :description="emptyDescription"
+            tip="当前时间段暂无数据"
+          />
+        </view>
 
-      <view v-else>
-        <view
-          v-for="group in groupedRecords"
-          :key="group.date"
-          class="date-group"
-        >
-          <!-- 日期标题 -->
-          <view class="date-header">{{ group.dateText }}</view>
-
-          <!-- 记录列表 -->
+        <view v-else>
           <view
-            v-for="record in group.records"
-            :key="record.id"
-            class="record-item"
-            :class="`record-${record.type}`"
+            v-for="group in groupedRecords"
+            :key="group.date"
+            class="date-group"
           >
-            <!-- 时间轴圆点 -->
-            <view class="timeline-dot" :class="`dot-${record.type}`"></view>
-            <view class="timeline-line"></view>
+            <!-- 日期标题 -->
+            <view class="date-header">{{ group.dateText }}</view>
 
-            <!-- 记录内容 使用 WotUI Card -->
-            <wd-card custom-class="record-card">
-              <template #title>
-                <view class="record-header">
-                  <view class="record-type">
-                    <text class="type-icon">{{ record.icon }}</text>
-                    <text class="type-name">{{ record.typeName }}</text>
+            <!-- 记录列表 -->
+            <view
+              v-for="record in group.records"
+              :key="record.id"
+              class="record-item"
+              :class="`record-${record.type}`"
+            >
+              <!-- 时间轴圆点 -->
+              <view class="timeline-dot" :class="`dot-${record.type}`"></view>
+              <view class="timeline-line"></view>
+
+              <!-- 记录内容 使用 WotUI Card -->
+              <wd-card custom-class="record-card">
+                <template #title>
+                  <view class="record-header">
+                    <view class="record-type">
+                      <text class="type-icon">{{ record.icon }}</text>
+                      <text class="type-name">{{ record.typeName }}</text>
+                    </view>
+                    <text class="record-time">{{ record.timeText }}</text>
                   </view>
-                  <text class="record-time">{{ record.timeText }}</text>
-                </view>
-              </template>
+                </template>
 
-              <!-- 详细信息显示 -->
-              <view class="record-details">
-                <view class="detail-line">{{ record.detail }}</view>
-                <!-- 备注信息 -->
-                <view v-if="record.originalRecord.note" class="detail-line note">
-                  <text class="label">备注:</text>
-                  <text class="value">{{ record.originalRecord.note }}</text>
+                <!-- 详细信息显示 -->
+                <view class="record-details">
+                  <view class="detail-line">{{ record.detail }}</view>
+                  <!-- 备注信息 -->
+                  <view
+                    v-if="record.originalRecord.note"
+                    class="detail-line note"
+                  >
+                    <text class="label">备注:</text>
+                    <text class="value">{{ record.originalRecord.note }}</text>
+                  </view>
                 </view>
-              </view>
 
-              <template #footer>
-                <view class="record-actions">
-                  <wd-button
-                    size="small"
-                    type="primary"
-                    @click="editRecord(record)"
-                  >
-                    编辑
-                  </wd-button>
-                  <wd-button
-                    size="small"
-                    type="error"
-                    @click="deleteRecord(record)"
-                  >
-                    删除
-                  </wd-button>
-                </view>
-              </template>
-            </wd-card>
+                <template #footer>
+                  <view class="record-actions">
+                    <wd-button
+                      size="small"
+                      type="primary"
+                      @click="editRecord(record)"
+                    >
+                      编辑
+                    </wd-button>
+                    <wd-button
+                      size="small"
+                      type="error"
+                      @click="deleteRecord(record)"
+                    >
+                      删除
+                    </wd-button>
+                  </view>
+                </template>
+              </wd-card>
+            </view>
           </view>
         </view>
+      </view>
+      <view v-else>
+        <wd-status-tip description="请先登录" tip="登录后查看数据..." />
       </view>
     </view>
   </view>
@@ -151,7 +162,7 @@ const allRecords = computed<TimelineRecord[]>(() => {
       if (record.feedingType === "breast") {
         detail = `母乳喂养 ${formatDuration(record.duration || 0)}`;
         const feedingDetail = record.detail;
-        if (feedingDetail && feedingDetail.type === 'breast') {
+        if (feedingDetail && feedingDetail.type === "breast") {
           const breastSide = feedingDetail.side;
           if (breastSide === "left") detail += " (左侧)";
           else if (breastSide === "right") detail += " (右侧)";
@@ -159,15 +170,16 @@ const allRecords = computed<TimelineRecord[]>(() => {
         }
       } else if (record.feedingType === "bottle") {
         const feedingDetail = record.detail;
-        if (feedingDetail && feedingDetail.type === 'bottle') {
+        if (feedingDetail && feedingDetail.type === "bottle") {
           detail = `奶瓶喂养 ${record.amount}${feedingDetail.unit || "ml"}`;
-          detail += feedingDetail.bottleType === "formula" ? " (配方奶)" : " (母乳)";
+          detail +=
+            feedingDetail.bottleType === "formula" ? " (配方奶)" : " (母乳)";
         } else {
           detail = `奶瓶喂养 ${record.amount}ml`;
         }
       } else {
         const feedingDetail = record.detail;
-        if (feedingDetail && feedingDetail.type === 'food') {
+        if (feedingDetail && feedingDetail.type === "food") {
           detail = `辅食: ${feedingDetail.foodName || "未知"}`;
         } else {
           detail = "辅食";
@@ -199,7 +211,8 @@ const allRecords = computed<TimelineRecord[]>(() => {
       const parts: string[] = [];
       if (record.height) parts.push(`身高 ${record.height}cm`);
       if (record.weight) parts.push(`体重 ${record.weight}kg`);
-      if (record.headCircumference) parts.push(`头围 ${record.headCircumference}cm`);
+      if (record.headCircumference)
+        parts.push(`头围 ${record.headCircumference}cm`);
       detail = parts.join(", ");
     }
 
