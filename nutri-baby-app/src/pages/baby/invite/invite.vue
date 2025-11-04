@@ -25,14 +25,14 @@
       <!-- 设置表单 -->
       <wd-cell-group border>
         <wd-cell title="协作者角色">
-          <wd-radio-group v-model="selectedRole">
+          <wd-radio-group v-model="selectedRole" inline>
             <wd-radio value="editor">编辑者</wd-radio>
             <wd-radio value="viewer">查看者</wd-radio>
           </wd-radio-group>
         </wd-cell>
 
         <wd-cell title="访问权限">
-          <wd-radio-group v-model="accessType">
+          <wd-radio-group v-model="accessType" inline>
             <wd-radio value="permanent">永久</wd-radio>
             <wd-radio value="temporary">临时</wd-radio>
           </wd-radio-group>
