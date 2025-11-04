@@ -20,18 +20,6 @@ type UserRepository interface {
 	UpdateDefaultBabyID(ctx context.Context, openID string, babyID string) error
 }
 
-// InvitationRepository 邀请码仓储接口
-type InvitationRepository interface {
-	// Create 创建邀请码
-	Create(ctx context.Context, invitation *entity.Invitation) error
-	// FindByCode 根据邀请码查找
-	FindByCode(ctx context.Context, code string) (*entity.Invitation, error)
-	// Delete 删除邀请码
-	Delete(ctx context.Context, code string) error
-	// DeleteExpired 删除过期邀请码
-	DeleteExpired(ctx context.Context) error
-}
-
 // BabyRepository 宝宝仓储接口 (去家庭化架构)
 type BabyRepository interface {
 	// Create 创建宝宝

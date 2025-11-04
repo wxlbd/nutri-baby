@@ -56,9 +56,6 @@ func NewDatabase(cfg *config.Config) (*gorm.DB, error) {
 func autoMigrate(db *gorm.DB) error {
 	return db.AutoMigrate(
 		&entity.User{},
-		// &entity.Family{}, // 已废弃：去家庭化架构
-		// &entity.FamilyMember{}, // 已废弃：去家庭化架构
-		// &entity.Invitation{}, // 已废弃：去家庭化架构
 		&entity.Baby{},
 		&entity.BabyCollaborator{}, // 去家庭化架构：宝宝协作者
 		&entity.BabyInvitation{},   // 去家庭化架构：宝宝邀请(微信分享/二维码)
