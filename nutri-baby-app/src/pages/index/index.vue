@@ -33,6 +33,21 @@
             <wd-icon name="right" size="12" color="#999" class="arrow-icon" />
           </view>
         </view>
+        <!-- 没有宝宝时显示录入按钮 -->
+        <view
+          v-else
+          class="add-baby-button"
+          @click="handleAddBaby"
+          :style="{
+            maxWidth: '360rpx',
+            height: menuButtonHeight * 2 + 'rpx',
+          }"
+        >
+          <view class="button-content">
+            <wd-icon name="plus" size="18" color="#667eea" class="plus-icon" />
+            <text class="button-text">添加宝宝</text>
+          </view>
+        </view>
       </template>
     </wd-navbar>
     <view class="index-page">
@@ -62,7 +77,7 @@
                 mode="aspectFill"
               />
               <view class="stat-content">
-                <view class="stat-icon">🍼</view>
+                <image class="stat-icon" src="/static/naiping.svg" mode="aspectFit" />
                 <view class="stat-value">{{ todayStats.totalMilk }}ml</view>
                 <view class="stat-label">奶瓶奶量</view>
               </view>
@@ -74,7 +89,7 @@
                 mode="aspectFill"
               />
               <view class="stat-content">
-                <view class="stat-icon">🤱</view>
+                <image class="stat-icon" src="/static/baomabaozhuoyinger.svg" mode="aspectFit" />
                 <view class="stat-value"
                   >{{ todayStats.breastfeedingCount }}次</view
                 >
@@ -88,7 +103,7 @@
                 mode="aspectFill"
               />
               <view class="stat-content">
-                <view class="stat-icon">💤</view>
+                <image class="stat-icon" src="/static/yingershuijue.svg" mode="aspectFit" />
                 <view class="stat-value">{{
                   formatDuration(todayStats.sleepDuration)
                 }}</view>
@@ -102,7 +117,7 @@
                 mode="aspectFill"
               />
               <view class="stat-content">
-                <view class="stat-icon">🧷</view>
+                <image class="stat-icon" src="/static/niaobushi.svg" mode="aspectFit" />
                 <view class="stat-value">{{ todayStats.diaperCount }}次</view>
                 <view class="stat-label">换尿布</view>
               </view>
@@ -168,13 +183,13 @@
             <view class="button-row">
               <wd-button type="primary" size="large" @click="handleFeeding">
                 <view class="button-content">
-                  <text class="icon">🍼</text>
+                  <image class="icon-img" src="/static/naiping.svg" mode="aspectFit" />
                   <text>喂养</text>
                 </view>
               </wd-button>
               <wd-button type="success" size="large" @click="handleDiaper">
                 <view class="button-content">
-                  <text class="icon">🧷</text>
+                  <image class="icon-img" src="/static/niaobushi.svg" mode="aspectFit" />
                   <text>换尿布</text>
                 </view>
               </wd-button>
@@ -182,13 +197,13 @@
             <view class="button-row">
               <wd-button type="info" size="large" @click="handleSleep">
                 <view class="button-content">
-                  <text class="icon">💤</text>
+                  <image class="icon-img" src="/static/yingershuijue.svg" mode="aspectFit" />
                   <text>睡觉</text>
                 </view>
               </wd-button>
               <wd-button type="warning" size="large" @click="handleGrowth">
                 <view class="button-content">
-                  <text class="icon">📏</text>
+                  <image class="icon-img" src="/static/growth.svg" mode="aspectFit" />
                   <text>成长</text>
                 </view>
               </wd-button>
@@ -257,6 +272,13 @@ const navbarTotalHeight = computed(() => {
 const goToBabyList = () => {
   uni.navigateTo({
     url: "/pages/baby/list/list",
+  });
+};
+
+// 添加宝宝
+const handleAddBaby = () => {
+  uni.navigateTo({
+    url: "/pages/baby/edit/edit",
   });
 };
 
@@ -465,24 +487,7 @@ const checkLoginAndBaby = async () => {
     console.log("[Index] 宝宝列表:", babies);
     console.log("[Index] 当前宝宝:", currentBaby.value);
 
-    // 4. 检查是否有宝宝 - 使用 babies 数组判断而不是 currentBaby
-    if (!babies || babies.length === 0) {
-      // 没有宝宝,跳转到添加宝宝页面
-      console.log("[Index] 没有宝宝,提示添加");
-      uni.showModal({
-        title: "提示",
-        content: "请先添加宝宝信息",
-        showCancel: false,
-        success: () => {
-          uni.navigateTo({
-            url: "/pages/baby/edit/edit",
-          });
-        },
-      });
-      return;
-    }
-
-    // 5. 有宝宝,加载今日数据
+    // 4. 有宝宝,加载今日数据
     if (currentBaby.value) {
       await loadTodayData();
     }
@@ -813,6 +818,45 @@ $spacing: 20rpx; // 统一间距
   color: #999;
 }
 
+// 添加宝宝按钮 - 对齐胶囊位置
+.add-baby-button {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  flex-shrink: 0;
+  min-width: 200rpx;
+  // 宽高由内联样式动态设置
+}
+
+.add-baby-button .button-content {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8rpx;
+  padding: 6rpx 16rpx;
+  background: #f5f7fa;
+  border-radius: 40rpx;
+  height: 100%;
+  max-width: 100%;
+  transition: all 0.3s ease;
+
+  &:active {
+    background: #eef1f7;
+    transform: scale(0.95);
+  }
+}
+
+.plus-icon {
+  flex-shrink: 0;
+}
+
+.button-text {
+  font-size: 26rpx;
+  font-weight: 500;
+  color: #667eea;
+  white-space: nowrap;
+}
+
 // 中间标题 - 居中显示
 .navbar-title {
   position: absolute;
@@ -947,7 +991,8 @@ $spacing: 20rpx; // 统一间距
 }
 
 .stat-icon {
-  font-size: 40rpx;
+  width: 80rpx;
+  height: 80rpx;
   margin-bottom: 12rpx;
 }
 
@@ -1124,6 +1169,11 @@ $spacing: 20rpx; // 统一间距
 
   .icon {
     font-size: 36rpx;
+  }
+
+  .icon-img {
+    width: 40rpx;
+    height: 40rpx;
   }
 }
 </style>
