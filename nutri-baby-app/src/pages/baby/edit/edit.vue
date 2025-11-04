@@ -7,14 +7,27 @@
       <!-- 基础信息 -->
       <wd-cell-group custom-class="group" title="基础信息" border>
         <!-- 宝宝头像 -->
-        <wd-cell title="宝宝头像" title-width="100px">
+        <wd-cell title="宝宝头像" title-width="200rpx">
           <view style="text-align: left">
-            <view v-if="formData.avatarUrl" style="margin-bottom: 12px">
-              <image :src="formData.avatarUrl" mode="aspectFill" style="width: 80px; height: 80px; border-radius: 8px" />
+            <view style="margin-bottom: 24rpx">
+              <!-- 用户上传的头像 -->
+              <image
+                v-if="formData.avatarUrl"
+                :src="formData.avatarUrl"
+                mode="aspectFill"
+                style="width: 160rpx; height: 160rpx; border-radius: 50%; object-fit: cover"
+              />
+              <!-- 默认头像 -->
+              <image
+                v-else
+                src="@/static/default.png"
+                mode="aspectFill"
+                style="width: 160rpx; height: 160rpx; border-radius: 50%; object-fit: cover"
+              />
             </view>
             <wd-button size="small" @click="chooseAvatar">
               <wd-icon name="photograph" size="16" />
-              选择头像
+              {{ formData.avatarUrl ? '更换头像' : '选择头像' }}
             </wd-button>
           </view>
         </wd-cell>
@@ -22,7 +35,7 @@
         <!-- 宝宝姓名 -->
         <wd-input
           label="宝宝姓名"
-          label-width="100px"
+          label-width="200rpx"
           :maxlength="20"
           show-word-limit
           prop="name"
@@ -35,7 +48,7 @@
         <!-- 小名昵称 -->
         <wd-input
           label="小名昵称"
-          label-width="100px"
+          label-width="200rpx"
           :maxlength="20"
           show-word-limit
           clearable
@@ -44,7 +57,7 @@
         />
 
         <!-- 性别 -->
-        <wd-cell title="性别" title-width="100px" prop="gender" center>
+        <wd-cell title="性别" title-width="200rpx" prop="gender" center>
           <view style="text-align: left">
             <wd-radio-group v-model="formData.gender" inline>
               <wd-radio value="male">
@@ -60,13 +73,10 @@
         <!-- 出生日期 -->
         <wd-datetime-picker
           label="出生日期"
-          label-width="100px"
+          label-width="200rpx"
           placeholder="请选择出生日期"
           prop="birthDate"
-          v-model="selectedDate"
           type="date"
-          :min-date="minDate"
-          :max-date="maxDate"
           @confirm="handleDateConfirm"
         />
       </wd-cell-group>
@@ -77,7 +87,7 @@
       <wd-button type="primary" size="large" @click="handleSubmit" block :loading="isSubmitting">
         {{ isEdit ? '保存更改' : '添加宝宝' }}
       </wd-button>
-      <wd-button v-if="isEdit" plain size="large" @click="handleCancel" block style="margin-top: 12px">
+      <wd-button v-if="isEdit" plain size="large" @click="handleCancel" block style="margin-top: 24rpx">
         取消
       </wd-button>
     </view>
@@ -121,9 +131,7 @@ const isEdit = ref(false)
 const editId = ref('')
 
 // 日期选择器
-const selectedDate = ref(new Date())
-const minDate = new Date(2020, 0, 1)
-const maxDate = new Date()
+const selectedDate = ref()
 
 // 提交状态
 const isSubmitting = ref(false)
@@ -183,8 +191,9 @@ const chooseAvatar = () => {
 
 // 日期确认
 const handleDateConfirm = (val: any) => {
-  const { selectedValue } = val
-  formData.value.birthDate = formatDate(new Date(selectedValue.join('-')).getTime(), 'YYYY-MM-DD')
+  const { value } = val
+  console.log('selectedValue:', value)
+  formData.value.birthDate = formatDate(value, 'YYYY-MM-DD')
 }
 
 // 提交表单
