@@ -62,35 +62,37 @@
 
         <!-- 操作按钮区域 -->
         <view class="card-actions" @click.stop>
-          <!-- 第一行按钮 -->
+          <!-- 邀请协作按钮（全宽） -->
+          <wd-button
+            size="small"
+            plain
+            type="primary"
+            class="full-width-btn"
+            @click="handleInvite(baby.babyId, baby.name)"
+          >
+            <wd-icon name="share" size="14" />
+            邀请协作
+          </wd-button>
+
+          <!-- 设为默认按钮（全宽，仅当非默认宝宝时显示） -->
+          <wd-button
+            v-if="baby.babyId !== userInfo?.defaultBabyId"
+            size="small"
+            plain
+            type="warning"
+            class="full-width-btn"
+            @click="handleSetDefault(baby.babyId, baby.name)"
+          >
+            <wd-icon name="star" size="14" />
+            设为默认
+          </wd-button>
+
+          <!-- 编辑和删除按钮（并排，各占50%） -->
           <view class="action-row">
             <wd-button
-              v-if="baby.babyId !== userInfo?.defaultBabyId"
               size="small"
               plain
               type="warning"
-              @click="handleSetDefault(baby.babyId, baby.name)"
-            >
-              <wd-icon name="star" size="14" />
-              设为默认
-            </wd-button>
-            <wd-button
-              size="small"
-              plain
-              type="primary"
-              @click="handleInvite(baby.babyId, baby.name)"
-            >
-              <wd-icon name="share" size="14" />
-              邀请协作
-            </wd-button>
-          </view>
-
-          <!-- 第二行按钮 -->
-          <view class="action-row">
-            <wd-button
-              size="small"
-              plain
-              type="info"
               @click="handleEdit(baby.babyId)"
             >
               <wd-icon name="edit" size="14" />
@@ -102,7 +104,7 @@
               type="danger"
               @click="handleDelete(baby.babyId)"
             >
-              <wd-icon name="del" size="14" />
+              <wd-icon name="delete-thin" size="14" />
               删除
             </wd-button>
           </view>
@@ -449,13 +451,43 @@ const handleDelete = (id: string) => {
   gap: 16rpx;
 }
 
-.action-row {
-  display: flex;
-  gap: 16rpx;
-  justify-content: space-between;
+.full-width-btn {
+  // 兼容不同组件库渲染类名，保证按钮能占满整行
+  :deep(.nut-button),
+  :deep(.wd-button) {
+    width: 100%;
+    height: 64rpx;
+    font-size: 26rpx;
+    border-radius: 12rpx;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    gap: 8rpx;
+    transition: all 0.2s;
 
-  :deep(.nut-button) {
-    flex: 1;
+    &:active {
+      transform: scale(0.96);
+    }
+
+    // 确保图标和文字垂直居中对齐
+    .nut-icon {
+      line-height: 1;
+      vertical-align: middle;
+    }
+  }
+}
+
+.action-row {
+  // 使用两列网格布局，保证两个按钮各占 50% 且与上方全宽按钮保持同宽
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  column-gap: 16rpx;
+  width: 100%;
+
+  :deep(.nut-button),
+  :deep(.wd-button) {
+    width: 100%;
     height: 64rpx;
     font-size: 26rpx;
     border-radius: 12rpx;
