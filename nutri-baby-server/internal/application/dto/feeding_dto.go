@@ -33,6 +33,19 @@ type FeedingRecordResponse struct {
 	UpdateTime         int64          `json:"updateTime"`
 }
 
+// UpdateFeedingRecordRequest 更新喂养记录请求
+// 所有字段使用指针类型，支持部分更新（只更新非nil字段）
+type UpdateFeedingRecordRequest struct {
+	FeedingType        *string        `json:"feedingType,omitempty" binding:"omitempty,oneof=breast bottle food"`
+	Amount             *int64         `json:"amount,omitempty"`
+	Duration           *int           `json:"duration,omitempty"`
+	Detail             map[string]any `json:"detail,omitempty"`
+	Note               *string        `json:"note,omitempty"`
+	FeedingTime        *int64         `json:"feedingTime,omitempty"`
+	ActualCompleteTime *int64         `json:"actualCompleteTime,omitempty"`
+	ReminderInterval   *int           `json:"reminderInterval,omitempty"`
+}
+
 // FeedingRecordsListResponse 喂养记录列表响应
 type FeedingRecordsListResponse struct {
 	Records  []*FeedingRecordResponse `json:"records"`

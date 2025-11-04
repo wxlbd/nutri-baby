@@ -101,6 +101,9 @@ func NewRouter(
 			{
 				feedingRecords.POST("", recordHandler.CreateFeedingRecord)
 				feedingRecords.GET("", recordHandler.GetFeedingRecords)
+				feedingRecords.GET("/:id", recordHandler.GetFeedingRecordById)
+				feedingRecords.PUT("/:id", recordHandler.UpdateFeedingRecord)
+				feedingRecords.DELETE("/:id", recordHandler.DeleteFeedingRecord)
 			}
 
 			// 睡眠记录
@@ -108,6 +111,9 @@ func NewRouter(
 			{
 				sleepRecords.POST("", recordHandler.CreateSleepRecord)
 				sleepRecords.GET("", recordHandler.GetSleepRecords)
+				sleepRecords.GET("/:id", recordHandler.GetSleepRecordById)
+				sleepRecords.PUT("/:id", recordHandler.UpdateSleepRecord)
+				sleepRecords.DELETE("/:id", recordHandler.DeleteSleepRecord)
 			}
 
 			// 尿布记录
@@ -115,6 +121,9 @@ func NewRouter(
 			{
 				diaperRecords.POST("", recordHandler.CreateDiaperRecord)
 				diaperRecords.GET("", recordHandler.GetDiaperRecords)
+				diaperRecords.GET("/:id", recordHandler.GetDiaperRecordById)
+				diaperRecords.PUT("/:id", recordHandler.UpdateDiaperRecord)
+				diaperRecords.DELETE("/:id", recordHandler.DeleteDiaperRecord)
 			}
 
 			// 生长记录
@@ -122,6 +131,9 @@ func NewRouter(
 			{
 				growthRecords.POST("", recordHandler.CreateGrowthRecord)
 				growthRecords.GET("", recordHandler.GetGrowthRecords)
+				growthRecords.GET("/:id", recordHandler.GetGrowthRecordById)
+				growthRecords.PUT("/:id", recordHandler.UpdateGrowthRecord)
+				growthRecords.DELETE("/:id", recordHandler.DeleteGrowthRecord)
 			}
 
 			// 时间线聚合接口

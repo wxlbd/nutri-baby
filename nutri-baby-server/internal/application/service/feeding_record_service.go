@@ -214,3 +214,200 @@ func (s *FeedingRecordService) GetFeedingRecords(ctx context.Context, openID str
 
 	return result, total, nil
 }
+
+// GetFeedingRecordById 根据ID获取单条喂养记录
+func (s *FeedingRecordService) GetFeedingRecordById(ctx context.Context, openID, recordID string) (*dto.FeedingRecordDTO, error) {
+	// 先获取记录
+	record, err := s.feedingRecordRepo.FindByID(ctx, recordID)
+	if err != nil {
+		s.logger.Error("获取喂养记录失败",
+			zap.String("recordID", recordID),
+			zap.Error(err))
+		return nil, err
+	}
+
+	// 验证用户是否有权限访问该宝宝的记录
+	if err := s.CheckBabyAccess(ctx, record.BabyID, openID); err != nil {
+		return nil, err
+	}
+
+	// 转换 Detail 字段
+	var feedingDetail dto.FeedingDetail
+	if record.Detail != nil {
+		detailBytes, err := json.Marshal(record.Detail)
+		if err != nil {
+			s.logger.Warn("Detail序列化失败,使用空Detail",
+				zap.String("recordID", record.RecordID),
+				zap.Error(err))
+			feedingDetail = dto.FeedingDetail{Type: record.FeedingType}
+		} else {
+			if err := json.Unmarshal(detailBytes, &feedingDetail); err != nil {
+				s.logger.Warn("Detail反序列化失败,使用空Detail",
+					zap.String("recordID", record.RecordID),
+					zap.Error(err))
+				feedingDetail = dto.FeedingDetail{Type: record.FeedingType}
+			}
+		}
+	} else {
+		feedingDetail = dto.FeedingDetail{Type: record.FeedingType}
+	}
+
+	// 提取 note 字段
+	note := ""
+	if feedingDetail.Note != nil {
+		note = *feedingDetail.Note
+	}
+
+	return &dto.FeedingRecordDTO{
+		RecordID:           record.RecordID,
+		BabyID:             record.BabyID,
+		FeedingType:        record.FeedingType,
+		Amount:             record.Amount,
+		Duration:           record.Duration,
+		Detail:             feedingDetail,
+		Note:               note,
+		FeedingTime:        record.Time,
+		ActualCompleteTime: record.ActualCompleteTime,
+		CreateBy:           record.CreateBy,
+		CreateTime:         record.CreateTime,
+	}, nil
+}
+
+// UpdateFeedingRecord 更新喂养记录
+func (s *FeedingRecordService) UpdateFeedingRecord(ctx context.Context, openID, recordID string, req *dto.UpdateFeedingRecordRequest) (*dto.FeedingRecordDTO, error) {
+	// 先获取记录
+	record, err := s.feedingRecordRepo.FindByID(ctx, recordID)
+	if err != nil {
+		s.logger.Error("获取喂养记录失败",
+			zap.String("recordID", recordID),
+			zap.Error(err))
+		return nil, err
+	}
+
+	// 验证权限
+	if err := s.CheckBabyAccess(ctx, record.BabyID, openID); err != nil {
+		return nil, err
+	}
+
+	// 更新字段 (只更新非nil字段)
+	now := time.Now().UnixMilli()
+	updated := false
+
+	if req.FeedingType != nil && *req.FeedingType != record.FeedingType {
+		record.FeedingType = *req.FeedingType
+		updated = true
+	}
+
+	if req.Amount != nil {
+		record.Amount = utils.DerefInt64(req.Amount)
+		updated = true
+	}
+
+	if req.Duration != nil {
+		record.Duration = utils.DerefInt(req.Duration)
+		updated = true
+	}
+
+	if req.FeedingTime != nil && *req.FeedingTime != record.Time {
+		record.Time = *req.FeedingTime
+		updated = true
+	}
+
+	if req.ActualCompleteTime != nil {
+		record.ActualCompleteTime = req.ActualCompleteTime
+		updated = true
+	}
+
+	if req.ReminderInterval != nil {
+		record.ReminderInterval = req.ReminderInterval
+		// 重新计算下次提醒时间
+		if *req.ReminderInterval > 0 {
+			baseTime := record.Time
+			if record.ActualCompleteTime != nil {
+				baseTime = *record.ActualCompleteTime
+			}
+			nextReminderTime := baseTime + int64(*req.ReminderInterval*60*1000)
+			record.NextReminderTime = &nextReminderTime
+		} else {
+			record.NextReminderTime = nil
+		}
+		updated = true
+	}
+
+	// 更新 Detail 字段
+	if req.Detail != nil {
+		// 转换为 FeedingDetail
+		var feedingDetail dto.FeedingDetail
+		detailBytes, err := json.Marshal(req.Detail)
+		if err == nil {
+			if err := json.Unmarshal(detailBytes, &feedingDetail); err == nil {
+				// 确保 Type 字段与 FeedingType 一致
+				feedingDetail.Type = record.FeedingType
+
+				// 转换为 map 存储
+				detailMap := make(entity.FeedingDetail)
+				detailBytes, _ := json.Marshal(feedingDetail)
+				_ = json.Unmarshal(detailBytes, &detailMap)
+
+				record.Detail = detailMap
+				updated = true
+			}
+		}
+	}
+
+	// 如果没有更新任何字段,直接返回
+	if !updated {
+		s.logger.Info("没有更新任何字段",
+			zap.String("recordID", recordID))
+		return s.GetFeedingRecordById(ctx, openID, recordID)
+	}
+
+	// 更新时间戳
+	record.UpdateTime = now
+
+	// 保存更新
+	if err := s.feedingRecordRepo.Update(ctx, record); err != nil {
+		s.logger.Error("更新喂养记录失败",
+			zap.String("recordID", recordID),
+			zap.Error(err))
+		return nil, err
+	}
+
+	s.logger.Info("喂养记录更新成功",
+		zap.String("recordID", record.RecordID),
+		zap.String("babyID", record.BabyID))
+
+	// 返回更新后的记录
+	return s.GetFeedingRecordById(ctx, openID, recordID)
+}
+
+// DeleteFeedingRecord 删除喂养记录
+func (s *FeedingRecordService) DeleteFeedingRecord(ctx context.Context, openID, recordID string) error {
+	// 先获取记录
+	record, err := s.feedingRecordRepo.FindByID(ctx, recordID)
+	if err != nil {
+		s.logger.Error("获取喂养记录失败",
+			zap.String("recordID", recordID),
+			zap.Error(err))
+		return err
+	}
+
+	// 验证权限
+	if err := s.CheckBabyAccess(ctx, record.BabyID, openID); err != nil {
+		return err
+	}
+
+	// 删除记录 (软删除)
+	if err := s.feedingRecordRepo.Delete(ctx, recordID); err != nil {
+		s.logger.Error("删除喂养记录失败",
+			zap.String("recordID", recordID),
+			zap.Error(err))
+		return err
+	}
+
+	s.logger.Info("喂养记录删除成功",
+		zap.String("recordID", recordID),
+		zap.String("babyID", record.BabyID))
+
+	return nil
+}
