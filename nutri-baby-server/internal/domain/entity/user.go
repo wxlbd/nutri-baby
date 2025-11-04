@@ -19,22 +19,3 @@ func (User) TableName() string {
 	return "users"
 }
 
-// Invitation 邀请码实体
-type Invitation struct {
-	InvitationCode string     `gorm:"primaryKey;column:invitation_code;type:varchar(16)" json:"invitationCode"`
-	FamilyID       string     `gorm:"column:family_id;type:varchar(64);index" json:"familyId"`
-	CreatorID      string     `gorm:"column:creator_id;type:varchar(64)" json:"creatorId"`
-	ExpiresAt      int64      `gorm:"column:expires_at;index" json:"expiresAt"`
-	CreateTime     int64      `gorm:"column:create_time;autoCreateTime:milli" json:"createTime"`
-	DeletedAt      *time.Time `gorm:"column:deleted_at;index" json:"-"`
-}
-
-// TableName 指定表名
-func (Invitation) TableName() string {
-	return "invitations"
-}
-
-// IsExpired 检查邀请码是否过期
-func (i *Invitation) IsExpired() bool {
-	return time.Now().UnixMilli() > i.ExpiresAt
-}

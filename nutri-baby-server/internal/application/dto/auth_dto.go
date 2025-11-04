@@ -24,15 +24,6 @@ type UserInfoDTO struct {
 	LastLoginTime int64  `json:"lastLoginTime"`
 }
 
-// FamilyDTO 家庭DTO
-type FamilyDTO struct {
-	FamilyID    string `json:"familyId"`
-	FamilyName  string `json:"familyName"`
-	Description string `json:"description,omitempty"`
-	Role        string `json:"role"` // admin, member
-	JoinTime    int64  `json:"joinTime"`
-}
-
 // RefreshTokenResponse 刷新Token响应
 type RefreshTokenResponse struct {
 	Token     string `json:"token"`

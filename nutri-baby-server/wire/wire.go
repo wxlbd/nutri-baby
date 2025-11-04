@@ -26,9 +26,6 @@ func InitApp(cfg *config.Config) (*App, error) {
 		// 仓储层
 		persistence.NewSubscriptionCacheRepository, // 订阅权限缓存管理器
 		persistence.NewUserRepository,
-		// persistence.NewFamilyRepository, // 已废弃：去家庭化架构
-		// persistence.NewFamilyMemberRepository, // 已废弃：去家庭化架构
-		// persistence.NewInvitationRepository, // 已废弃：去家庭化架构
 		persistence.NewBabyRepository,
 		persistence.NewBabyCollaboratorRepository, // 去家庭化架构：宝宝协作者仓储
 		persistence.NewBabyInvitationRepository,   // 去家庭化架构：宝宝邀请仓储
@@ -45,7 +42,6 @@ func InitApp(cfg *config.Config) (*App, error) {
 		service.NewWechatService,    // 微信服务
 		service.NewSubscribeService, // 订阅消息服务
 		service.NewAuthService,
-		// service.NewFamilyService, // 已废弃：去家庭化架构
 		service.NewBabyService,
 		service.NewFeedingRecordService, // 喂养记录服务
 		service.NewSleepRecordService,   // 睡眠记录服务
@@ -59,7 +55,6 @@ func InitApp(cfg *config.Config) (*App, error) {
 
 		// HTTP处理器
 		handler.NewAuthHandler,
-		// handler.NewFamilyHandler, // 已废弃：去家庭化架构
 		handler.NewBabyHandler,
 		handler.NewRecordHandler,
 		handler.NewVaccineHandler,
