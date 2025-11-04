@@ -82,6 +82,22 @@ export async function apiCreateGrowthRecord(
 }
 
 /**
+ * 获取单条成长记录
+ *
+ * @param recordId 记录ID
+ * @returns Promise<GrowthRecordResponse>
+ */
+export async function apiGetGrowthRecordById(
+  recordId: string,
+): Promise<GrowthRecordResponse> {
+  const response = await get<GrowthRecordResponse>(`/growth-records/${recordId}`);
+  if (!response.data) {
+    throw new Error(response.message || "获取成长记录失败");
+  }
+  return response.data;
+}
+
+/**
  * 更新成长记录
  *
  * @param recordId 记录ID

@@ -84,6 +84,22 @@ export async function apiCreateSleepRecord(
 }
 
 /**
+ * 获取单条睡眠记录
+ *
+ * @param recordId 记录ID
+ * @returns Promise<SleepRecordResponse>
+ */
+export async function apiGetSleepRecordById(
+  recordId: string,
+): Promise<SleepRecordResponse> {
+  const response = await get<SleepRecordResponse>(`/sleep-records/${recordId}`);
+  if (!response.data) {
+    throw new Error(response.message || "获取睡眠记录失败");
+  }
+  return response.data;
+}
+
+/**
  * 更新睡眠记录
  *
  * @param recordId 记录ID
