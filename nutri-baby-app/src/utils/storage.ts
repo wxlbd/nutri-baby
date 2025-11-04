@@ -54,16 +54,6 @@ export const StorageKeys = {
   // 邀请相关（扫码加入流程）
   PENDING_INVITE_CODE: `${STORAGE_PREFIX}pending_invite_code`, // 待处理的邀请短码
   AUTO_JOIN_AFTER_LOGIN: `${STORAGE_PREFIX}auto_join_after_login`, // 登录后自动加入的邀请信息
-
-  // 已废弃的家庭相关键 (仅用于清理)
-  // @deprecated
-  FAMILY_LIST: `${STORAGE_PREFIX}family_list`,
-  // @deprecated
-  CURRENT_FAMILY_ID: `${STORAGE_PREFIX}current_family_id`,
-  // @deprecated
-  FAMILY_MEMBERS: `${STORAGE_PREFIX}family_members`,
-  // @deprecated
-  INVITATIONS: `${STORAGE_PREFIX}invitations`,
 };
 
 /**
