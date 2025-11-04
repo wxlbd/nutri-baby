@@ -109,6 +109,8 @@ export function clearUserInfo() {
   // 清除邀请码缓存，防止退出登录后重复跳转到加入页面
   removeStorage(StorageKeys.PENDING_INVITE_CODE)
   removeStorage(StorageKeys.AUTO_JOIN_AFTER_LOGIN)
+  removeStorage(StorageKeys.CURRENT_BABY_ID)
+  removeStorage(StorageKeys.BABY_LIST)
 }
 
 /**
