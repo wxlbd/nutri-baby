@@ -17,7 +17,7 @@
     <!-- 喂养统计 -->
     <view class="stat-section">
       <view class="section-header">
-        <text class="icon">🍼</text>
+        <image class="icon-img" src="/static/naiping.svg" mode="aspectFit" />
         <text class="title">喂养统计</text>
       </view>
 
@@ -61,7 +61,7 @@
     <!-- 睡眠统计 -->
     <view class="stat-section">
       <view class="section-header">
-        <text class="icon">💤</text>
+        <image class="icon-img" src="/static/yingershuijue.svg" mode="aspectFit" />
         <text class="title">睡眠统计</text>
       </view>
 
@@ -111,7 +111,7 @@
     <!-- 排泄统计 -->
     <view class="stat-section">
       <view class="section-header">
-        <text class="icon">🧷</text>
+        <image class="icon-img" src="/static/niaobushi.svg" mode="aspectFit" />
         <text class="title">排泄统计</text>
       </view>
 
@@ -651,6 +651,11 @@ onMounted(() => {
 
   .icon {
     font-size: 40rpx;
+  }
+
+  .icon-img {
+    width: 48rpx;
+    height: 48rpx;
   }
 
   .title {
