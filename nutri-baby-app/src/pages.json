@@ -124,6 +124,12 @@
 			}
 		},
 		{
+			"path": "pages/user/profile/profile",
+			"style": {
+				"navigationBarTitleText": "编辑资料"
+			}
+		},
+		{
 			"path": "pages/vaccine/vaccine",
 			"style": {
 				"navigationBarTitleText": "疫苗提醒"

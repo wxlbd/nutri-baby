@@ -33,6 +33,14 @@ export interface RefreshTokenResponse {
   expiresIn: number
 }
 
+/**
+ * API 请求: 更新用户信息
+ */
+export interface UpdateUserInfoRequest {
+  nickName: string
+  avatarUrl: string
+}
+
 // ============ API 函数 ============
 
 /**
@@ -86,4 +94,18 @@ export async function apiSetDefaultBaby(babyId: string): Promise<void> {
   if (response.code !== 0) {
     throw new Error(response.message || '设置默认宝宝失败')
   }
+}
+
+/**
+ * 更新用户信息
+ *
+ * @param data 用户信息
+ * @returns Promise<UserInfo>
+ */
+export async function apiUpdateUserInfo(data: UpdateUserInfoRequest): Promise<UserInfo> {
+  const response = await put<UserInfo>('/auth/user-info', data)
+  if (!response.data) {
+    throw new Error(response.message || '更新用户信息失败')
+  }
+  return response.data
 }
