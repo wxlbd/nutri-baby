@@ -122,7 +122,7 @@
             closeable
         >
             <view class="dialog-content">
-                <view class="dialog-title">添加成长记录</view>
+                <view class="dialog-title">{{ isEditing ? '编辑成长记录' : '添加成长记录' }}</view>
 
                 <view class="form-section">
                     <!-- 身高 -->
@@ -213,7 +213,7 @@
                         block
                         @click="handleSubmit"
                     >
-                        保存
+                        {{ isEditing ? '更新' : '保存' }}
                     </wd-button>
                 </view>
             </view>
@@ -232,11 +232,16 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from "vue";
+import { onLoad } from "@dcloudio/uni-app";
 import { currentBaby } from "@/store/baby";
 import { formatDate } from "@/utils/date";
 
 // 直接调用 API 层
 import * as growthApi from "@/api/growth";
+
+// 编辑模式相关
+const editId = ref<string>("");
+const isEditing = computed(() => !!editId.value);
 
 // 对话框显示状态
 const showAddDialog = ref(false);
@@ -281,9 +286,47 @@ const loadRecords = async () => {
     }
 };
 
+// 页面加载时检测 editId 参数
+onLoad((options) => {
+  if (options?.editId) {
+    editId.value = options.editId;
+    loadGrowthRecord(options.editId);
+  }
+});
+
+// 加载成长记录数据
+const loadGrowthRecord = async (recordId: string) => {
+  try {
+    const record = await growthApi.apiGetGrowthRecordById(recordId);
+
+    // 填充表单
+    formData.value = {
+      height: record.height ? String(record.height) : '',
+      weight: record.weight ? String(record.weight) : '',
+      headCircumference: record.headCircumference ? String(record.headCircumference) : '',
+      time: record.measureTime,
+      note: record.note || '',
+    };
+
+    // 打开对话框
+    showAddDialog.value = true;
+
+    console.log('[Growth] 已加载记录数据:', record);
+  } catch (error: any) {
+    console.error('[Growth] 加载记录失败:', error);
+    uni.showToast({
+      title: error.message || '加载记录失败',
+      icon: 'none',
+    });
+    setTimeout(() => {
+      uni.navigateBack();
+    }, 1500);
+  }
+};
+
 // 页面加载
 onMounted(() => {
-    loadRecords();
+  loadRecords();
 });
 
 // 日期选择确认
@@ -356,23 +399,43 @@ const handleSubmit = async () => {
         return;
     }
 
-    // 添加记录
+    // 添加或更新记录
     try {
-        await growthApi.apiCreateGrowthRecord({
-            babyId: currentBaby.value.babyId,
-            measureTime: formData.value.time,
-            height: formData.value.height ? height : undefined,
-            weight: formData.value.weight ? weight : undefined,
-            headCircumference: formData.value.headCircumference
-                ? headCircumference
-                : undefined,
-            note: formData.value.note || undefined,
-        });
+        if (isEditing.value) {
+            // 更新模式
+            await growthApi.apiUpdateGrowthRecord(editId.value, {
+                babyId: currentBaby.value.babyId,
+                measureTime: formData.value.time,
+                height: formData.value.height ? height : undefined,
+                weight: formData.value.weight ? weight : undefined,
+                headCircumference: formData.value.headCircumference
+                    ? headCircumference
+                    : undefined,
+                note: formData.value.note || undefined,
+            });
 
-        uni.showToast({
-            title: "添加成功",
-            icon: "success",
-        });
+            uni.showToast({
+                title: "更新成功",
+                icon: "success",
+            });
+        } else {
+            // 创建模式
+            await growthApi.apiCreateGrowthRecord({
+                babyId: currentBaby.value.babyId,
+                measureTime: formData.value.time,
+                height: formData.value.height ? height : undefined,
+                weight: formData.value.weight ? weight : undefined,
+                headCircumference: formData.value.headCircumference
+                    ? headCircumference
+                    : undefined,
+                note: formData.value.note || undefined,
+            });
+
+            uni.showToast({
+                title: "添加成功",
+                icon: "success",
+            });
+        }
 
         // 重新加载记录
         await loadRecords();
@@ -389,7 +452,7 @@ const handleSubmit = async () => {
         showAddDialog.value = false;
     } catch (error: any) {
         uni.showToast({
-            title: error.message || "添加失败",
+            title: error.message || "保存失败",
             icon: "none",
         });
     }

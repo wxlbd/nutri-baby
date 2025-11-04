@@ -107,7 +107,7 @@
       <!-- 提交按钮 -->
       <view class="submit-button">
         <wd-button type="primary" size="large" block @click="handleSubmit">
-          保存记录
+          {{ isEditing ? '更新记录' : '保存记录' }}
         </wd-button>
       </view>
       </view>
@@ -118,13 +118,18 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from "vue";
+import { ref, computed } from "vue";
+import { onLoad } from "@dcloudio/uni-app";
 import { currentBabyId, getCurrentBaby } from "@/store/baby";
 import { getUserInfo } from "@/store/user";
 import type { DiaperType, PoopColor, PoopTexture } from "@/types";
 
 // 直接调用 API 层
 import * as diaperApi from "@/api/diaper";
+
+// 编辑模式相关
+const editId = ref<string>("");
+const isEditing = computed(() => !!editId.value);
 
 // 表单数据
 const form = ref<{
@@ -187,6 +192,46 @@ const poopTextures = [
   { value: "hard", label: "硬结" },
 ] as const;
 
+// 页面加载时检测 editId 参数
+onLoad((options) => {
+  if (options?.editId) {
+    editId.value = options.editId;
+    loadDiaperRecord(options.editId);
+  }
+});
+
+// 加载尿布记录数据
+const loadDiaperRecord = async (recordId: string) => {
+  try {
+    const record = await diaperApi.apiGetDiaperRecordById(recordId);
+
+    // 填充表单
+    form.value = {
+      type: record.diaperType as DiaperType,
+      poopColor: record.pooColor as PoopColor | undefined,
+      poopTexture: record.pooTexture as PoopTexture | undefined,
+      note: record.note || '',
+    };
+
+    // 设置记录时间
+    recordDateTime.value = record.changeTime;
+
+    // 打开详情弹窗
+    showDetails.value = true;
+
+    console.log('[Diaper] 已加载记录数据:', record);
+  } catch (error: any) {
+    console.error('[Diaper] 加载记录失败:', error);
+    uni.showToast({
+      title: error.message || '加载记录失败',
+      icon: 'none',
+    });
+    setTimeout(() => {
+      uni.navigateBack();
+    }, 1500);
+  }
+};
+
 // 快速记录
 const quickRecord = (type: DiaperType) => {
   const currentBaby = getCurrentBaby();
@@ -223,20 +268,37 @@ const saveRecord = async (changeTime?: number) => {
     // 使用传入的时间或当前表单中的时间
     const finalChangeTime = changeTime ?? recordDateTime.value;
 
-    // 直接调用 API 层创建记录
-    await diaperApi.apiCreateDiaperRecord({
-      babyId: currentBabyId.value,
-      diaperType: form.value.type,
-      pooColor: form.value.poopColor,
-      pooTexture: form.value.poopTexture,
-      note: form.value.note || undefined,
-      changeTime: finalChangeTime,
-    });
+    if (isEditing.value) {
+      // 更新模式
+      await diaperApi.apiUpdateDiaperRecord(editId.value, {
+        babyId: currentBabyId.value,
+        diaperType: form.value.type,
+        pooColor: form.value.poopColor,
+        pooTexture: form.value.poopTexture,
+        note: form.value.note || undefined,
+        changeTime: finalChangeTime,
+      });
 
-    uni.showToast({
-      title: "保存成功",
-      icon: "success",
-    });
+      uni.showToast({
+        title: "更新成功",
+        icon: "success",
+      });
+    } else {
+      // 创建模式
+      await diaperApi.apiCreateDiaperRecord({
+        babyId: currentBabyId.value,
+        diaperType: form.value.type,
+        pooColor: form.value.poopColor,
+        pooTexture: form.value.poopTexture,
+        note: form.value.note || undefined,
+        changeTime: finalChangeTime,
+      });
+
+      uni.showToast({
+        title: "保存成功",
+        icon: "success",
+      });
+    }
 
     setTimeout(() => {
       uni.navigateBack();

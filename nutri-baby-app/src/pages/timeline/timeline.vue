@@ -52,13 +52,28 @@
                 </view>
               </template>
 
-              <view class="record-detail">{{ record.detail }}</view>
+              <!-- 详细信息显示 -->
+              <view class="record-details">
+                <view class="detail-line">{{ record.detail }}</view>
+                <!-- 备注信息 -->
+                <view v-if="record.originalRecord.note" class="detail-line note">
+                  <text class="label">备注:</text>
+                  <text class="value">{{ record.originalRecord.note }}</text>
+                </view>
+              </view>
 
               <template #footer>
                 <view class="record-actions">
                   <wd-button
                     size="small"
-                    type="default"
+                    type="primary"
+                    @click="editRecord(record)"
+                  >
+                    编辑
+                  </wd-button>
+                  <wd-button
+                    size="small"
+                    type="error"
                     @click="deleteRecord(record)"
                   >
                     删除
@@ -310,6 +325,30 @@ const onDateConfirm = ({ value }: { value: number[] }) => {
   loadRecords();
 };
 
+// 编辑记录 - 跳转到对应的添加页面
+const editRecord = (record: TimelineRecord) => {
+  let url = "";
+
+  switch (record.type) {
+    case "feeding":
+      url = `/pages/record/feeding/feeding?editId=${record.id}`;
+      break;
+    case "sleep":
+      url = `/pages/record/sleep/sleep?editId=${record.id}`;
+      break;
+    case "diaper":
+      url = `/pages/record/diaper/diaper?editId=${record.id}`;
+      break;
+    case "growth":
+      url = `/pages/record/growth/growth?editId=${record.id}`;
+      break;
+  }
+
+  if (url) {
+    uni.navigateTo({ url });
+  }
+};
+
 // 删除记录
 const deleteRecord = async (record: TimelineRecord) => {
   uni.showModal({
@@ -471,6 +510,7 @@ const deleteRecord = async (record: TimelineRecord) => {
 .record-actions {
   display: flex;
   justify-content: flex-end;
+  gap: 12rpx;
   margin-top: 16rpx;
 }
 </style>

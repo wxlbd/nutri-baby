@@ -60,9 +60,23 @@
 			}
 		},
 		{
+			"path": "pages/record/feeding/detail",
+			"style": {
+				"navigationBarTitleText": "喂养记录详情",
+				"navigationStyle": "custom"
+			}
+		},
+		{
 			"path": "pages/record/diaper/diaper",
 			"style": {
 				"navigationBarTitleText": "换尿布"
+			}
+		},
+		{
+			"path": "pages/record/diaper/detail",
+			"style": {
+				"navigationBarTitleText": "换尿布详情",
+				"navigationStyle": "custom"
 			}
 		},
 		{
@@ -72,9 +86,23 @@
 			}
 		},
 		{
+			"path": "pages/record/sleep/detail",
+			"style": {
+				"navigationBarTitleText": "睡眠记录详情",
+				"navigationStyle": "custom"
+			}
+		},
+		{
 			"path": "pages/record/growth/growth",
 			"style": {
 				"navigationBarTitleText": "成长记录"
+			}
+		},
+		{
+			"path": "pages/record/growth/detail",
+			"style": {
+				"navigationBarTitleText": "成长记录详情",
+				"navigationStyle": "custom"
 			}
 		},
 		{
