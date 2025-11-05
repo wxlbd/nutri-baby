@@ -144,7 +144,6 @@
         >
           <view class="reminder-header">
             <view class="header-left">
-              <text class="reminder-icon">💉</text>
               <text class="reminder-title">疫苗提醒</text>
             </view>
             <view class="header-right">
@@ -536,7 +535,6 @@ const loadTodayData = async () => {
         // 获取疫苗提醒
         vaccineApi.apiFetchVaccineReminders({
           babyId,
-          status: ["upcoming", "due", "overdue"],
         }),
       ]
     );

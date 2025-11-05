@@ -226,7 +226,7 @@ const handleSubmit = async () => {
         uni.navigateBack()
       }, 1000)
     } else {
-      // 添加（去家庭化架构 - 不需要传 familyId）
+      // 添加
       const newBaby = await babyApi.apiCreateBaby({
         name: formData.value.name,
         nickname: formData.value.nickname,
