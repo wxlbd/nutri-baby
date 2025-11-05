@@ -23,6 +23,7 @@ nutri-baby-server/
 │   ├── domain/            # 领域层
 │   │   ├── entity/        # 实体
 │   │   ├── valueobject/   # 值对象
+│   │   ├── errors/        # 领域错误定义
 │   │   └── repository/    # 仓储接口
 │   ├── application/       # 应用层
 │   │   ├── dto/           # 数据传输对象
@@ -120,6 +121,107 @@ make fmt
 make lint
 ```
 
-## API 文档
+## 错误处理最佳实践
 
-详见 [API.md](../nutri-baby-app/API.md)
+### 统一错误处理
+
+项目使用 `pkg/errors` 包统一管理所有错误，各层共享相同的错误类型和错误码，避免重复定义和类型转换。
+
+### 错误处理流程
+
+1. **存储层 (Repository)**:
+   - 捕获底层错误（如 `gorm.ErrRecordNotFound`）
+   - 转换为 `pkg/errors` 中定义的错误类型
+   - 使用 `errors.Wrap` 添加上下文信息
+   ```go
+   if errors.Is(err, gorm.ErrRecordNotFound) {
+       return nil, errors.New(errors.NotFound, "记录不存在")
+   }
+   ```
+
+2. **服务层 (Service)**:
+   - 处理业务逻辑错误
+   - 使用 `pkg/errors` 中定义的错误码和错误消息
+   - 可以包装错误以添加上下文信息
+   ```go
+   baby, err := s.repo.GetBabyByID(id)
+   if err != nil {
+       if errors.Is(err, errors.NotFound) {
+           return nil, errors.New(errors.BabyNotFound, "未找到宝宝信息")
+       }
+       return nil, errors.Wrap(errors.DatabaseError, "查询宝宝信息失败", err)
+   }
+   ```
+
+3. **接口层 (Handler)**:
+   - 处理 HTTP 相关的错误
+   - 记录错误日志
+   - 将错误转换为统一的 API 响应格式
+   ```go
+   baby, err := service.GetBabyDetail(id, openID)
+   if err != nil {
+       switch {
+       case errors.Is(err, errors.BabyNotFound):
+           response.FailWithError(c, errors.ErrBabyNotFound)
+       case errors.Is(err, errors.PermissionDenied):
+           response.FailWithError(c, errors.ErrPermissionDenied)
+       default:
+           log.Error("获取宝宝详情失败", zap.Error(err))
+           response.FailWithError(c, errors.ErrInternalServer)
+       }
+       return
+   }
+   ```
+
+### 错误码规范
+
+错误码定义在 `pkg/errors` 包中，按以下规则分类：
+
+- `0`: 成功
+- `1xxx`: 通用错误
+- `2xxx`: 服务器错误
+- `3xxx`: 业务逻辑错误
+
+常用错误码示例：
+
+```go
+const (
+    // 成功
+    Success ErrorCode = 0
+
+    // 通用错误 1000-1999
+    ParamError       ErrorCode = 1001
+    Unauthorized     ErrorCode = 1002
+    NotFound         ErrorCode = 1003
+    Conflict         ErrorCode = 1004
+    PermissionDenied ErrorCode = 1005
+
+    // 服务器错误 2000-2999
+    InternalError ErrorCode = 2001
+    DatabaseError ErrorCode = 2002
+    CacheError    ErrorCode = 2003
+
+    // 业务错误 3000-3999
+    UserNotFound      ErrorCode = 3001
+    InvalidToken      ErrorCode = 3002
+    TokenExpired      ErrorCode = 3003
+    BabyNotFound      ErrorCode = 3004
+    FamilyNotFound    ErrorCode = 3005
+    InvalidInvitation ErrorCode = 3006
+    RecordNotFound    ErrorCode = 3007
+    VaccineNotFound   ErrorCode = 3008
+    InvalidVaccineID  ErrorCode = 3009
+)
+
+### 错误日志
+
+- 在接口层记录详细的错误日志
+- 包含请求ID、错误堆栈等调试信息
+
+### 最佳实践
+
+1. 始终使用 `errors.Wrap` 添加上下文信息
+2. 在服务层处理所有业务相关的错误
+3. 在接口层处理所有 HTTP 相关的错误
+4. 使用统一的错误响应格式
+5. 记录详细的错误日志，方便问题排查
