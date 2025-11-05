@@ -63,12 +63,12 @@ func autoMigrate(db *gorm.DB) error {
 		&entity.SleepRecord{},
 		&entity.DiaperRecord{},
 		&entity.GrowthRecord{},
-		&entity.VaccineRecord{},
-		&entity.VaccineReminder{},
+		&entity.VaccineRecord{},         // 旧表，待废弃
 		&entity.VaccinePlanTemplate{},
-		&entity.BabyVaccinePlan{},
-		&entity.SubscribeRecord{},  // 订阅消息：用户订阅记录
-		&entity.MessageSendLog{},   // 订阅消息：消息发送日志
-		&entity.MessageSendQueue{}, // 订阅消息：消息发送队列
+		&entity.BabyVaccinePlan{},       // 旧表，待废弃
+		&entity.BabyVaccineSchedule{},   // 新表：合并计划、记录和提醒
+		&entity.SubscribeRecord{},       // 订阅消息：用户订阅记录
+		&entity.MessageSendLog{},        // 订阅消息：消息发送日志
+		&entity.MessageSendQueue{},      // 订阅消息：消息发送队列
 	)
 }

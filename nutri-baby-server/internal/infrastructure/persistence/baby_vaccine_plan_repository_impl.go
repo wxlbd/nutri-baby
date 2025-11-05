@@ -9,6 +9,7 @@ import (
 
 	"github.com/wxlbd/nutri-baby-server/internal/domain/entity"
 	"github.com/wxlbd/nutri-baby-server/internal/domain/repository"
+	"github.com/wxlbd/nutri-baby-server/pkg/errors"
 )
 
 type babyVaccinePlanRepositoryImpl struct {
@@ -39,7 +40,10 @@ func (r *babyVaccinePlanRepositoryImpl) FindByBabyID(ctx context.Context, babyID
 		Where("baby_id = ?", babyID).
 		Order("age_in_months ASC, dose_number ASC").
 		Find(&plans).Error
-	return plans, err
+	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, err
+	}
+	return plans, nil
 }
 
 func (r *babyVaccinePlanRepositoryImpl) Update(ctx context.Context, plan *entity.BabyVaccinePlan) error {
