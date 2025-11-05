@@ -8,24 +8,23 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"go.uber.org/zap"
-
 	"github.com/wxlbd/nutri-baby-server/internal/application/dto"
 	"github.com/wxlbd/nutri-baby-server/internal/domain/entity"
 	"github.com/wxlbd/nutri-baby-server/internal/domain/repository"
 	"github.com/wxlbd/nutri-baby-server/pkg/errors"
 	"github.com/wxlbd/nutri-baby-server/pkg/utils"
+	"go.uber.org/zap"
 )
 
 // BabyService 宝宝服务 (去家庭化架构)
 type BabyService struct {
-	babyRepo         repository.BabyRepository
-	collaboratorRepo repository.BabyCollaboratorRepository
-	invitationRepo   repository.BabyInvitationRepository
-	userRepo         repository.UserRepository
-	vaccineService   *VaccineService
-	wechatService    *WechatService
-	logger           *zap.Logger
+	babyRepo               repository.BabyRepository
+	collaboratorRepo       repository.BabyCollaboratorRepository
+	invitationRepo         repository.BabyInvitationRepository
+	userRepo               repository.UserRepository
+	vaccineScheduleService *VaccineScheduleService
+	wechatService          *WechatService
+	logger                 *zap.Logger
 }
 
 // NewBabyService 创建宝宝服务
@@ -34,18 +33,18 @@ func NewBabyService(
 	collaboratorRepo repository.BabyCollaboratorRepository,
 	invitationRepo repository.BabyInvitationRepository,
 	userRepo repository.UserRepository,
-	vaccineService *VaccineService,
+	vaccineScheduleService *VaccineScheduleService,
 	wechatService *WechatService,
 	logger *zap.Logger,
 ) *BabyService {
 	return &BabyService{
-		babyRepo:         babyRepo,
-		collaboratorRepo: collaboratorRepo,
-		invitationRepo:   invitationRepo,
-		userRepo:         userRepo,
-		vaccineService:   vaccineService,
-		wechatService:    wechatService,
-		logger:           logger,
+		babyRepo:               babyRepo,
+		collaboratorRepo:       collaboratorRepo,
+		invitationRepo:         invitationRepo,
+		userRepo:               userRepo,
+		vaccineScheduleService: vaccineScheduleService,
+		wechatService:          wechatService,
+		logger:                 logger,
 	}
 }
 
@@ -61,16 +60,15 @@ func (s *BabyService) CreateBaby(ctx context.Context, openID string, req *dto.Cr
 
 	// 创建宝宝实体
 	baby := &entity.Baby{
-		BabyID:      babyID,
-		Name:        req.Name,
-		Nickname:    req.Nickname,
-		Gender:      req.Gender,
-		BirthDate:   req.BirthDate,
-		AvatarURL:   req.AvatarURL,
-		CreatorID:   openID,
-		FamilyGroup: req.FamilyGroup, // 可选的家庭分组
-		CreateTime:  now,
-		UpdateTime:  now,
+		BabyID:     babyID,
+		Name:       req.Name,
+		Nickname:   req.Nickname,
+		Gender:     req.Gender,
+		BirthDate:  req.BirthDate,
+		AvatarURL:  req.AvatarURL,
+		CreatorID:  openID,
+		CreateTime: now,
+		UpdateTime: now,
 	}
 
 	// 创建宝宝
@@ -105,24 +103,22 @@ func (s *BabyService) CreateBaby(ctx context.Context, openID string, req *dto.Cr
 			// logger.Warn("Failed to copy collaborators", zap.Error(err))
 		}
 	}
-
-	// 初始化疫苗提醒
-	if err := s.vaccineService.InitializeVaccineReminders(ctx, babyID); err != nil {
+	// 初始化疫苗计划
+	if err := s.vaccineScheduleService.InitializeSchedulesForBaby(ctx, babyID, openID); err != nil {
 		// 记录错误但不影响创建宝宝
-		// logger.Error("Failed to initialize vaccine reminders", zap.Error(err))
+		s.logger.Error("初始化疫苗计划失败", zap.Error(err))
 	}
 
 	return &dto.BabyDTO{
-		BabyID:      baby.BabyID,
-		Name:        baby.Name,
-		Nickname:    baby.Nickname,
-		Gender:      baby.Gender,
-		BirthDate:   baby.BirthDate,
-		AvatarURL:   baby.AvatarURL,
-		CreatorID:   baby.CreatorID,
-		FamilyGroup: baby.FamilyGroup,
-		CreateTime:  baby.CreateTime,
-		UpdateTime:  baby.UpdateTime,
+		BabyID:     baby.BabyID,
+		Name:       baby.Name,
+		Nickname:   baby.Nickname,
+		Gender:     baby.Gender,
+		BirthDate:  baby.BirthDate,
+		AvatarURL:  baby.AvatarURL,
+		CreatorID:  baby.CreatorID,
+		CreateTime: baby.CreateTime,
+		UpdateTime: baby.UpdateTime,
 	}, nil
 }
 
@@ -136,16 +132,15 @@ func (s *BabyService) GetUserBabies(ctx context.Context, openID string) ([]dto.B
 	result := make([]dto.BabyDTO, 0, len(babies))
 	for _, baby := range babies {
 		result = append(result, dto.BabyDTO{
-			BabyID:      baby.BabyID,
-			Name:        baby.Name,
-			Nickname:    baby.Nickname,
-			Gender:      baby.Gender,
-			BirthDate:   baby.BirthDate,
-			AvatarURL:   baby.AvatarURL,
-			CreatorID:   baby.CreatorID,
-			FamilyGroup: baby.FamilyGroup,
-			CreateTime:  baby.CreateTime,
-			UpdateTime:  baby.UpdateTime,
+			BabyID:     baby.BabyID,
+			Name:       baby.Name,
+			Nickname:   baby.Nickname,
+			Gender:     baby.Gender,
+			BirthDate:  baby.BirthDate,
+			AvatarURL:  baby.AvatarURL,
+			CreatorID:  baby.CreatorID,
+			CreateTime: baby.CreateTime,
+			UpdateTime: baby.UpdateTime,
 		})
 	}
 
@@ -165,16 +160,15 @@ func (s *BabyService) GetBabyDetail(ctx context.Context, babyID, openID string) 
 	}
 
 	return &dto.BabyDTO{
-		BabyID:      baby.BabyID,
-		Name:        baby.Name,
-		Nickname:    baby.Nickname,
-		Gender:      baby.Gender,
-		BirthDate:   baby.BirthDate,
-		AvatarURL:   baby.AvatarURL,
-		CreatorID:   baby.CreatorID,
-		FamilyGroup: baby.FamilyGroup,
-		CreateTime:  baby.CreateTime,
-		UpdateTime:  baby.UpdateTime,
+		BabyID:     baby.BabyID,
+		Name:       baby.Name,
+		Nickname:   baby.Nickname,
+		Gender:     baby.Gender,
+		BirthDate:  baby.BirthDate,
+		AvatarURL:  baby.AvatarURL,
+		CreatorID:  baby.CreatorID,
+		CreateTime: baby.CreateTime,
+		UpdateTime: baby.UpdateTime,
 	}, nil
 }
 
@@ -212,9 +206,6 @@ func (s *BabyService) UpdateBaby(ctx context.Context, babyID, openID string, req
 	}
 	if req.AvatarURL != "" {
 		baby.AvatarURL = req.AvatarURL
-	}
-	if req.FamilyGroup != "" {
-		baby.FamilyGroup = req.FamilyGroup
 	}
 
 	baby.UpdateTime = time.Now().UnixMilli()
