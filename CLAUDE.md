@@ -46,7 +46,9 @@ nutri-baby/
 ├── nutri-baby-server/       # 后端服务
 │   ├── cmd/server/         # 应用入口
 │   ├── internal/           # DDD 四层架构
-│   │   ├── domain/         # 领域层 (实体 + 仓储接口)
+│   │   ├── domain/         # 领域层
+│   │   │   ├── entity/    # 领域实体
+│   │   │   └── repository/ # 仓储接口
 │   │   ├── application/    # 应用层 (服务 + DTO)
 │   │   ├── infrastructure/ # 基础设施层 (持久化 + 缓存 + 日志)
 │   │   └── interface/      # 接口层 (HTTP 处理器 + 路由)
@@ -122,6 +124,291 @@ make clean              # 清理生成文件
 
 # 查看所有命令
 make help
+```
+
+## 错误处理规范
+
+### 统一错误处理
+
+项目使用 `pkg/errors` 包统一管理所有错误，各层共享相同的错误类型和错误码，避免重复定义和类型转换。
+
+### 错误码规范
+
+错误码定义在 `pkg/errors` 包中，按以下规则分类：
+
+- `0`: 成功
+- `1xxx`: 通用错误
+- `2xxx`: 服务器错误
+- `3xxx`: 业务逻辑错误
+
+常用错误码示例：
+
+```go
+const (
+    // 成功
+    Success ErrorCode = 0
+
+    // 通用错误 1000-1999
+    ParamError       ErrorCode = 1001
+    Unauthorized     ErrorCode = 1002
+    NotFound         ErrorCode = 1003
+    Conflict         ErrorCode = 1004
+    PermissionDenied ErrorCode = 1005
+
+    // 服务器错误 2000-2999
+    InternalError ErrorCode = 2001
+    DatabaseError ErrorCode = 2002
+    CacheError    ErrorCode = 2003
+
+    // 业务错误 3000-3999
+    UserNotFound      ErrorCode = 3001
+    InvalidToken      ErrorCode = 3002
+    TokenExpired      ErrorCode = 3003
+    BabyNotFound      ErrorCode = 3004
+    FamilyNotFound    ErrorCode = 3005
+    InvalidInvitation ErrorCode = 3006
+    RecordNotFound    ErrorCode = 3007
+    VaccineNotFound   ErrorCode = 3008
+    InvalidVaccineID  ErrorCode = 3009
+)
+```
+
+### 错误处理流程
+
+1. **存储层 (Repository)**:
+   - 捕获底层错误（如 `gorm.ErrRecordNotFound`）
+   - 转换为 `pkg/errors` 中定义的错误类型
+   - 使用 `errors.Wrap` 添加上下文信息
+   ```go
+   if errors.Is(err, gorm.ErrRecordNotFound) {
+       return nil, errors.New(errors.NotFound, "记录不存在")
+   }
+   if err != nil {
+       return nil, errors.Wrap(errors.DatabaseError, "查询失败", err)
+   }
+   ```
+
+2. **服务层 (Service)**:
+   - 处理业务逻辑错误
+   - 使用 `pkg/errors` 中定义的错误码和错误消息
+   - 可以包装错误以添加上下文信息
+   ```go
+   baby, err := s.repo.GetBabyByID(id)
+   if err != nil {
+       if errors.Is(err, errors.NotFound) {
+           return nil, errors.New(errors.BabyNotFound, "未找到宝宝信息")
+       }
+       return nil, errors.Wrap(errors.DatabaseError, "查询宝宝信息失败", err)
+   }
+   ```
+
+3. **接口层 (Handler)**:
+   - 处理 HTTP 相关的错误
+   - 记录错误日志
+   - 将错误转换为统一的 API 响应格式
+   ```go
+   baby, err := service.GetBabyDetail(id, openID)
+   if err != nil {
+       switch {
+       case errors.Is(err, errors.BabyNotFound):
+           response.FailWithError(c, errors.ErrBabyNotFound)
+       case errors.Is(err, errors.PermissionDenied):
+           response.FailWithError(c, errors.ErrPermissionDenied)
+       default:
+           log.Error("获取宝宝详情失败", 
+               zap.String("baby_id", id),
+               zap.String("openid", openID),
+               zap.Error(err))
+           response.FailWithError(c, errors.ErrInternalServer)
+       }
+       return
+   }
+   ```
+
+### 最佳实践
+
+1. **错误创建**
+   - 使用 `errors.New()` 创建新错误
+   - 使用 `errors.Wrap()` 包装底层错误并添加上下文
+   - 错误消息应该清晰、具体，便于调试
+
+2. **错误处理**
+   - 在可能失败的地方立即处理错误
+   - 使用 `errors.Is()` 检查特定错误
+   - 在适当的地方添加错误上下文
+
+3. **日志记录**
+   - 在接口层记录详细的错误日志
+   - 包含请求ID、参数等上下文信息
+   - 避免记录敏感信息
+
+4. **API 响应**
+   - 返回统一的错误响应格式
+   - 对客户端隐藏内部错误细节
+   - 提供有意义的错误代码和消息
+
+### 示例：完整的错误处理流程
+
+```go
+// 存储层
+func (r *babyRepository) FindByID(ctx context.Context, id string) (*entity.Baby, error) {
+    var baby entity.Baby
+    err := r.db.WithContext(ctx).Where("id = ?", id).First(&baby).Error
+    if errors.Is(err, gorm.ErrRecordNotFound) {
+        return nil, errors.New(errors.NotFound, "记录不存在")
+    }
+    if err != nil {
+        return nil, errors.Wrap(errors.DatabaseError, "查询宝宝信息失败", err)
+    }
+    return &baby, nil
+}
+
+// 服务层
+func (s *babyService) GetBabyDetail(ctx context.Context, id, openID string) (*dto.BabyDTO, error) {
+    // 检查权限
+    hasPermission, err := s.checkPermission(ctx, id, openID)
+    if err != nil {
+        return nil, err
+    }
+    if !hasPermission {
+        return nil, errors.New(errors.PermissionDenied, "没有权限访问该宝宝信息")
+    }
+
+    // 查询宝宝信息
+    baby, err := s.babyRepo.FindByID(ctx, id)
+    if err != nil {
+        if errors.Is(err, errors.NotFound) {
+            return nil, errors.New(errors.BabyNotFound, "未找到宝宝信息")
+        }
+        return nil, errors.Wrap(err, "获取宝宝详情失败")
+    }
+
+    return baby.ToDTO(), nil
+}
+
+// 接口层
+func (h *BabyHandler) GetBabyDetail(c *gin.Context) {
+    babyID := c.Param("id")
+    openID, _ := c.Get("openid")
+
+    baby, err := h.babyService.GetBabyDetail(c.Request.Context(), babyID, openID.(string))
+    if err != nil {
+        switch {
+        case errors.Is(err, errors.BabyNotFound):
+            response.FailWithError(c, errors.ErrBabyNotFound)
+        case errors.Is(err, errors.PermissionDenied):
+            response.FailWithError(c, errors.ErrPermissionDenied)
+        default:
+            h.logger.Error("获取宝宝详情失败", 
+                zap.String("baby_id", babyID),
+                zap.String("openid", openID),
+                zap.Error(err))
+            response.FailWithError(c, errors.ErrInternalServer)
+        }
+        return
+    }
+
+    response.SuccessWithData(c, baby)
+}
+```
+
+### 错误处理流程
+
+1. **存储层 (Repository)**:
+   - 捕获底层错误（如 `gorm.ErrRecordNotFound`）
+   - 转换为领域错误（如 `errors.NotFound`）
+   - 使用 `errors.Wrap` 添加上下文信息
+
+2. **服务层 (Service)**:
+   - 处理业务逻辑错误
+   - 将底层错误转换为业务相关的错误
+   - 添加业务上下文信息
+
+3. **接口层 (Handler)**:
+   - 处理 HTTP 相关的错误
+   - 记录错误日志
+   - 返回统一的错误响应
+
+### 错误码规范
+
+错误码定义在 `pkg/errors` 包中，按以下规则分类：
+
+- `1xxx`: 通用错误
+- `2xxx`: 认证授权错误
+- `3xxx`: 业务逻辑错误
+- `4xxx`: 资源未找到
+- `5xxx`: 服务器内部错误
+
+### 最佳实践
+
+1. 使用 `errors.New` 创建新的错误
+2. 使用 `errors.Wrap` 包装错误并添加上下文
+3. 使用 `errors.Is` 检查错误类型
+4. 在服务层处理所有业务相关的错误
+5. 在接口层处理所有 HTTP 相关的错误
+6. 记录详细的错误日志，包含请求ID和错误堆栈
+
+### 示例代码
+
+```go
+// 存储层示例
+func (r *babyRepositoryImpl) FindByID(ctx context.Context, babyID string) (*entity.Baby, error) {
+    var baby entity.Baby
+    err := r.db.WithContext(ctx).
+        Where("baby_id = ? AND deleted_at IS NULL", babyID).
+        First(&baby).Error
+
+    if errors.Is(err, gorm.ErrRecordNotFound) {
+        return nil, errors.New(errors.NotFound, "baby not found")
+    }
+    if err != nil {
+        return nil, errors.Wrap(errors.DatabaseError, "failed to find baby", err)
+    }
+    return &baby, nil
+}
+
+// 服务层示例
+func (s *babyService) GetBabyDetail(ctx context.Context, babyID, openID string) (*dto.BabyDTO, error) {
+    if err := s.checkPermission(ctx, babyID, openID); err != nil {
+        return nil, err
+    }
+
+    baby, err := s.babyRepo.FindByID(ctx, babyID)
+    if err != nil {
+        if errors.Is(err, errors.NotFound) {
+            return nil, errors.New(errors.BabyNotFound, "未找到宝宝信息")
+        }
+        return nil, errors.Wrap(errors.DatabaseError, "获取宝宝信息失败", err)
+    }
+    
+    // 转换为 DTO 并返回
+    return baby.ToDTO(), nil
+}
+
+// 接口层示例
+func (h *BabyHandler) GetBabyDetail(c *gin.Context) {
+    babyID := c.Param("id")
+    openID, _ := c.Get("openid")
+
+    baby, err := h.babyService.GetBabyDetail(c.Request.Context(), babyID, openID.(string))
+    if err != nil {
+        switch {
+        case errors.Is(err, errors.BabyNotFound):
+            response.FailWithError(c, errors.ErrBabyNotFound)
+        case errors.Is(err, errors.PermissionDenied):
+            response.FailWithError(c, errors.ErrPermissionDenied)
+        default:
+            h.logger.Error("获取宝宝详情失败", 
+                zap.String("baby_id", babyID),
+                zap.String("openid", openID.(string)),
+                zap.Error(err))
+            response.FailWithError(c, errors.ErrInternalServer.WithError(err))
+        }
+        return
+    }
+
+    response.SuccessWithData(c, baby)
+}
 ```
 
 ## 核心架构
