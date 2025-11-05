@@ -17,8 +17,8 @@ import (
 type SchedulerService struct {
 	scheduler           *gocron.Scheduler
 	vaccineRepo         repository.VaccineRecordRepository
-	vaccineReminderRepo repository.VaccineReminderRepository
 	babyVaccinePlanRepo repository.BabyVaccinePlanRepository
+	vaccineScheduleRepo repository.BabyVaccineScheduleRepository // 新增: 疫苗接种日程仓储
 	feedingRecordRepo   repository.FeedingRecordRepository
 	subscribeService    *SubscribeService
 	strategyFactory     *FeedingReminderStrategyFactory
@@ -28,8 +28,8 @@ type SchedulerService struct {
 // NewSchedulerService 创建定时任务服务
 func NewSchedulerService(
 	vaccineRepo repository.VaccineRecordRepository,
-	vaccineReminderRepo repository.VaccineReminderRepository,
 	babyVaccinePlanRepo repository.BabyVaccinePlanRepository,
+	vaccineScheduleRepo repository.BabyVaccineScheduleRepository,
 	feedingRecordRepo repository.FeedingRecordRepository,
 	subscribeService *SubscribeService,
 	cfg *config.Config,
@@ -41,8 +41,8 @@ func NewSchedulerService(
 	return &SchedulerService{
 		scheduler:           scheduler,
 		vaccineRepo:         vaccineRepo,
-		vaccineReminderRepo: vaccineReminderRepo,
 		babyVaccinePlanRepo: babyVaccinePlanRepo,
+		vaccineScheduleRepo: vaccineScheduleRepo,
 		feedingRecordRepo:   feedingRecordRepo,
 		subscribeService:    subscribeService,
 		strategyFactory:     NewFeedingReminderStrategyFactory(cfg),
@@ -63,95 +63,18 @@ func (s *SchedulerService) Stop() {
 	s.logger.Info("Scheduler service stopped")
 }
 
-// CheckVaccineReminders 检查疫苗提醒
+// CheckVaccineReminders 检查疫苗提醒(使用新的 BabyVaccineSchedule 架构)
 func (s *SchedulerService) CheckVaccineReminders() error {
-	ctx := context.Background()
+	// ctx := context.Background()
 
-	// 获取所有即将到期和已逾期的疫苗提醒
-	reminders, err := s.vaccineReminderRepo.FindDueReminders(ctx)
-	if err != nil {
-		s.logger.Error("Failed to get due reminders", zap.Error(err))
-		return err
-	}
+	// TODO: 实现基于 BabyVaccineSchedule 的提醒逻辑
+	// 1. 查询所有待接种的日程 (vaccination_status='pending')
+	// 2. 根据 scheduled_date 和当前时间计算是否需要发送提醒
+	// 3. 调用 GetReminderStatus() 方法获取提醒状态
+	// 4. 发送订阅消息提醒
+	// 5. 更新 reminder_sent 和 reminder_sent_at 字段
 
-	s.logger.Info("Found vaccine reminders to process", zap.Int("count", len(reminders)))
-
-	for _, reminder := range reminders {
-		// 检查提醒状态
-		if reminder.Status == "completed" || reminder.ReminderSent {
-			continue
-		}
-
-		// 获取疫苗计划信息
-		plan, err := s.babyVaccinePlanRepo.FindByID(ctx, reminder.PlanID)
-		if err != nil {
-			s.logger.Error("Failed to get vaccine plan",
-				zap.String("planId", reminder.PlanID),
-				zap.Error(err))
-			continue
-		}
-
-		// 计算提醒状态
-		now := time.Now()
-		scheduledTime := time.Unix(reminder.ScheduledDate/1000, 0)
-		daysUntilDue := int(scheduledTime.Sub(now).Hours() / 24)
-
-		var status string
-		var reminderMessage string
-
-		if daysUntilDue < 0 {
-			status = "overdue"
-			reminderMessage = "已逾期"
-		} else if daysUntilDue == 0 {
-			status = "due"
-			reminderMessage = "今天到期"
-		} else if daysUntilDue <= 3 {
-			status = "upcoming"
-			reminderMessage = "即将到期"
-		} else {
-			status = "upcoming"
-			reminderMessage = "提醒"
-		}
-
-		// 构造消息数据
-		messageData := map[string]interface{}{
-			"babyName":    reminder.BabyID, // TODO: 获取宝宝姓名
-			"vaccineName": plan.VaccineType,
-			"dueDate":     scheduledTime.Format("2006-01-02"),
-			"location":    "请联系接种点",
-			"doseNumber":  plan.DoseNumber,
-		}
-
-		// 直接发送订阅消息
-		sendReq := &dto.SendMessageRequest{
-			OpenID:     "", // TODO: 获取用户 OpenID
-			TemplateID: "vaccine_reminder",
-			Data:       messageData,
-			Page:       "pages/vaccine/vaccine",
-		}
-
-		if err := s.subscribeService.SendSubscribeMessage(ctx, sendReq); err != nil {
-			s.logger.Error("Failed to send vaccine reminder",
-				zap.String("reminderId", reminder.ReminderID),
-				zap.Error(err))
-			continue
-		}
-
-		// 更新提醒状态
-		reminder.Status = status
-		reminder.ReminderSent = true
-		if err := s.vaccineReminderRepo.Update(ctx, reminder); err != nil {
-			s.logger.Error("Failed to update reminder status",
-				zap.String("reminderId", reminder.ReminderID),
-				zap.Error(err))
-		}
-
-		s.logger.Info("Vaccine reminder sent successfully",
-			zap.String("reminderId", reminder.ReminderID),
-			zap.String("status", status),
-			zap.String("message", reminderMessage))
-	}
-
+	s.logger.Info("CheckVaccineReminders 暂未实现(待迁移到新架构)")
 	return nil
 }
 
