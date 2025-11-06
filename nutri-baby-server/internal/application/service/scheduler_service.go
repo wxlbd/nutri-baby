@@ -16,8 +16,6 @@ import (
 // SchedulerService 定时任务服务
 type SchedulerService struct {
 	scheduler           *gocron.Scheduler
-	vaccineRepo         repository.VaccineRecordRepository
-	babyVaccinePlanRepo repository.BabyVaccinePlanRepository
 	vaccineScheduleRepo repository.BabyVaccineScheduleRepository // 新增: 疫苗接种日程仓储
 	feedingRecordRepo   repository.FeedingRecordRepository
 	subscribeService    *SubscribeService
@@ -27,8 +25,6 @@ type SchedulerService struct {
 
 // NewSchedulerService 创建定时任务服务
 func NewSchedulerService(
-	vaccineRepo repository.VaccineRecordRepository,
-	babyVaccinePlanRepo repository.BabyVaccinePlanRepository,
 	vaccineScheduleRepo repository.BabyVaccineScheduleRepository,
 	feedingRecordRepo repository.FeedingRecordRepository,
 	subscribeService *SubscribeService,
@@ -40,8 +36,6 @@ func NewSchedulerService(
 
 	return &SchedulerService{
 		scheduler:           scheduler,
-		vaccineRepo:         vaccineRepo,
-		babyVaccinePlanRepo: babyVaccinePlanRepo,
 		vaccineScheduleRepo: vaccineScheduleRepo,
 		feedingRecordRepo:   feedingRecordRepo,
 		subscribeService:    subscribeService,
