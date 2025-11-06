@@ -57,7 +57,7 @@ func (r *babyInvitationRepositoryImpl) FindByShortCode(ctx context.Context, shor
 		return nil, errors.New(errors.NotFound, "邀请不存在或已失效")
 	}
 	if err != nil {
-		return nil, errors.Wrap(errors.DatabaseError, "failed to find invitation by short code", err)
+		return nil, errors.Wrap(errors.DatabaseError, "通过短码查找邀请记录失败", err)
 	}
 
 	return &invitation, nil
@@ -73,7 +73,7 @@ func (r *babyInvitationRepositoryImpl) FindByBabyID(ctx context.Context, babyID 
 		Find(&invitations).Error
 
 	if err != nil {
-		return nil, errors.Wrap(errors.DatabaseError, "failed to find invitations by baby id", err)
+		return nil, errors.Wrap(errors.DatabaseError, "通过宝宝ID查找邀请记录失败", err)
 	}
 
 	return invitations, nil
@@ -89,14 +89,14 @@ func (r *babyInvitationRepositoryImpl) FindByBabyAndInviter(ctx context.Context,
 	// 3. 邀请未使用(used_by IS NULL)
 	// 4. 未被删除(deleted_at IS NULL)
 	err := r.db.WithContext(ctx).
-		Where("baby_id = ? AND inviter_id = ? AND used_by IS NULL AND deleted_at IS NULL", babyID, inviterID).
+		Where("baby_id = ? AND inviter_id = ? AND deleted_at IS NULL", babyID, inviterID).
 		First(&invitation).Error
 
 	if errors.Is(err, gorm.ErrRecordNotFound) {
-		return nil, errors.New(errors.NotFound, "邀请不存在")
+		return nil, errors.ErrNotFound
 	}
 	if err != nil {
-		return nil, errors.Wrap(errors.DatabaseError, "failed to find invitation by baby and inviter", err)
+		return nil, errors.Wrap(errors.DatabaseError, "通过邀请人和宝宝ID查找邀请记录失败", err)
 	}
 
 	return &invitation, nil
@@ -113,7 +113,7 @@ func (r *babyInvitationRepositoryImpl) MarkAsUsed(ctx context.Context, invitatio
 		}).Error
 
 	if err != nil {
-		return errors.Wrap(errors.DatabaseError, "failed to mark invitation as used", err)
+		return errors.Wrap(errors.DatabaseError, "标记邀请已使用失败", err)
 	}
 
 	return nil
@@ -129,7 +129,7 @@ func (r *babyInvitationRepositoryImpl) CleanExpired(ctx context.Context) error {
 		Update("deleted_at", now).Error
 
 	if err != nil {
-		return errors.Wrap(errors.DatabaseError, "failed to clean expired invitations", err)
+		return errors.Wrap(errors.DatabaseError, "清理过期邀请失败", err)
 	}
 
 	return nil
@@ -143,7 +143,7 @@ func (r *babyInvitationRepositoryImpl) Delete(ctx context.Context, invitationID 
 		Update("deleted_at", time.Now().UnixMilli()).Error
 
 	if err != nil {
-		return errors.Wrap(errors.DatabaseError, "failed to delete invitation", err)
+		return errors.Wrap(errors.DatabaseError, "删除邀请失败", err)
 	}
 
 	return nil

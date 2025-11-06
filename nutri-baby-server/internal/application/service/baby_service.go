@@ -390,11 +390,6 @@ func (s *BabyService) GetInvitationByShortCode(ctx context.Context, shortCode st
 		return nil, err
 	}
 
-	// 验证邀请是否已被使用
-	if invitation.IsUsed() {
-		return nil, errors.New(errors.ParamError, "邀请已被使用")
-	}
-
 	// 获取宝宝信息
 	baby, err := s.babyRepo.FindByID(ctx, invitation.BabyID)
 	if err != nil {
@@ -425,11 +420,6 @@ func (s *BabyService) JoinBaby(ctx context.Context, openID string, req *dto.Join
 	invitation, err := s.invitationRepo.FindByToken(ctx, req.Token)
 	if err != nil {
 		return nil, err
-	}
-
-	// 验证邀请是否已被使用
-	if invitation.IsUsed() {
-		return nil, errors.New(errors.ParamError, "邀请已被使用")
 	}
 
 	if invitation.BabyID != req.BabyID {
