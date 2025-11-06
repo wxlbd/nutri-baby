@@ -33,8 +33,6 @@ func InitApp(cfg *config.Config) (*App, error) {
 		persistence.NewSleepRecordRepository,
 		persistence.NewDiaperRecordRepository,
 		persistence.NewGrowthRecordRepository,
-		persistence.NewVaccineRecordRepository,       // 旧表，待废弃
-		persistence.NewBabyVaccinePlanRepository,     // 旧表，待废弃
 		persistence.NewBabyVaccineScheduleRepository, // 新增：疫苗接种日程仓储
 		persistence.NewVaccinePlanTemplateRepository, // 疫苗计划模板仓储
 		persistence.NewSubscribeRepository,           // 订阅消息仓储
