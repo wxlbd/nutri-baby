@@ -155,6 +155,35 @@ func (s *AuthService) SetDefaultBaby(ctx context.Context, openID string, req *dt
 	return nil
 }
 
+// UpdateUserInfo 更新用户信息
+func (s *AuthService) UpdateUserInfo(ctx context.Context, openID string, req *dto.UpdateUserInfoRequest) (*dto.UserInfoDTO, error) {
+	// 查找用户
+	user, err := s.userRepo.FindByOpenID(ctx, openID)
+	if err != nil {
+		return nil, err
+	}
+
+	// 更新用户信息
+	user.NickName = req.NickName
+	user.AvatarURL = req.AvatarURL
+	user.UpdateTime = time.Now().UnixMilli()
+
+	// 保存到数据库
+	if err := s.userRepo.Update(ctx, user); err != nil {
+		return nil, err
+	}
+
+	// 返回更新后的用户信息
+	return &dto.UserInfoDTO{
+		OpenID:        user.OpenID,
+		NickName:      user.NickName,
+		AvatarURL:     user.AvatarURL,
+		DefaultBabyID: user.DefaultBabyID,
+		CreateTime:    user.CreateTime,
+		LastLoginTime: user.LastLoginTime,
+	}, nil
+}
+
 // generateToken 生成JWT Token
 func (s *AuthService) generateToken(openID string) (string, error) {
 	now := time.Now()

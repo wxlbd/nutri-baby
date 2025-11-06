@@ -74,7 +74,7 @@
         >
           <template #link>
             <text class="duration-text">{{
-              formatDuration(lastRecord.duration)
+              formatDuration(lastRecord.duration || 0)
             }}</text>
           </template>
         </wd-cell>
@@ -129,7 +129,7 @@
               size="large"
               @click="handleQuickSleepConfirm"
             >
-              确定
+              {{ isEditing ? '更新记录' : '确定' }}
             </wd-button>
           </view>
         </view>
@@ -140,7 +140,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch } from "vue";
-import { onShow } from "@dcloudio/uni-app";
+import { onLoad, onShow } from "@dcloudio/uni-app";
 import { currentBabyId, currentBaby } from "@/store/baby";
 import { getUserInfo } from "@/store/user";
 import { formatDate, formatDuration } from "@/utils/date";
@@ -155,6 +155,10 @@ import type { SleepRecord } from "@/types";
 
 // 直接调用 API 层
 import * as sleepApi from "@/api/sleep";
+
+// 编辑模式相关
+const editId = ref<string>("");
+const isEditing = computed(() => !!editId.value);
 
 // 临时睡眠记录类型
 interface TempSleepRecording {
@@ -224,18 +228,35 @@ const handleQuickSleepConfirm = async () => {
       (quickRecord.value.endTime - quickRecord.value.startTime) / 1000
     );
 
-    await sleepApi.apiCreateSleepRecord({
-      babyId: currentBabyId.value,
-      sleepType: quickRecord.value.type,
-      startTime: quickRecord.value.startTime,
-      endTime: quickRecord.value.endTime,
-      duration: elapsedSeconds,
-    });
+    if (isEditing.value) {
+      // 更新模式
+      await sleepApi.apiUpdateSleepRecord(editId.value, {
+        babyId: currentBabyId.value,
+        sleepType: quickRecord.value.type,
+        startTime: quickRecord.value.startTime,
+        endTime: quickRecord.value.endTime,
+        duration: elapsedSeconds,
+      });
 
-    uni.showToast({
-      title: "保存成功",
-      icon: "success",
-    });
+      uni.showToast({
+        title: "更新成功",
+        icon: "success",
+      });
+    } else {
+      // 创建模式
+      await sleepApi.apiCreateSleepRecord({
+        babyId: currentBabyId.value,
+        sleepType: quickRecord.value.type,
+        startTime: quickRecord.value.startTime,
+        endTime: quickRecord.value.endTime,
+        duration: elapsedSeconds,
+      });
+
+      uni.showToast({
+        title: "保存成功",
+        icon: "success",
+      });
+    }
 
     showQuickRecordModal.value = false;
 
@@ -470,6 +491,45 @@ onUnmounted(() => {
   }
 });
 
+// 页面加载时检测 editId 参数
+onLoad((options) => {
+  if (options?.editId) {
+    editId.value = options.editId;
+    loadSleepRecord(options.editId);
+  }
+});
+
+// 加载睡眠记录数据(用于编辑模式)
+const loadSleepRecord = async (recordId: string) => {
+  try {
+    const record = await sleepApi.apiGetSleepRecordById(recordId);
+
+    // 设置睡眠类型
+    sleepType.value = record.sleepType;
+
+    // 设置快速补记表单的开始和结束时间
+    quickRecord.value = {
+      type: record.sleepType,
+      startTime: record.startTime,
+      endTime: record.endTime || Date.now(),
+    };
+
+    // 直接打开快速补记模态框
+    showQuickRecordModal.value = true;
+
+    console.log('[Sleep] 已加载记录数据:', record);
+  } catch (error: any) {
+    console.error('[Sleep] 加载记录失败:', error);
+    uni.showToast({
+      title: error.message || '加载记录失败',
+      icon: 'none',
+    });
+    setTimeout(() => {
+      uni.navigateBack();
+    }, 1500);
+  }
+};
+
 // 页面加载
 onMounted(() => {
   if (!currentBaby.value) {
@@ -483,7 +543,10 @@ onMounted(() => {
     return;
   }
 
-  checkTempRecord();
+  // 编辑模式下不检查临时记录
+  if (!isEditing.value) {
+    checkTempRecord();
+  }
 });
 
 // 页面显示时也检测(从其他页面返回)

@@ -14,8 +14,7 @@ func NewRouter(
 	authHandler *handler.AuthHandler,
 	babyHandler *handler.BabyHandler,
 	recordHandler *handler.RecordHandler,
-	vaccineHandler *handler.VaccineHandler,
-	vaccinePlanHandler *handler.VaccinePlanHandler,
+	vaccineScheduleHandler *handler.VaccineScheduleHandler, // 新增
 	subscribeHandler *handler.SubscribeHandler,
 	syncHandler *handler.SyncHandler,
 ) *gin.Engine {
@@ -55,6 +54,7 @@ func NewRouter(
 			// 认证相关（需要token）
 			authRequired.POST("/auth/refresh-token", authHandler.RefreshToken)
 			authRequired.GET("/auth/user-info", authHandler.GetUserInfo)
+			authRequired.PUT("/auth/user-info", authHandler.UpdateUserInfo)
 			authRequired.PUT("/auth/default-baby", authHandler.SetDefaultBaby)
 
 			// 宝宝管理 (去家庭化架构)
@@ -77,23 +77,14 @@ func NewRouter(
 				// 小程序码生成
 				babies.GET("/:babyId/qrcode", babyHandler.GenerateInviteQRCode)
 
-				// 疫苗计划管理
-				babies.POST("/:babyId/vaccine-plans/initialize", vaccinePlanHandler.InitializePlans)
-				babies.GET("/:babyId/vaccine-plans", vaccinePlanHandler.GetPlans)
-				babies.POST("/:babyId/vaccine-plans", vaccinePlanHandler.CreatePlan)
-
-				// 疫苗接种记录和提醒
-				babies.POST("/:babyId/vaccine-records", vaccineHandler.CreateVaccineRecord)
-				babies.GET("/:babyId/vaccine-records", vaccineHandler.GetVaccineRecords)
-				babies.GET("/:babyId/vaccine-reminders", vaccineHandler.GetVaccineReminders)
-				babies.GET("/:babyId/vaccine-statistics", vaccineHandler.GetVaccineStatistics)
-			}
-
-			// 疫苗计划单个操作（不依赖babyId路径参数）
-			vaccinePlans := authRequired.Group("/vaccine-plans")
-			{
-				vaccinePlans.PUT("/:planId", vaccinePlanHandler.UpdatePlan)
-				vaccinePlans.DELETE("/:planId", vaccinePlanHandler.DeletePlan)
+				// 疫苗接种日程(新接口)
+				babies.GET("/:babyId/vaccine-schedules", vaccineScheduleHandler.GetVaccineSchedules)
+				babies.POST("/:babyId/vaccine-schedules", vaccineScheduleHandler.CreateCustomSchedule)
+				babies.PUT("/:babyId/vaccine-schedules/:scheduleId", vaccineScheduleHandler.UpdateVaccineSchedule)
+				babies.PUT("/:babyId/vaccine-schedules/:scheduleId/info", vaccineScheduleHandler.UpdateScheduleInfo) // 更新基本信息
+				babies.DELETE("/:babyId/vaccine-schedules/:scheduleId", vaccineScheduleHandler.DeleteSchedule)
+				babies.GET("/:babyId/vaccine-schedule-statistics", vaccineScheduleHandler.GetStatistics)
+				babies.GET("/:babyId/vaccine-reminders", vaccineScheduleHandler.GetReminders)
 			}
 
 			// 喂养记录
@@ -101,6 +92,9 @@ func NewRouter(
 			{
 				feedingRecords.POST("", recordHandler.CreateFeedingRecord)
 				feedingRecords.GET("", recordHandler.GetFeedingRecords)
+				feedingRecords.GET("/:id", recordHandler.GetFeedingRecordById)
+				feedingRecords.PUT("/:id", recordHandler.UpdateFeedingRecord)
+				feedingRecords.DELETE("/:id", recordHandler.DeleteFeedingRecord)
 			}
 
 			// 睡眠记录
@@ -108,6 +102,9 @@ func NewRouter(
 			{
 				sleepRecords.POST("", recordHandler.CreateSleepRecord)
 				sleepRecords.GET("", recordHandler.GetSleepRecords)
+				sleepRecords.GET("/:id", recordHandler.GetSleepRecordById)
+				sleepRecords.PUT("/:id", recordHandler.UpdateSleepRecord)
+				sleepRecords.DELETE("/:id", recordHandler.DeleteSleepRecord)
 			}
 
 			// 尿布记录
@@ -115,6 +112,9 @@ func NewRouter(
 			{
 				diaperRecords.POST("", recordHandler.CreateDiaperRecord)
 				diaperRecords.GET("", recordHandler.GetDiaperRecords)
+				diaperRecords.GET("/:id", recordHandler.GetDiaperRecordById)
+				diaperRecords.PUT("/:id", recordHandler.UpdateDiaperRecord)
+				diaperRecords.DELETE("/:id", recordHandler.DeleteDiaperRecord)
 			}
 
 			// 生长记录
@@ -122,6 +122,9 @@ func NewRouter(
 			{
 				growthRecords.POST("", recordHandler.CreateGrowthRecord)
 				growthRecords.GET("", recordHandler.GetGrowthRecords)
+				growthRecords.GET("/:id", recordHandler.GetGrowthRecordById)
+				growthRecords.PUT("/:id", recordHandler.UpdateGrowthRecord)
+				growthRecords.DELETE("/:id", recordHandler.DeleteGrowthRecord)
 			}
 
 			// 时间线聚合接口

@@ -7,25 +7,9 @@ import { get, post, put, del } from "@/utils/request";
 // ============ 类型定义 ============
 
 /**
- * 疫苗类型枚举
+ * 疫苗接种状态 (新架构)
  */
-export type VaccineType =
-  | "BCG"
-  | "HepB"
-  | "OPV"
-  | "DTaP"
-  | "MMR"
-  | "JE"
-  | "MenA"
-  | "MenAC"
-  | "HepA"
-  | "Varicella"
-  | "InfluenzaA"
-  | "Rotavirus"
-  | "Pneumococcal"
-  | "HIB"
-  | "EV71"
-  | "Other";
+export type VaccinationStatus = "pending" | "completed" | "skipped";
 
 /**
  * 提醒状态
@@ -37,12 +21,91 @@ export type VaccineReminderStatus =
   | "completed";
 
 /**
+ * API 响应: 疫苗接种日程详情 (新架构 - 合并计划和记录)
+ */
+export interface VaccineScheduleResponse {
+  scheduleId: string;
+  babyId: string;
+  templateId?: string; // 模板ID (自定义计划无此字段)
+  vaccineType: string;
+  vaccineName: string;
+  description?: string;
+  ageInMonths: number;
+  doseNumber: number;
+  isRequired: boolean;
+  reminderDays: number;
+  isCustom: boolean; // 是否为自定义计划
+
+  // 接种状态
+  vaccinationStatus: VaccinationStatus; // pending/completed/skipped
+
+  // 接种记录信息 (status='completed' 时有值)
+  vaccineDate?: number; // 接种日期时间戳
+  hospital?: string;
+  batchNumber?: string;
+  doctor?: string;
+  reaction?: string;
+  note?: string;
+
+  // 完成人信息 (status='completed' 时有值)
+  completedBy?: string; // 完成人 openid
+  completedByName?: string;
+  completedByAvatar?: string;
+  completedTime?: number; // 完成时间戳
+
+  // 元数据
+  createBy: string;
+  createTime: number;
+  updateTime?: number;
+}
+
+/**
+ * API 响应: 疫苗接种日程列表 (新架构)
+ */
+export interface VaccineScheduleListResponse {
+  schedules: VaccineScheduleResponse[];
+  statistics: {
+    total: number;
+    completed: number;
+    pending: number;
+    skipped: number;
+    completionRate: number; // 完成率 (0-100)
+  };
+}
+
+/**
+ * API 请求: 更新疫苗接种日程 (记录接种)
+ */
+export interface UpdateVaccineScheduleRequest {
+  vaccinationStatus: "completed" | "skipped"; // 只能更新为已完成或跳过
+  vaccineDate?: number; // status='completed' 时必填
+  hospital?: string; // status='completed' 时必填
+  batchNumber?: string;
+  doctor?: string;
+  reaction?: string;
+  note?: string;
+}
+
+/**
+ * API 请求: 创建自定义疫苗接种日程
+ */
+export interface CreateVaccineScheduleRequest {
+  vaccineType: string;
+  vaccineName: string;
+  description?: string;
+  ageInMonths: number;
+  doseNumber: number;
+  isRequired: boolean;
+  reminderDays?: number; // 默认 7 天
+}
+
+/**
  * API 响应: 疫苗计划详情
  */
 export interface VaccinePlanResponse {
   planId: string;
   vaccineName: string;
-  vaccineType: VaccineType;
+  vaccineType: string;
   ageInMonths: number;
   doseNumber: number;
   isRequired: boolean;
@@ -60,7 +123,7 @@ export interface VaccineRecordResponse {
   babyId: string;
   planId: string;
   vaccineName: string;
-  vaccineType: VaccineType;
+  vaccineType: string;
   doseNumber: number;
   vaccineDate: number;
   hospital?: string;
@@ -122,6 +185,9 @@ export interface VaccineRemindersListResponse {
 export interface CreateVaccineRecordRequest {
   babyId: string;
   planId: string;
+  doseNumber: number;
+  vaccineName: string;
+  vaccineType: string;
   vaccineDate: number;
   hospital?: string;
   batchNumber?: string;
@@ -282,4 +348,119 @@ export async function apiDeleteVaccineRecord(recordId: string): Promise<void> {
 export async function apiMarkReminderSent(reminderId: string): Promise<void> {
   // TODO: 后端需要实现 POST /v1/vaccine-reminders/:reminderId/mark-sent 接口
   await post(`/vaccine-reminders/${reminderId}/mark-sent`, {});
+}
+
+// ============ 新架构 API 函数 (合并计划和记录) ============
+
+/**
+ * 获取宝宝的疫苗接种日程列表 (新架构)
+ *
+ * @param babyId 宝宝ID
+ * @param status 可选: 过滤状态 (pending/completed/skipped)
+ * @returns Promise<VaccineScheduleListResponse>
+ */
+export async function apiFetchVaccineSchedules(
+  babyId: string,
+  status?: VaccinationStatus,
+): Promise<VaccineScheduleListResponse> {
+  const queryParams = status ? { status } : {};
+  const response = await get<VaccineScheduleListResponse>(
+    `/babies/${babyId}/vaccine-schedules`,
+    queryParams,
+  );
+  return (
+    response.data || {
+      schedules: [],
+      statistics: {
+        total: 0,
+        completed: 0,
+        pending: 0,
+        skipped: 0,
+        completionRate: 0,
+      },
+    }
+  );
+}
+
+/**
+ * 更新疫苗接种日程 (记录接种或跳过)
+ *
+ * @param babyId 宝宝ID
+ * @param scheduleId 日程ID
+ * @param data 更新数据
+ * @returns Promise<void>
+ */
+export async function apiUpdateVaccineSchedule(
+  babyId: string,
+  scheduleId: string,
+  data: UpdateVaccineScheduleRequest,
+): Promise<void> {
+  await put(`/babies/${babyId}/vaccine-schedules/${scheduleId}`, data);
+}
+
+/**
+ * 创建自定义疫苗接种日程
+ *
+ * @param babyId 宝宝ID
+ * @param data 自定义计划数据
+ * @returns Promise<void>
+ */
+export async function apiCreateCustomSchedule(
+  babyId: string,
+  data: CreateVaccineScheduleRequest,
+): Promise<void> {
+  await post(`/babies/${babyId}/vaccine-schedules`, data);
+}
+
+/**
+ * 删除疫苗接种日程 (仅限自定义)
+ *
+ * @param babyId 宝宝ID
+ * @param scheduleId 日程ID
+ * @returns Promise<void>
+ */
+export async function apiDeleteVaccineSchedule(
+  babyId: string,
+  scheduleId: string,
+): Promise<void> {
+  await del(`/babies/${babyId}/vaccine-schedules/${scheduleId}`);
+}
+
+/**
+ * 更新疫苗接种日程基本信息 (仅限未完成的日程)
+ *
+ * @param babyId 宝宝ID
+ * @param scheduleId 日程ID
+ * @param data 更新数据
+ * @returns Promise<void>
+ */
+export async function apiUpdateScheduleInfo(
+  babyId: string,
+  scheduleId: string,
+  data: Partial<CreateVaccineScheduleRequest>,
+): Promise<void> {
+  await put(`/babies/${babyId}/vaccine-schedules/${scheduleId}/info`, data);
+}
+
+/**
+ * 获取疫苗接种统计 (新架构)
+ *
+ * @param babyId 宝宝ID
+ * @returns Promise<VaccineScheduleStatistics>
+ */
+export async function apiFetchVaccineScheduleStatistics(
+  babyId: string,
+): Promise<VaccineScheduleListResponse["statistics"]> {
+  const response = await get<VaccineScheduleListResponse["statistics"]>(
+    `/babies/${babyId}/vaccine-statistics`,
+  );
+  return (
+    response.data || {
+      total: 0,
+      completed: 0,
+      pending: 0,
+      skipped: 0,
+      completionRate: 0,
+    }
+  );
 }

@@ -86,6 +86,22 @@ export async function apiCreateFeedingRecord(
 }
 
 /**
+ * 获取单条喂养记录
+ *
+ * @param recordId 记录ID
+ * @returns Promise<FeedingRecordResponse>
+ */
+export async function apiGetFeedingRecordById(
+  recordId: string
+): Promise<FeedingRecordResponse> {
+  const response = await get<FeedingRecordResponse>(`/feeding-records/${recordId}`)
+  if (!response.data) {
+    throw new Error(response.message || '获取喂养记录失败')
+  }
+  return response.data
+}
+
+/**
  * 更新喂养记录
  *
  * @param recordId 记录ID

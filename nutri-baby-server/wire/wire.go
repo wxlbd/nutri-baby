@@ -26,9 +26,6 @@ func InitApp(cfg *config.Config) (*App, error) {
 		// 仓储层
 		persistence.NewSubscriptionCacheRepository, // 订阅权限缓存管理器
 		persistence.NewUserRepository,
-		// persistence.NewFamilyRepository, // 已废弃：去家庭化架构
-		// persistence.NewFamilyMemberRepository, // 已废弃：去家庭化架构
-		// persistence.NewInvitationRepository, // 已废弃：去家庭化架构
 		persistence.NewBabyRepository,
 		persistence.NewBabyCollaboratorRepository, // 去家庭化架构：宝宝协作者仓储
 		persistence.NewBabyInvitationRepository,   // 去家庭化架构：宝宝邀请仓储
@@ -36,35 +33,32 @@ func InitApp(cfg *config.Config) (*App, error) {
 		persistence.NewSleepRecordRepository,
 		persistence.NewDiaperRecordRepository,
 		persistence.NewGrowthRecordRepository,
-		persistence.NewVaccineRecordRepository,
-		persistence.NewBabyVaccinePlanRepository, // 宝宝疫苗计划仓储
-		persistence.NewVaccineReminderRepository, // 疫苗提醒仓储
-		persistence.NewSubscribeRepository,       // 订阅消息仓储
+		persistence.NewVaccineRecordRepository,       // 旧表，待废弃
+		persistence.NewBabyVaccinePlanRepository,     // 旧表，待废弃
+		persistence.NewBabyVaccineScheduleRepository, // 新增：疫苗接种日程仓储
+		persistence.NewVaccinePlanTemplateRepository, // 疫苗计划模板仓储
+		persistence.NewSubscribeRepository,           // 订阅消息仓储
 
 		// 应用服务层
 		service.NewWechatService,    // 微信服务
 		service.NewSubscribeService, // 订阅消息服务
 		service.NewAuthService,
-		// service.NewFamilyService, // 已废弃：去家庭化架构
 		service.NewBabyService,
-		service.NewFeedingRecordService, // 喂养记录服务
-		service.NewSleepRecordService,   // 睡眠记录服务
-		service.NewDiaperRecordService,  // 尿布记录服务
-		service.NewGrowthRecordService,  // 成长记录服务
-		service.NewTimelineService,      // 时间线聚合服务
-		service.NewVaccineService,
-		service.NewVaccinePlanService, // 疫苗计划管理服务
-		service.NewSchedulerService,   // 定时任务服务
+		service.NewFeedingRecordService,   // 喂养记录服务
+		service.NewSleepRecordService,     // 睡眠记录服务
+		service.NewDiaperRecordService,    // 尿布记录服务
+		service.NewGrowthRecordService,    // 成长记录服务
+		service.NewTimelineService,        // 时间线聚合服务
+		service.NewVaccineScheduleService, // 新增：疫苗接种日程服务
+		service.NewSchedulerService,       // 定时任务服务
 		// service.NewSyncService, // TODO: WebSocket同步未实现，暂时注释
 
 		// HTTP处理器
 		handler.NewAuthHandler,
-		// handler.NewFamilyHandler, // 已废弃：去家庭化架构
 		handler.NewBabyHandler,
 		handler.NewRecordHandler,
-		handler.NewVaccineHandler,
-		handler.NewVaccinePlanHandler, // 疫苗计划管理处理器
-		handler.NewSubscribeHandler,   // 订阅消息处理器
+		handler.NewVaccineScheduleHandler, // 新增：疫苗接种日程处理器
+		handler.NewSubscribeHandler,       // 订阅消息处理器
 		handler.NewSyncHandler,
 
 		// 路由

@@ -24,15 +24,6 @@ type UserInfoDTO struct {
 	LastLoginTime int64  `json:"lastLoginTime"`
 }
 
-// FamilyDTO 家庭DTO
-type FamilyDTO struct {
-	FamilyID    string `json:"familyId"`
-	FamilyName  string `json:"familyName"`
-	Description string `json:"description,omitempty"`
-	Role        string `json:"role"` // admin, member
-	JoinTime    int64  `json:"joinTime"`
-}
-
 // RefreshTokenResponse 刷新Token响应
 type RefreshTokenResponse struct {
 	Token     string `json:"token"`
@@ -42,4 +33,10 @@ type RefreshTokenResponse struct {
 // SetDefaultBabyRequest 设置默认宝宝请求
 type SetDefaultBabyRequest struct {
 	BabyID string `json:"babyId" binding:"required"`
+}
+
+// UpdateUserInfoRequest 更新用户信息请求
+type UpdateUserInfoRequest struct {
+	NickName  string `json:"nickName" binding:"required"`
+	AvatarURL string `json:"avatarUrl"`
 }

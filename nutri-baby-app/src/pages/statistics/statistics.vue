@@ -17,7 +17,7 @@
     <!-- 喂养统计 -->
     <view class="stat-section">
       <view class="section-header">
-        <text class="icon">🍼</text>
+        <image class="icon-img" src="/static/naiping.svg" mode="aspectFit" />
         <text class="title">喂养统计</text>
       </view>
 
@@ -61,7 +61,7 @@
     <!-- 睡眠统计 -->
     <view class="stat-section">
       <view class="section-header">
-        <text class="icon">💤</text>
+        <image class="icon-img" src="/static/yingershuijue.svg" mode="aspectFit" />
         <text class="title">睡眠统计</text>
       </view>
 
@@ -111,7 +111,7 @@
     <!-- 排泄统计 -->
     <view class="stat-section">
       <view class="section-header">
-        <text class="icon">🧷</text>
+        <image class="icon-img" src="/static/niaobushi.svg" mode="aspectFit" />
         <text class="title">排泄统计</text>
       </view>
 
@@ -311,7 +311,9 @@ const feedingStats = computed(() => {
   feedingRecords.value.forEach(record => {
     // 只统计奶瓶喂养的奶量，母乳喂养不计入
     if (record.feedingType === 'bottle') {
-      const amount = record.detail.unit === 'oz'
+      const feedingDetail = record.detail
+      const unit = (feedingDetail && feedingDetail.type === 'bottle') ? feedingDetail.unit : 'ml'
+      const amount = unit === 'oz'
         ? (record.amount || 0) * 29.5735
         : (record.amount || 0)
 
@@ -514,6 +516,23 @@ const growthStats = computed(() => {
   // 最新数据
   const latestRecord = growthRecords.value[0]
 
+  if (!latestRecord) {
+    return {
+      hasData: false,
+      latestHeight: 0,
+      latestWeight: 0,
+      latestHead: 0,
+      dates: [],
+      heightData: [],
+      weightData: [],
+      headData: [],
+      heightMin: 0,
+      heightMax: 0,
+      weightMin: 0,
+      weightMax: 0
+    }
+  }
+
   // 准备曲线数据（按时间正序）
   const sortedRecords = [...growthRecords.value].reverse()
   const dates: string[] = []
@@ -632,6 +651,11 @@ onMounted(() => {
 
   .icon {
     font-size: 40rpx;
+  }
+
+  .icon-img {
+    width: 48rpx;
+    height: 48rpx;
   }
 
   .title {

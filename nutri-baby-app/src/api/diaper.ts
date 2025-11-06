@@ -81,6 +81,22 @@ export async function apiCreateDiaperRecord(
 }
 
 /**
+ * 获取单条换尿布记录
+ *
+ * @param recordId 记录ID
+ * @returns Promise<DiaperRecordResponse>
+ */
+export async function apiGetDiaperRecordById(
+  recordId: string
+): Promise<DiaperRecordResponse> {
+  const response = await get<DiaperRecordResponse>(`/diaper-records/${recordId}`)
+  if (!response.data) {
+    throw new Error(response.message || '获取换尿布记录失败')
+  }
+  return response.data
+}
+
+/**
  * 更新换尿布记录
  *
  * @param recordId 记录ID

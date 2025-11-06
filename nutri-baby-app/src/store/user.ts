@@ -109,6 +109,8 @@ export function clearUserInfo() {
   // 清除邀请码缓存，防止退出登录后重复跳转到加入页面
   removeStorage(StorageKeys.PENDING_INVITE_CODE)
   removeStorage(StorageKeys.AUTO_JOIN_AFTER_LOGIN)
+  removeStorage(StorageKeys.CURRENT_BABY_ID)
+  removeStorage(StorageKeys.BABY_LIST)
 }
 
 /**
@@ -237,6 +239,34 @@ export async function fetchUserInfo(): Promise<UserInfo> {
     return response
   } catch (error: any) {
     console.error('fetch user info error:', error)
+    throw error
+  }
+}
+
+/**
+ * 更新用户信息
+ *
+ * API: PUT /auth/user-info
+ *
+ * ⚠️ 向后兼容: 函数签名保持不变
+ */
+export async function updateUserInfo(nickName: string, avatarUrl: string): Promise<UserInfo> {
+  try {
+    const response = await authApi.apiUpdateUserInfo({ nickName, avatarUrl })
+
+    setUserInfo(response)
+    uni.showToast({
+      title: '更新成功',
+      icon: 'success',
+    })
+
+    return response
+  } catch (error: any) {
+    console.error('update user info error:', error)
+    uni.showToast({
+      title: error.message || '更新失败',
+      icon: 'none',
+    })
     throw error
   }
 }

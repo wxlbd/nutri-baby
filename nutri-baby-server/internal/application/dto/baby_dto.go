@@ -7,36 +7,33 @@ type CreateBabyRequest struct {
 	Gender                string `json:"gender" binding:"required,oneof=male female"`
 	BirthDate             string `json:"birthDate" binding:"required"` // YYYY-MM-DD
 	AvatarURL             string `json:"avatarUrl"`
-	FamilyGroup           string `json:"familyGroup"`           // 可选的家庭分组名称
 	CopyCollaboratorsFrom string `json:"copyCollaboratorsFrom"` // 可选:复制协作者的源宝宝ID
 }
 
 // UpdateBabyRequest 更新宝宝请求
 type UpdateBabyRequest struct {
-	Name        string `json:"name"`
-	Nickname    string `json:"nickname"`
-	Gender      string `json:"gender" binding:"omitempty,oneof=male female"`
-	BirthDate   string `json:"birthDate"` // YYYY-MM-DD
-	AvatarURL   string `json:"avatarUrl"`
-	FamilyGroup string `json:"familyGroup"`
-	Height      int    `json:"height"` // cm
-	Weight      int    `json:"weight"` // g
+	Name      string `json:"name"`
+	Nickname  string `json:"nickname"`
+	Gender    string `json:"gender" binding:"omitempty,oneof=male female"`
+	BirthDate string `json:"birthDate"` // YYYY-MM-DD
+	AvatarURL string `json:"avatarUrl"`
+	Height    int    `json:"height"` // cm
+	Weight    int    `json:"weight"` // g
 }
 
 // BabyDTO 宝宝DTO (去家庭化架构)
 type BabyDTO struct {
-	BabyID      string `json:"babyId"`
-	Name        string `json:"name"`
-	Nickname    string `json:"nickname"`
-	Gender      string `json:"gender"`
-	BirthDate   string `json:"birthDate"`
-	AvatarURL   string `json:"avatarUrl"`
-	CreatorID   string `json:"creatorId"`   // 创建者 openid
-	FamilyGroup string `json:"familyGroup"` // 可选的家庭分组
-	Height      int    `json:"height"`
-	Weight      int    `json:"weight"`
-	CreateTime  int64  `json:"createTime"`
-	UpdateTime  int64  `json:"updateTime"`
+	BabyID     string `json:"babyId"`
+	Name       string `json:"name"`
+	Nickname   string `json:"nickname"`
+	Gender     string `json:"gender"`
+	BirthDate  string `json:"birthDate"`
+	AvatarURL  string `json:"avatarUrl"`
+	CreatorID  string `json:"creatorId"` // 创建者 openid
+	Height     int    `json:"height"`
+	Weight     int    `json:"weight"`
+	CreateTime int64  `json:"createTime"`
+	UpdateTime int64  `json:"updateTime"`
 }
 
 // CollaboratorDTO 协作者DTO

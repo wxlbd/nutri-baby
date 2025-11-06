@@ -102,7 +102,10 @@ export async function fetchBabyList(): Promise<BabyProfile[]> {
       if (defaultBabyId && babies.some((b) => b.babyId === defaultBabyId)) {
         setCurrentBaby(defaultBabyId);
       } else {
-        setCurrentBaby(babies[0].babyId);
+        const firstBaby = babies[0];
+        if (firstBaby) {
+          setCurrentBaby(firstBaby.babyId);
+        }
       }
     }
 
@@ -127,7 +130,7 @@ export async function fetchBabyDetail(babyId: string): Promise<BabyProfile> {
     // 映射字段
     const baby: BabyProfile = {
       babyId: apiResponse.babyId,
-      name: apiResponse.babyName,
+      name: apiResponse.name,
       nickname: apiResponse.nickname,
       gender: apiResponse.gender,
       birthDate: apiResponse.birthDate,

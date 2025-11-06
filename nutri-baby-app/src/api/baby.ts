@@ -141,7 +141,7 @@ export async function apiCreateBaby(
   data: CreateBabyRequest,
 ): Promise<BabyResponse> {
   const response = await post<BabyResponse>("/babies", data);
-  if (!response.data) {
+  if (response.code !== 0) {
     throw new Error(response.message || "添加宝宝失败");
   }
   return response.data;

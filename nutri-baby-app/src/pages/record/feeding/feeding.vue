@@ -247,7 +247,7 @@
     <!-- 提交按钮 -->
     <view class="submit-section">
       <wd-button type="primary" size="large" block @click="handleSubmit">
-        保存记录
+        {{ isEditing ? '更新记录' : '保存记录' }}
       </wd-button>
     </view>
   </view>
@@ -255,7 +255,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch } from "vue";
-import { onShow } from "@dcloudio/uni-app";
+import { onLoad, onShow } from "@dcloudio/uni-app";
 import { currentBaby, currentBabyId } from "@/store/baby";
 import { getUserInfo } from "@/store/user";
 import { StorageKeys, getStorage, removeStorage, setStorage } from "@/utils/storage";
@@ -263,6 +263,10 @@ import type { FeedingDetail } from "@/types";
 
 // 直接调用 API 层
 import * as feedingApi from "@/api/feeding";
+
+// 编辑模式相关
+const editId = ref<string>("");
+const isEditing = computed(() => !!editId.value);
 
 // 喂养类型选项
 const feedingTypes: Array<{
@@ -552,11 +556,67 @@ const formatRecordTime = (timestamp: number): string => {
   return `${year}-${month}-${day} ${hours}:${minutes}`;
 };
 
+// 页面加载时检测 editId 参数
+onLoad((options) => {
+  if (options?.editId) {
+    editId.value = options.editId;
+    loadFeedingRecord(options.editId);
+  }
+});
+
+// 加载喂养记录数据
+const loadFeedingRecord = async (recordId: string) => {
+  try {
+    const record = await feedingApi.apiGetFeedingRecordById(recordId);
+
+    // 设置喂养类型
+    feedingType.value = record.feedingType;
+
+    // 设置记录时间
+    recordDateTime.value = record.feedingTime;
+
+    // 根据类型填充表单
+    if (record.detail.type === 'breast') {
+      breastForm.value = {
+        side: record.detail.side || 'left',
+        leftDuration: record.detail.leftDuration || 0,
+        rightDuration: record.detail.rightDuration || 0,
+      };
+    } else if (record.detail.type === 'bottle') {
+      bottleForm.value = {
+        bottleType: record.detail.bottleType || 'formula',
+        amount: record.detail.amount || 60,
+        unit: record.detail.unit || 'ml',
+        remaining: record.detail.remaining || 0,
+      };
+    } else if (record.detail.type === 'food') {
+      foodForm.value = {
+        foodName: record.detail.foodName || '',
+        note: record.detail.note || '',
+      };
+    }
+
+    // 提醒设置默认关闭(编辑模式不修改提醒)
+    reminderEnabled.value = false;
+
+    console.log('[Feeding] 已加载记录数据:', record);
+  } catch (error: any) {
+    console.error('[Feeding] 加载记录失败:', error);
+    uni.showToast({
+      title: error.message || '加载记录失败',
+      icon: 'none',
+    });
+    setTimeout(() => {
+      uni.navigateBack();
+    }, 1500);
+  }
+};
+
 // 组件挂载时加载偏好和恢复临时记录
 onMounted(() => {
   loadReminderPreferences();
-  // 检查是否有未完成的母乳喂养记录
-  if (feedingType.value === 'breast') {
+  // 编辑模式下不检查临时记录
+  if (!isEditing.value && feedingType.value === 'breast') {
     restoreTempRecord();
   }
 });
@@ -705,47 +765,75 @@ const handleSubmit = async () => {
   }
 
   try {
-    console.log("[Feeding] 开始保存喂养记录...");
+    if (isEditing.value) {
+      // 更新模式
+      console.log("[Feeding] 开始更新喂养记录...");
 
-    // 直接调用 API 层创建记录
-    const requestData: feedingApi.CreateFeedingRecordRequest = {
-      babyId: currentBabyId.value,
-      feedingType: detail.type,
-      feedingTime: recordDateTime.value,
-      detail: detail, // 直接使用强类型的 detail
-    };
+      const updateData: Partial<feedingApi.CreateFeedingRecordRequest> = {
+        babyId: currentBabyId.value,
+        feedingType: detail.type,
+        feedingTime: recordDateTime.value,
+        detail: detail,
+      };
 
-    // 根据类型填充额外字段
-    if (detail.type === "breast") {
-      requestData.duration = detail.duration;
-    } else if (detail.type === "bottle") {
-      requestData.amount = detail.amount;
+      // 根据类型填充额外字段
+      if (detail.type === "breast") {
+        updateData.duration = detail.duration;
+      } else if (detail.type === "bottle") {
+        updateData.amount = detail.amount;
+      }
+
+      await feedingApi.apiUpdateFeedingRecord(editId.value, updateData);
+      console.log("[Feeding] 喂养记录更新成功");
+
+      uni.showToast({
+        title: "更新成功",
+        icon: "success",
+      });
+    } else {
+      // 创建模式
+      console.log("[Feeding] 开始保存喂养记录...");
+
+      // 直接调用 API 层创建记录
+      const requestData: feedingApi.CreateFeedingRecordRequest = {
+        babyId: currentBabyId.value,
+        feedingType: detail.type,
+        feedingTime: recordDateTime.value,
+        detail: detail, // 直接使用强类型的 detail
+      };
+
+      // 根据类型填充额外字段
+      if (detail.type === "breast") {
+        requestData.duration = detail.duration;
+      } else if (detail.type === "bottle") {
+        requestData.amount = detail.amount;
+      }
+
+      // 添加提醒间隔（如果启用了提醒）
+      if (reminderEnabled.value) {
+        requestData.reminderInterval = reminderInterval.value;
+        console.log("[Feeding] 已设置提醒间隔:", reminderInterval.value, "分钟");
+      }
+
+      // 添加实际完成时间（如果有）- 用于准确计算提醒时间
+      // 对于母乳喂养,如果用户使用了计时器并停止,则记录实际完成时间
+      if (feedingType.value === "breast" && startTime.value > 0) {
+        const actualTime = startTime.value + (elapsedSeconds.value * 1000);
+        requestData.actualCompleteTime = actualTime;
+        console.log("[Feeding] 已记录实际完成时间:", actualTime);
+      }
+
+      await feedingApi.apiCreateFeedingRecord(requestData);
+      console.log("[Feeding] 喂养记录保存成功");
+
+      uni.showToast({
+        title: "记录成功",
+        icon: "success",
+      });
     }
-
-    // 添加提醒间隔（如果启用了提醒）
-    if (reminderEnabled.value) {
-      requestData.reminderInterval = reminderInterval.value;
-      console.log("[Feeding] 已设置提醒间隔:", reminderInterval.value, "分钟");
-    }
-
-    // 添加实际完成时间（如果有）- 用于准确计算提醒时间
-    // 对于母乳喂养,如果用户使用了计时器并停止,则记录实际完成时间
-    if (feedingType.value === "breast" && startTime.value > 0) {
-      const actualTime = startTime.value + (elapsedSeconds.value * 1000);
-      requestData.actualCompleteTime = actualTime;
-      console.log("[Feeding] 已记录实际完成时间:", actualTime);
-    }
-
-    await feedingApi.apiCreateFeedingRecord(requestData);
-    console.log("[Feeding] 喂养记录保存成功");
 
     // 清除临时记录
     clearTempRecord();
-
-    uni.showToast({
-      title: "记录成功",
-      icon: "success",
-    });
 
     // 重置计时器
     startTime.value = 0;
@@ -785,7 +873,7 @@ const handleSubmit = async () => {
   } catch (error: any) {
     console.error("[Feeding] 保存喂养记录失败:", error);
     uni.showToast({
-      title: error.message || "记录失败",
+      title: error.message || "保存失败",
       icon: "none",
     });
   }

@@ -1,82 +1,96 @@
 <template>
-  <view class="baby-edit-page">
-    <view class="form-container">
-      <wd-form ref="formRef" :model="formData">
-        <!-- 头像 -->
-        <wd-form-item label="宝宝头像">
-          <view class="avatar-upload" @click="chooseAvatar">
-            <image
-              v-if="formData.avatarUrl"
-              :src="formData.avatarUrl"
-              mode="aspectFill"
-              class="avatar"
-            />
-            <view v-else class="avatar-placeholder">
-              <wd-icon name="photograph" size="40" />
-              <text>点击上传</text>
+  <view>
+    <wd-message-box />
+    <wd-toast />
+
+    <wd-form ref="formRef" :model="formData" :rules="formRules">
+      <!-- 基础信息 -->
+      <wd-cell-group custom-class="group" title="基础信息" border>
+        <!-- 宝宝头像 -->
+        <wd-cell title="宝宝头像" title-width="200rpx">
+          <view style="text-align: left">
+            <view style="margin-bottom: 24rpx">
+              <!-- 用户上传的头像 -->
+              <image
+                v-if="formData.avatarUrl"
+                :src="formData.avatarUrl"
+                mode="aspectFill"
+                style="width: 160rpx; height: 160rpx; border-radius: 50%; object-fit: cover"
+              />
+              <!-- 默认头像 -->
+              <image
+                v-else
+                src="@/static/default.png"
+                mode="aspectFill"
+                style="width: 160rpx; height: 160rpx; border-radius: 50%; object-fit: cover"
+              />
             </view>
+            <wd-button size="small" @click="chooseAvatar">
+              <wd-icon name="photograph" size="16" />
+              {{ formData.avatarUrl ? '更换头像' : '选择头像' }}
+            </wd-button>
           </view>
-        </wd-form-item>
+        </wd-cell>
 
-        <!-- 姓名 -->
-        <wd-form-item label="宝宝姓名" required>
-          <wd-input
-            v-model="formData.name"
-            placeholder="请输入宝宝姓名"
-            clearable
-          />
-        </wd-form-item>
+        <!-- 宝宝姓名 -->
+        <wd-input
+          label="宝宝姓名"
+          label-width="200rpx"
+          :maxlength="20"
+          show-word-limit
+          prop="name"
+          required
+          clearable
+          v-model="formData.name"
+          placeholder="请输入宝宝姓名"
+        />
 
-        <!-- 昵称 -->
-        <wd-form-item label="小名昵称">
-          <wd-input
-            v-model="formData.nickname"
-            placeholder="请输入小名或昵称(可选)"
-            clearable
-          />
-        </wd-form-item>
+        <!-- 小名昵称 -->
+        <wd-input
+          label="小名昵称"
+          label-width="200rpx"
+          :maxlength="20"
+          show-word-limit
+          clearable
+          v-model="formData.nickname"
+          placeholder="请输入小名或昵称（可选）"
+        />
 
         <!-- 性别 -->
-        <wd-form-item label="性别" required>
-          <wd-radio-group v-model="formData.gender" direction="horizontal">
-            <wd-radio label="male">男孩 👦</wd-radio>
-            <wd-radio label="female">女孩 👧</wd-radio>
-          </wd-radio-group>
-        </wd-form-item>
+        <wd-cell title="性别" title-width="200rpx" prop="gender" center>
+          <view style="text-align: left">
+            <wd-radio-group v-model="formData.gender" inline>
+              <wd-radio value="male">
+                <text>👦 男孩</text>
+              </wd-radio>
+              <wd-radio value="female">
+                <text>👧 女孩</text>
+            </wd-radio>
+            </wd-radio-group>
+          </view>
+        </wd-cell>
 
         <!-- 出生日期 -->
-        <wd-form-item label="出生日期" required>
-          <view class="date-picker" @click="showDatePicker = true">
-            <text v-if="formData.birthDate">{{ formData.birthDate }}</text>
-            <text v-else class="placeholder">请选择出生日期</text>
-            <wd-icon name="right" />
-          </view>
-        </wd-form-item>
-      </wd-form>
+        <wd-datetime-picker
+          label="出生日期"
+          label-width="200rpx"
+          placeholder="请选择出生日期"
+          prop="birthDate"
+          type="date"
+          @confirm="handleDateConfirm"
+        />
+      </wd-cell-group>
+    </wd-form>
 
-      <!-- 提交按钮 -->
-      <view class="submit-button">
-        <wd-button
-          type="primary"
-          size="large"
-          block
-          @click="handleSubmit"
-        >
-          {{ isEdit ? '保存' : '添加宝宝' }}
-        </wd-button>
-      </view>
+    <!-- 底部按钮 -->
+    <view style="padding: 24rpx;display: flex;flex-direction: column; justify-content: center;gap: 10rpx;" >
+      <wd-button type="primary" size="large" @click="handleSubmit" block :loading="isSubmitting">
+        {{ isEdit ? '保存更改' : '添加宝宝' }}
+      </wd-button>
+      <wd-button v-if="isEdit" plain size="large" @click="handleCancel" block style="margin-top: 24rpx">
+        取消
+      </wd-button>
     </view>
-
-    <!-- 日期选择器 -->
-    <wd-datetime-picker
-      v-model:visible="showDatePicker"
-      v-model="selectedDate"
-      type="date"
-      title="选择出生日期"
-      :min-date="minDate"
-      :max-date="maxDate"
-      @confirm="handleDateConfirm"
-    />
   </view>
 </template>
 
@@ -97,15 +111,33 @@ const formData = ref({
   avatarUrl: '',
 })
 
+// 表单验证规则
+const formRules = ref({
+  name: [
+    { required: true, message: '请输入宝宝姓名', errorType: 'message' },
+    { validator: (val: string) => val.trim().length > 0, message: '宝宝姓名不能为空', errorType: 'message' },
+  ],
+  nickname: [],
+  gender: [
+    { required: true, message: '请选择宝宝性别', errorType: 'message' },
+  ],
+  birthDate: [
+    { required: true, message: '请选择出生日期', errorType: 'message' },
+  ],
+})
+
 // 是否为编辑模式
 const isEdit = ref(false)
 const editId = ref('')
 
 // 日期选择器
-const showDatePicker = ref(false)
-const selectedDate = ref(new Date())
-const minDate = new Date(2020, 0, 1)
-const maxDate = new Date()
+const selectedDate = ref()
+
+// 提交状态
+const isSubmitting = ref(false)
+
+// 表单 ref
+const formRef = ref<any>(null)
 
 // 页面加载
 onMounted(async () => {
@@ -123,7 +155,7 @@ onMounted(async () => {
       const baby = await babyApi.apiFetchBabyDetail(options.id)
       if (baby) {
         formData.value = {
-          name: baby.babyName,
+          name: baby.name,
           nickname: baby.nickname || '',
           gender: baby.gender,
           birthDate: baby.birthDate,
@@ -150,7 +182,7 @@ const chooseAvatar = () => {
     sizeType: ['compressed'],
     sourceType: ['album', 'camera'],
     success: (res) => {
-      formData.value.avatarUrl = res.tempFilePaths[0]
+      formData.value.avatarUrl = res.tempFilePaths[0] || ''
       // 这里可以上传到服务器
       // uploadFile(res.tempFilePaths[0])
     }
@@ -158,43 +190,27 @@ const chooseAvatar = () => {
 }
 
 // 日期确认
-const handleDateConfirm = ({ selectedValue }: any) => {
-  formData.value.birthDate = formatDate(new Date(selectedValue.join('-')).getTime(), 'YYYY-MM-DD')
-  showDatePicker.value = false
-}
-
-// 表单验证
-const validateForm = (): boolean => {
-  if (!formData.value.name.trim()) {
-    uni.showToast({
-      title: '请输入宝宝姓名',
-      icon: 'none'
-    })
-    return false
-  }
-
-  if (!formData.value.birthDate) {
-    uni.showToast({
-      title: '请选择出生日期',
-      icon: 'none'
-    })
-    return false
-  }
-
-  return true
+const handleDateConfirm = (val: any) => {
+  const { value } = val
+  console.log('selectedValue:', value)
+  formData.value.birthDate = formatDate(value, 'YYYY-MM-DD')
 }
 
 // 提交表单
 const handleSubmit = async () => {
-  if (!validateForm()) {
-    return
-  }
-
   try {
+    // 验证表单
+    const valid = await formRef.value?.validate()
+    if (!valid) {
+      return
+    }
+
+    isSubmitting.value = true
+
     if (isEdit.value) {
       // 更新
       await babyApi.apiUpdateBaby(editId.value, {
-        babyName: formData.value.name,
+        name: formData.value.name,
         nickname: formData.value.nickname,
         gender: formData.value.gender,
         birthDate: formData.value.birthDate,
@@ -210,9 +226,9 @@ const handleSubmit = async () => {
         uni.navigateBack()
       }, 1000)
     } else {
-      // 添加（去家庭化架构 - 不需要传 familyId）
+      // 添加
       const newBaby = await babyApi.apiCreateBaby({
-        babyName: formData.value.name,
+        name: formData.value.name,
         nickname: formData.value.nickname,
         gender: formData.value.gender,
         birthDate: formData.value.birthDate,
@@ -220,16 +236,16 @@ const handleSubmit = async () => {
       })
 
       // ✨ 为新宝宝自动获取疫苗计划
-      console.log('[BabyEdit] 为新宝宝获取疫苗计划:', newBaby.babyName)
+      console.log('[BabyEdit] 为新宝宝获取疫苗计划:', newBaby.name)
 
       try {
         // 从服务器获取该宝宝的疫苗计划
-        await vaccineApi.apiFetchVaccinePlans({ babyId: newBaby.babyId })
+        await vaccineApi.apiFetchVaccinePlans(newBaby.babyId)
 
         // 显示友好的提示
         uni.showModal({
           title: '✅ 宝宝添加成功',
-          content: `已为 ${newBaby.babyName} 自动生成国家免疫规划疫苗计划和接种提醒，可在"疫苗管理"页面查看详情。`,
+          content: `已为 ${newBaby.name} 自动生成国家免疫规划疫苗计划和接种提醒，可在"疫苗管理"页面查看详情。`,
           showCancel: false,
           confirmText: '好的',
           success: () => {
@@ -259,61 +275,15 @@ const handleSubmit = async () => {
       title: error.message || '保存失败',
       icon: 'none'
     })
+  } finally {
+    isSubmitting.value = false
   }
+}
+
+// 取消编辑
+const handleCancel = () => {
+  uni.navigateBack()
 }
 </script>
 
-<style lang="scss" scoped>
-.baby-edit-page {
-  min-height: 100vh;
-  background: #f5f5f5;
-  padding-bottom: 120rpx;
-}
-
-.form-container {
-  background: white;
-  padding: 40rpx 30rpx;
-}
-
-.avatar-upload {
-  width: 160rpx;
-  height: 160rpx;
-  border-radius: 50%;
-  overflow: hidden;
-  border: 2rpx dashed #ddd;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-}
-
-.avatar {
-  width: 100%;
-  height: 100%;
-}
-
-.avatar-placeholder {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 12rpx;
-  color: #999;
-  font-size: 24rpx;
-}
-
-.date-picker {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  width: 100%;
-  padding: 20rpx 0;
-}
-
-.placeholder {
-  color: #999;
-}
-
-.submit-button {
-  margin-top: 60rpx;
-}
-</style>
+<style scoped></style>

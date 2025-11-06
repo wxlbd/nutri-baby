@@ -1,73 +1,136 @@
 <template>
   <view class="timeline-page">
+    <!-- 记录类型筛选 (新增) -->
+    <view class="record-type-filter">
+      <wd-tabs v-model="recordTypeFilter">
+        <wd-tab title="全部" name="all" />
+        <wd-tab title="喂养" name="feeding" />
+        <wd-tab title="换尿布" name="diaper" />
+        <wd-tab title="睡眠" name="sleep" />
+        <wd-tab title="成长" name="growth" />
+      </wd-tabs>
+    </view>
+
     <!-- 日期筛选 -->
     <view class="date-filter">
-      <wd-button size="small" @click="filterDate('today')">今天</wd-button>
-      <wd-button size="small" @click="filterDate('week')">本周</wd-button>
-      <wd-button size="small" @click="filterDate('month')">本月</wd-button>
+      <view class="quick-filters">
+        <wd-button
+          size="small"
+          :type="filterType === 'today' ? 'primary' : 'default'"
+          :plain="filterType !== 'today'"
+          @click="filterDate('today')"
+        >
+          今天
+        </wd-button>
+        <wd-button
+          size="small"
+          :type="filterType === 'week' ? 'primary' : 'default'"
+          :plain="filterType !== 'week'"
+          @click="filterDate('week')"
+        >
+          本周
+        </wd-button>
+        <wd-button
+          size="small"
+          :type="filterType === 'month' ? 'primary' : 'default'"
+          :plain="filterType !== 'month'"
+          @click="filterDate('month')"
+        >
+          本月
+        </wd-button>
+      </view>
+
       <!-- 使用 Wot UI 日期选择器 -->
       <wd-datetime-picker
         v-model="selectedDateTimestamp"
         @confirm="onDateConfirm"
       >
-        <wd-button size="small" type="primary"> 自定义 </wd-button>
+        <wd-button size="small" plain custom-class="custom-date-btn">
+          <text>自定义</text>
+        </wd-button>
       </wd-datetime-picker>
     </view>
 
     <!-- 记录列表 -->
     <view class="timeline-list">
-      <view v-if="groupedRecords.length === 0" class="empty-state">
-        <wd-status-tip :description="emptyDescription" />
-      </view>
+      <view v-if="isLoggedIn">
+        <view v-if="groupedRecords.length === 0" class="empty-state">
+          <wd-status-tip
+            :description="emptyDescription"
+            tip="当前时间段暂无数据"
+          />
+        </view>
 
-      <view v-else>
-        <view
-          v-for="group in groupedRecords"
-          :key="group.date"
-          class="date-group"
-        >
-          <!-- 日期标题 -->
-          <view class="date-header">{{ group.dateText }}</view>
-
-          <!-- 记录列表 -->
+        <view v-else>
           <view
-            v-for="record in group.records"
-            :key="record.id"
-            class="record-item"
-            :class="`record-${record.type}`"
+            v-for="group in groupedRecords"
+            :key="group.date"
+            class="date-group"
           >
-            <!-- 时间轴圆点 -->
-            <view class="timeline-dot" :class="`dot-${record.type}`"></view>
-            <view class="timeline-line"></view>
+            <!-- 日期标题 -->
+            <view class="date-header">{{ group.dateText }}</view>
 
-            <!-- 记录内容 使用 WotUI Card -->
-            <wd-card custom-class="record-card">
-              <template #title>
-                <view class="record-header">
-                  <view class="record-type">
-                    <text class="type-icon">{{ record.icon }}</text>
-                    <text class="type-name">{{ record.typeName }}</text>
+            <!-- 记录列表 -->
+            <view
+              v-for="record in group.records"
+              :key="record.id"
+              class="record-item"
+              :class="`record-${record.type}`"
+            >
+              <!-- 时间轴圆点 -->
+              <view class="timeline-dot" :class="`dot-${record.type}`"></view>
+              <view class="timeline-line"></view>
+
+              <!-- 记录内容 使用 WotUI Card -->
+              <wd-card custom-class="record-card">
+                <template #title>
+                  <view class="record-header">
+                    <view class="record-type">
+                      <text class="type-icon">{{ record.icon }}</text>
+                      <text class="type-name">{{ record.typeName }}</text>
+                    </view>
+                    <text class="record-time">{{ record.timeText }}</text>
                   </view>
-                  <text class="record-time">{{ record.timeText }}</text>
-                </view>
-              </template>
+                </template>
 
-              <view class="record-detail">{{ record.detail }}</view>
-
-              <template #footer>
-                <view class="record-actions">
-                  <wd-button
-                    size="small"
-                    type="default"
-                    @click="deleteRecord(record)"
+                <!-- 详细信息显示 -->
+                <view class="record-details">
+                  <view class="detail-line">{{ record.detail }}</view>
+                  <!-- 备注信息 -->
+                  <view
+                    v-if="record.originalRecord.note"
+                    class="detail-line note"
                   >
-                    删除
-                  </wd-button>
+                    <text class="label">备注:</text>
+                    <text class="value">{{ record.originalRecord.note }}</text>
+                  </view>
                 </view>
-              </template>
-            </wd-card>
+
+                <template #footer>
+                  <view class="record-actions">
+                    <wd-button
+                      size="small"
+                      type="primary"
+                      @click="editRecord(record)"
+                    >
+                      编辑
+                    </wd-button>
+                    <wd-button
+                      size="small"
+                      type="error"
+                      @click="deleteRecord(record)"
+                    >
+                      删除
+                    </wd-button>
+                  </view>
+                </template>
+              </wd-card>
+            </view>
           </view>
         </view>
+      </view>
+      <view v-else>
+        <wd-status-tip description="请先登录" tip="登录后查看数据..." />
       </view>
     </view>
   </view>
@@ -97,6 +160,9 @@ import * as sleepApi from "@/api/sleep";
 const filterType = ref<"today" | "week" | "month" | "custom">("today");
 const customStartDate = ref(getTodayStart());
 const customEndDate = ref(Date.now());
+
+// 记录类型筛选
+const recordTypeFilter = ref<"all" | "feeding" | "diaper" | "sleep" | "growth">("all");
 
 // Wot UI 日期选择器相关
 const selectedDateTimestamp = ref<number[]>([]);
@@ -135,16 +201,29 @@ const allRecords = computed<TimelineRecord[]>(() => {
 
       if (record.feedingType === "breast") {
         detail = `母乳喂养 ${formatDuration(record.duration || 0)}`;
-        const breastSide = record.detail?.breastSide;
-        if (breastSide === "left") detail += " (左侧)";
-        else if (breastSide === "right") detail += " (右侧)";
-        else if (breastSide === "both") detail += " (双侧)";
+        const feedingDetail = record.detail;
+        if (feedingDetail && feedingDetail.type === "breast") {
+          const breastSide = feedingDetail.side;
+          if (breastSide === "left") detail += " (左侧)";
+          else if (breastSide === "right") detail += " (右侧)";
+          else if (breastSide === "both") detail += " (双侧)";
+        }
       } else if (record.feedingType === "bottle") {
-        detail = `奶瓶喂养 ${record.amount}${record.detail?.unit || "ml"}`;
-        detail +=
-          record.detail?.bottleType === "formula" ? " (配方奶)" : " (母乳)";
+        const feedingDetail = record.detail;
+        if (feedingDetail && feedingDetail.type === "bottle") {
+          detail = `奶瓶喂养 ${record.amount}${feedingDetail.unit || "ml"}`;
+          detail +=
+            feedingDetail.bottleType === "formula" ? " (配方奶)" : " (母乳)";
+        } else {
+          detail = `奶瓶喂养 ${record.amount}ml`;
+        }
       } else {
-        detail = `辅食: ${record.detail?.foodName || "未知"}`;
+        const feedingDetail = record.detail;
+        if (feedingDetail && feedingDetail.type === "food") {
+          detail = `辅食: ${feedingDetail.foodName || "未知"}`;
+        } else {
+          detail = "辅食";
+        }
       }
     } else if (item.recordType === "diaper") {
       const record = item.detail as diaperApi.DiaperRecordResponse;
@@ -172,7 +251,8 @@ const allRecords = computed<TimelineRecord[]>(() => {
       const parts: string[] = [];
       if (record.height) parts.push(`身高 ${record.height}cm`);
       if (record.weight) parts.push(`体重 ${record.weight}kg`);
-      if (record.headCircumference) parts.push(`头围 ${record.headCircumference}cm`);
+      if (record.headCircumference)
+        parts.push(`头围 ${record.headCircumference}cm`);
       detail = parts.join(", ");
     }
 
@@ -188,7 +268,12 @@ const allRecords = computed<TimelineRecord[]>(() => {
     });
   });
 
-  return records;
+  // 根据类型筛选
+  if (recordTypeFilter.value === "all") {
+    return records;
+  } else {
+    return records.filter((record) => record.type === recordTypeFilter.value);
+  }
 });
 
 // 按日期分组
@@ -219,9 +304,28 @@ const groupedRecords = computed(() => {
   return groups;
 });
 
+// 获取记录类型的显示名称
+const getRecordTypeName = (type: string): string => {
+  const map: Record<string, string> = {
+    feeding: "喂养",
+    diaper: "换尿布",
+    sleep: "睡眠",
+    growth: "成长",
+  };
+  return map[type] || "记录";
+};
+
 // 空状态描述
 const emptyDescription = computed(() => {
-  return !isLoggedIn.value ? "登录后查看记录" : "暂无记录";
+  if (!isLoggedIn.value) return "登录后查看记录";
+
+  if (timelineItems.value.length === 0) return "当前时间段暂无数据";
+
+  if (allRecords.value.length === 0 && recordTypeFilter.value !== "all") {
+    return `当前时间段暂无${getRecordTypeName(recordTypeFilter.value)}记录`;
+  }
+
+  return "暂无记录";
 });
 
 // 加载时间线记录 (使用新的聚合 API)
@@ -298,6 +402,30 @@ const onDateConfirm = ({ value }: { value: number[] }) => {
   loadRecords();
 };
 
+// 编辑记录 - 跳转到对应的添加页面
+const editRecord = (record: TimelineRecord) => {
+  let url = "";
+
+  switch (record.type) {
+    case "feeding":
+      url = `/pages/record/feeding/feeding?editId=${record.id}`;
+      break;
+    case "sleep":
+      url = `/pages/record/sleep/sleep?editId=${record.id}`;
+      break;
+    case "diaper":
+      url = `/pages/record/diaper/diaper?editId=${record.id}`;
+      break;
+    case "growth":
+      url = `/pages/record/growth/growth?editId=${record.id}`;
+      break;
+  }
+
+  if (url) {
+    uni.navigateTo({ url });
+  }
+};
+
 // 删除记录
 const deleteRecord = async (record: TimelineRecord) => {
   uni.showModal({
@@ -340,46 +468,171 @@ const deleteRecord = async (record: TimelineRecord) => {
   padding-bottom: 40rpx;
 }
 
-.date-filter {
+// ========== 强化 Tabs 视觉权重 ==========
+.record-type-filter {
   background: white;
-  padding: 20rpx;
-  display: flex;
-  gap: 12rpx;
   position: sticky;
   top: 0;
-  z-index: 10;
+  z-index: 11;
+  box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.08);
+  border-bottom: 4rpx solid #f7f7f7;
 }
 
+:deep(.wd-tabs) {
+  .wd-tab__item {
+    font-size: 30rpx;
+    font-weight: 500;
+    padding: 26rpx 0;
+    transition: all 0.3s ease;
+  }
+
+  .wd-tab__item--active {
+    font-weight: 600;
+    color: #fa2c19;
+    transform: scale(1.05);
+  }
+
+  .wd-tabs__line {
+    height: 6rpx;
+    border-radius: 3rpx;
+    background: linear-gradient(90deg, #fa2c19, #ff6b4a);
+  }
+}
+
+// ========== 降低日期筛选的视觉压力 ==========
+.date-filter {
+  background: #fafafa;
+  padding: 16rpx 20rpx;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12rpx;
+  position: sticky;
+  top: 100rpx;
+  z-index: 9;
+  border-bottom: 1rpx solid #ebebeb;
+}
+
+.quick-filters {
+  display: flex;
+  gap: 12rpx;
+  flex: 1;
+}
+
+// 按钮样式优化
+:deep(.wd-button) {
+  transition: all 0.25s ease;
+}
+
+:deep(.wd-button--small) {
+  font-size: 26rpx;
+  padding: 0 24rpx;
+  height: 60rpx;
+  border-radius: 30rpx;
+}
+
+:deep(.wd-button--default) {
+  background: white;
+  color: #666;
+  border-color: #e0e0e0;
+}
+
+:deep(.wd-button--default:active) {
+  background: #f5f5f5;
+}
+
+:deep(.wd-button--primary:not(.wd-button--plain)) {
+  box-shadow: 0 4rpx 12rpx rgba(250, 44, 25, 0.25);
+  transform: translateY(-2rpx);
+}
+
+:deep(.wd-button--plain) {
+  background: white;
+}
+
+// 自定义日期按钮
+:deep(.custom-date-btn) {
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+  color: #666 !important;
+  border-color: #e0e0e0 !important;
+  min-width: 140rpx;
+
+  .icon {
+    font-size: 28rpx;
+  }
+}
+
+// ========== 优化内容区 ==========
 .timeline-list {
   padding: 20rpx;
+  padding-top: 32rpx;
 }
 
 .empty-state {
-  padding: 100rpx 0;
+  padding: 120rpx 0;
 }
 
 .date-group {
   margin-bottom: 40rpx;
+  animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10rpx);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .date-header {
   font-size: 28rpx;
-  font-weight: bold;
-  color: #666;
+  font-weight: 600;
+  color: #333;
   padding: 20rpx 0;
+  padding-left: 16rpx;
   position: sticky;
-  top: 100rpx;
-  background: #f5f5f5;
+  top: 158rpx;
+  background: linear-gradient(to bottom, #f5f5f5 85%, transparent);
   z-index: 5;
+
+  &::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 6rpx;
+    height: 28rpx;
+    background: linear-gradient(180deg, #fa2c19, #ff6b4a);
+    border-radius: 3rpx;
+  }
 }
 
 .record-item {
   position: relative;
   padding-left: 60rpx;
   margin-bottom: 20rpx;
+  animation: slideIn 0.3s ease;
 
   &:last-child .timeline-line {
     display: none;
+  }
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(-20rpx);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
   }
 }
 
@@ -393,6 +646,7 @@ const deleteRecord = async (record: TimelineRecord) => {
   border: 4rpx solid;
   background: white;
   z-index: 2;
+  box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.1);
 
   &.dot-feeding {
     border-color: #fa2c19;
@@ -404,6 +658,10 @@ const deleteRecord = async (record: TimelineRecord) => {
 
   &.dot-sleep {
     border-color: #1890ff;
+  }
+
+  &.dot-growth {
+    border-color: #722ed1;
   }
 }
 
@@ -420,6 +678,13 @@ const deleteRecord = async (record: TimelineRecord) => {
 // WotUI Card 组件自定义样式
 :deep(.record-card) {
   border-radius: 12rpx;
+  box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.04);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+
+  &:active {
+    transform: scale(0.98);
+    box-shadow: 0 1rpx 4rpx rgba(0, 0, 0, 0.06);
+  }
 }
 
 .record-header {
@@ -450,15 +715,37 @@ const deleteRecord = async (record: TimelineRecord) => {
   color: #999;
 }
 
-.record-detail {
+.record-details {
+  margin-top: 16rpx;
+}
+
+.detail-line {
   font-size: 26rpx;
   color: #666;
   line-height: 1.6;
+  margin-bottom: 8rpx;
+
+  &.note {
+    background: #f7f7f7;
+    padding: 12rpx 16rpx;
+    border-radius: 8rpx;
+    margin-top: 12rpx;
+
+    .label {
+      color: #999;
+      margin-right: 8rpx;
+    }
+
+    .value {
+      color: #333;
+    }
+  }
 }
 
 .record-actions {
   display: flex;
   justify-content: flex-end;
+  gap: 12rpx;
   margin-top: 16rpx;
 }
 </style>
