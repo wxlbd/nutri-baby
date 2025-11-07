@@ -27,10 +27,10 @@ func (r *sleepRecordRepositoryImpl) Create(ctx context.Context, record *entity.S
 	return nil
 }
 
-func (r *sleepRecordRepositoryImpl) FindByID(ctx context.Context, recordID string) (*entity.SleepRecord, error) {
+func (r *sleepRecordRepositoryImpl) FindByID(ctx context.Context, recordID int64) (*entity.SleepRecord, error) {
 	var record entity.SleepRecord
 	err := r.db.WithContext(ctx).
-		Where("record_id = ? AND deleted_at IS NULL", recordID).
+		Where("id = ?", recordID).
 		First(&record).Error
 
 	if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -45,7 +45,7 @@ func (r *sleepRecordRepositoryImpl) FindByID(ctx context.Context, recordID strin
 
 func (r *sleepRecordRepositoryImpl) FindByBabyID(
 	ctx context.Context,
-	babyID string,
+	babyID int64,
 	startTime, endTime int64,
 	page, pageSize int,
 ) ([]*entity.SleepRecord, int64, error) {
@@ -54,7 +54,7 @@ func (r *sleepRecordRepositoryImpl) FindByBabyID(
 
 	query := r.db.WithContext(ctx).
 		Model(&entity.SleepRecord{}).
-		Where("baby_id = ? AND deleted_at IS NULL", babyID)
+		Where("baby_id = ?", babyID)
 
 	if startTime > 0 {
 		query = query.Where("start_time >= ?", startTime)
@@ -84,7 +84,7 @@ func (r *sleepRecordRepositoryImpl) FindByBabyID(
 func (r *sleepRecordRepositoryImpl) Update(ctx context.Context, record *entity.SleepRecord) error {
 	err := r.db.WithContext(ctx).
 		Model(&entity.SleepRecord{}).
-		Where("record_id = ? AND deleted_at IS NULL", record.RecordID).
+		Where("id = ?", record.ID).
 		Updates(record).Error
 
 	if err != nil {
@@ -94,9 +94,9 @@ func (r *sleepRecordRepositoryImpl) Update(ctx context.Context, record *entity.S
 	return nil
 }
 
-func (r *sleepRecordRepositoryImpl) Delete(ctx context.Context, recordID string) error {
+func (r *sleepRecordRepositoryImpl) Delete(ctx context.Context, recordID int64) error {
 	err := r.db.WithContext(ctx).
-		Where("record_id = ?", recordID).
+		Where("id = ?", recordID).
 		Delete(&entity.SleepRecord{}).Error
 
 	if err != nil {
@@ -108,14 +108,13 @@ func (r *sleepRecordRepositoryImpl) Delete(ctx context.Context, recordID string)
 
 func (r *sleepRecordRepositoryImpl) FindUpdatedAfter(
 	ctx context.Context,
-	familyID string,
+	babyID int64,
 	timestamp int64,
 ) ([]*entity.SleepRecord, error) {
 	var records []*entity.SleepRecord
 
 	err := r.db.WithContext(ctx).
-		Joins("JOIN babies ON babies.baby_id = sleep_records.baby_id").
-		Where("babies.family_id = ? AND sleep_records.update_time > ?", familyID, timestamp).
+		Where("baby_id = ? AND updated_at > ?", babyID, timestamp).
 		Find(&records).Error
 
 	if err != nil {
@@ -125,10 +124,10 @@ func (r *sleepRecordRepositoryImpl) FindUpdatedAfter(
 	return records, nil
 }
 
-func (r *sleepRecordRepositoryImpl) FindOngoingSleep(ctx context.Context, babyID string) (*entity.SleepRecord, error) {
+func (r *sleepRecordRepositoryImpl) FindOngoingSleep(ctx context.Context, babyID int64) (*entity.SleepRecord, error) {
 	var record entity.SleepRecord
 	err := r.db.WithContext(ctx).
-		Where("baby_id = ? AND end_time = 0 AND deleted_at IS NULL", babyID).
+		Where("baby_id = ? AND end_time = 0", babyID).
 		First(&record).Error
 
 	if errors.Is(err, gorm.ErrRecordNotFound) {

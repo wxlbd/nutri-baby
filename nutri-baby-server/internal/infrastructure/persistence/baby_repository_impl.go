@@ -29,10 +29,10 @@ func (r *babyRepositoryImpl) Create(ctx context.Context, baby *entity.Baby) erro
 }
 
 // FindByID 根据ID查找宝宝
-func (r *babyRepositoryImpl) FindByID(ctx context.Context, babyID string) (*entity.Baby, error) {
+func (r *babyRepositoryImpl) FindByID(ctx context.Context, babyID int64) (*entity.Baby, error) {
 	var baby entity.Baby
 	err := r.db.WithContext(ctx).
-		Where("baby_id = ? AND deleted_at IS NULL", babyID).
+		Where("id = ?", babyID).
 		First(&baby).Error
 
 	if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -46,14 +46,14 @@ func (r *babyRepositoryImpl) FindByID(ctx context.Context, babyID string) (*enti
 }
 
 // FindByUserID 查找用户可访问的宝宝列表(通过协作者关系)
-func (r *babyRepositoryImpl) FindByUserID(ctx context.Context, openid string) ([]*entity.Baby, error) {
+func (r *babyRepositoryImpl) FindByUserID(ctx context.Context, userID int64) ([]*entity.Baby, error) {
 	var babies []*entity.Baby
 
 	// 通过 baby_collaborators 表关联查询
 	err := r.db.WithContext(ctx).
-		Joins("JOIN baby_collaborators ON baby_collaborators.baby_id = babies.baby_id").
-		Where("baby_collaborators.openid = ? AND baby_collaborators.deleted_at IS NULL AND babies.deleted_at IS NULL", openid).
-		Order("baby_collaborators.join_time DESC").
+		Joins("JOIN baby_collaborators ON baby_collaborators.baby_id = babies.id").
+		Where("baby_collaborators.user_id = ?", userID).
+		Order("baby_collaborators.created_at DESC").
 		Find(&babies).Error
 
 	if err != nil {
@@ -63,27 +63,11 @@ func (r *babyRepositoryImpl) FindByUserID(ctx context.Context, openid string) ([
 	return babies, nil
 }
 
-// FindByFamilyGroup 查找家庭分组下的宝宝列表
-func (r *babyRepositoryImpl) FindByFamilyGroup(ctx context.Context, familyGroup string) ([]*entity.Baby, error) {
-	var babies []*entity.Baby
-
-	err := r.db.WithContext(ctx).
-		Where("family_group = ? AND deleted_at IS NULL", familyGroup).
-		Order("create_time DESC").
-		Find(&babies).Error
-
-	if err != nil {
-		return nil, errors.Wrap(errors.DatabaseError, "failed to find babies by family group", err)
-	}
-
-	return babies, nil
-}
-
 // Update 更新宝宝信息
 func (r *babyRepositoryImpl) Update(ctx context.Context, baby *entity.Baby) error {
 	err := r.db.WithContext(ctx).
 		Model(&entity.Baby{}).
-		Where("baby_id = ? AND deleted_at IS NULL", baby.BabyID).
+		Where("id = ?", baby.ID).
 		Updates(baby).Error
 
 	if err != nil {
@@ -94,11 +78,11 @@ func (r *babyRepositoryImpl) Update(ctx context.Context, baby *entity.Baby) erro
 }
 
 // Delete 删除宝宝(软删除)
-func (r *babyRepositoryImpl) Delete(ctx context.Context, babyID string) error {
+func (r *babyRepositoryImpl) Delete(ctx context.Context, babyID int64) error {
 	err := r.db.WithContext(ctx).
 		Model(&entity.Baby{}).
-		Where("baby_id = ?", babyID).
-		Update("deleted_at", gorm.Expr("CURRENT_TIMESTAMP")).Error
+		Where("id = ?", babyID).
+		Delete(&entity.Baby{}).Error
 
 	if err != nil {
 		return errors.Wrap(errors.DatabaseError, "failed to delete baby", err)
@@ -108,12 +92,12 @@ func (r *babyRepositoryImpl) Delete(ctx context.Context, babyID string) error {
 }
 
 // FindByCreator 查找用户创建的宝宝列表
-func (r *babyRepositoryImpl) FindByCreator(ctx context.Context, creatorID string) ([]*entity.Baby, error) {
+func (r *babyRepositoryImpl) FindByCreator(ctx context.Context, creatorID int64) ([]*entity.Baby, error) {
 	var babies []*entity.Baby
 
 	err := r.db.WithContext(ctx).
-		Where("creator_id = ? AND deleted_at IS NULL", creatorID).
-		Order("create_time DESC").
+		Where("user_id = ?", creatorID).
+		Order("created_at DESC").
 		Find(&babies).Error
 
 	if err != nil {
@@ -128,14 +112,10 @@ func (r *babyRepositoryImpl) FindAll(ctx context.Context) ([]*entity.Baby, error
 	var babies []*entity.Baby
 
 	err := r.db.WithContext(ctx).
-		Where("deleted_at IS NULL").
-		Order("create_time DESC").
+		Order("created_at DESC").
 		Find(&babies).Error
-
+	// gorm find方法不会返回 gorm.ErrRecordNotFound 错误
 	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, nil
-		}
 		return nil, errors.Wrap(errors.DatabaseError, "failed to find all babies", err)
 	}
 

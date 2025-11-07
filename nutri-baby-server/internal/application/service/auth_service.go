@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"strconv"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -64,9 +65,7 @@ func (s *AuthService) WechatLogin(ctx context.Context, req *dto.WechatLoginReque
 			OpenID:        session.OpenID,
 			NickName:      req.NickName,
 			AvatarURL:     req.AvatarURL,
-			CreateTime:    now,
 			LastLoginTime: now,
-			UpdateTime:    now,
 		}
 
 		if err := s.userRepo.Create(ctx, user); err != nil {
@@ -97,7 +96,7 @@ func (s *AuthService) WechatLogin(ctx context.Context, req *dto.WechatLoginReque
 			OpenID:        user.OpenID,
 			NickName:      user.NickName,
 			AvatarURL:     user.AvatarURL,
-			DefaultBabyID: user.DefaultBabyID,
+			DefaultBabyID: strconv.FormatInt(user.DefaultBabyID, 10),
 		},
 		IsNewUser: isNewUser, // 前端根据此字段判断是否需要引导创建宝宝
 	}, nil
@@ -133,8 +132,8 @@ func (s *AuthService) GetUserInfo(ctx context.Context, openID string) (*dto.User
 		OpenID:        user.OpenID,
 		NickName:      user.NickName,
 		AvatarURL:     user.AvatarURL,
-		DefaultBabyID: user.DefaultBabyID,
-		CreateTime:    user.CreateTime,
+		DefaultBabyID: strconv.FormatInt(user.DefaultBabyID, 10),
+		CreateTime:    user.CreatedAt,
 		LastLoginTime: user.LastLoginTime,
 	}, nil
 }
@@ -147,8 +146,14 @@ func (s *AuthService) SetDefaultBaby(ctx context.Context, openID string, req *dt
 		return err
 	}
 
+	// 转换BabyID from string to int64
+	babyID, err := strconv.ParseInt(req.BabyID, 10, 64)
+	if err != nil {
+		return errors.New(errors.ParamError, "invalid baby id format")
+	}
+
 	// 更新默认宝宝ID
-	if err := s.userRepo.UpdateDefaultBabyID(ctx, openID, req.BabyID); err != nil {
+	if err := s.userRepo.UpdateDefaultBabyID(ctx, openID, babyID); err != nil {
 		return err
 	}
 
@@ -166,7 +171,6 @@ func (s *AuthService) UpdateUserInfo(ctx context.Context, openID string, req *dt
 	// 更新用户信息
 	user.NickName = req.NickName
 	user.AvatarURL = req.AvatarURL
-	user.UpdateTime = time.Now().UnixMilli()
 
 	// 保存到数据库
 	if err := s.userRepo.Update(ctx, user); err != nil {
@@ -178,8 +182,8 @@ func (s *AuthService) UpdateUserInfo(ctx context.Context, openID string, req *dt
 		OpenID:        user.OpenID,
 		NickName:      user.NickName,
 		AvatarURL:     user.AvatarURL,
-		DefaultBabyID: user.DefaultBabyID,
-		CreateTime:    user.CreateTime,
+		DefaultBabyID: strconv.FormatInt(user.DefaultBabyID, 10),
+		CreateTime:    user.CreatedAt,
 		LastLoginTime: user.LastLoginTime,
 	}, nil
 }

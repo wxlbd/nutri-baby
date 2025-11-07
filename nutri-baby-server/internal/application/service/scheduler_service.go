@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"time"
 
 	"github.com/go-co-op/gocron"
@@ -18,6 +19,7 @@ type SchedulerService struct {
 	scheduler           *gocron.Scheduler
 	vaccineScheduleRepo repository.BabyVaccineScheduleRepository // 新增: 疫苗接种日程仓储
 	feedingRecordRepo   repository.FeedingRecordRepository
+	userRepo            repository.UserRepository
 	subscribeService    *SubscribeService
 	strategyFactory     *FeedingReminderStrategyFactory
 	logger              *zap.Logger
@@ -27,6 +29,7 @@ type SchedulerService struct {
 func NewSchedulerService(
 	vaccineScheduleRepo repository.BabyVaccineScheduleRepository,
 	feedingRecordRepo repository.FeedingRecordRepository,
+	userRepo repository.UserRepository,
 	subscribeService *SubscribeService,
 	cfg *config.Config,
 	logger *zap.Logger,
@@ -38,6 +41,7 @@ func NewSchedulerService(
 		scheduler:           scheduler,
 		vaccineScheduleRepo: vaccineScheduleRepo,
 		feedingRecordRepo:   feedingRecordRepo,
+		userRepo:            userRepo,
 		subscribeService:    subscribeService,
 		strategyFactory:     NewFeedingReminderStrategyFactory(cfg),
 		logger:              logger,
@@ -87,7 +91,7 @@ func (s *SchedulerService) AddFeedingReminderTask(ctx context.Context, record *e
 	// 检查是否设置了下次提醒时间
 	if record.NextReminderTime == nil {
 		s.logger.Debug("未设置下次提醒时间，跳过任务添加",
-			zap.String("recordID", record.RecordID))
+			zap.String("recordID", strconv.FormatInt(record.ID, 10)))
 		return "", nil
 	}
 
@@ -98,7 +102,7 @@ func (s *SchedulerService) AddFeedingReminderTask(ctx context.Context, record *e
 	// 如果执行时间已经过期，不添加任务
 	if executeTime.Before(now) {
 		s.logger.Warn("下次提醒时间已过期，跳过任务添加",
-			zap.String("recordID", record.RecordID),
+			zap.String("recordID", strconv.FormatInt(record.ID, 10)),
 			zap.Time("executeTime", executeTime),
 			zap.Time("now", now))
 		return "", nil
@@ -112,13 +116,13 @@ func (s *SchedulerService) AddFeedingReminderTask(ctx context.Context, record *e
 
 		if err := s.executeFeedingReminder(taskCtx, record); err != nil {
 			s.logger.Error("执行喂养提醒失败",
-				zap.String("recordID", record.RecordID),
+				zap.String("recordID", strconv.FormatInt(record.ID, 10)),
 				zap.Error(err))
 		}
 	}
 
 	// 创建任务标签用于识别和取消
-	jobTag := fmt.Sprintf("feeding_reminder_%s", record.RecordID)
+	jobTag := fmt.Sprintf("feeding_reminder_%s", strconv.FormatInt(record.ID, 10))
 
 	// 使用 gocron 的一次性任务 API
 	// StartAt() 指定任务开始时间, LimitRunsTo(1) 限制只执行一次
@@ -129,13 +133,13 @@ func (s *SchedulerService) AddFeedingReminderTask(ctx context.Context, record *e
 		Do(reminderJob)
 	if err != nil {
 		s.logger.Error("添加喂养提醒任务失败",
-			zap.String("recordID", record.RecordID),
+			zap.String("recordID", strconv.FormatInt(record.ID, 10)),
 			zap.Error(err))
 		return "", err
 	}
 
 	s.logger.Info("添加喂养提醒任务成功",
-		zap.String("recordID", record.RecordID),
+		zap.String("recordID", strconv.FormatInt(record.ID, 10)),
 		zap.String("jobTag", jobTag),
 		zap.String("jobName", job.GetName()),
 		zap.Time("executeTime", executeTime),
@@ -161,9 +165,18 @@ func (s *SchedulerService) CancelFeedingReminderTask(jobTag string) {
 // executeFeedingReminder 执行喂养提醒逻辑
 func (s *SchedulerService) executeFeedingReminder(ctx context.Context, record *entity.FeedingRecord) error {
 	s.logger.Info("开始执行喂养提醒",
-		zap.String("recordID", record.RecordID),
-		zap.String("babyID", record.BabyID),
+		zap.String("recordID", strconv.FormatInt(record.ID, 10)),
+		zap.String("babyID", strconv.FormatInt(record.BabyID, 10)),
 		zap.String("feedingType", record.FeedingType))
+
+	// 获取用户的 OpenID
+	user, err := s.userRepo.FindByID(ctx, record.CreatedBy)
+	if err != nil {
+		s.logger.Error("获取用户信息失败",
+			zap.Int64("userID", record.CreatedBy),
+			zap.Error(err))
+		return err
+	}
 
 	// 1. 根据喂养类型获取模板类型
 	templateType := s.getTemplateType(record.FeedingType)
@@ -174,7 +187,7 @@ func (s *SchedulerService) executeFeedingReminder(ctx context.Context, record *e
 	}
 
 	// 2. 检查用户是否已授权此提醒
-	hasAuth, err := s.subscribeService.CheckAuthorizationStatus(ctx, record.CreateBy, templateType)
+	hasAuth, err := s.subscribeService.CheckAuthorizationStatus(ctx, user.OpenID, templateType)
 	if err != nil {
 		s.logger.Error("检查授权状态失败", zap.Error(err))
 		return err
@@ -183,7 +196,7 @@ func (s *SchedulerService) executeFeedingReminder(ctx context.Context, record *e
 	if !hasAuth {
 		s.logger.Info("用户未授权此提醒，跳过发送",
 			zap.String("templateType", templateType),
-			zap.String("openID", record.CreateBy))
+			zap.String("openID", user.OpenID))
 		return nil
 	}
 
@@ -200,7 +213,7 @@ func (s *SchedulerService) executeFeedingReminder(ctx context.Context, record *e
 
 	// 4. 发送微信订阅消息
 	sendReq := &dto.SendMessageRequest{
-		OpenID:     record.CreateBy,
+		OpenID:     user.OpenID,
 		TemplateID: strategy.GetTemplateID(),
 		Data:       messageData,
 		Page:       "pages/record/feeding/feeding",
@@ -210,7 +223,7 @@ func (s *SchedulerService) executeFeedingReminder(ctx context.Context, record *e
 	if err != nil {
 		s.logger.Error("发送微信消息失败",
 			zap.Error(err),
-			zap.String("recordID", record.RecordID))
+			zap.String("recordID", strconv.FormatInt(record.ID, 10)))
 		return err
 	}
 
@@ -226,7 +239,7 @@ func (s *SchedulerService) executeFeedingReminder(ctx context.Context, record *e
 	}
 
 	s.logger.Info("喂养提醒发送成功",
-		zap.String("recordID", record.RecordID),
+		zap.String("recordID", strconv.FormatInt(record.ID, 10)),
 		zap.String("templateType", templateType))
 
 	return nil

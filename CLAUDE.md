@@ -355,7 +355,7 @@ func (h *BabyHandler) GetBabyDetail(c *gin.Context) {
 func (r *babyRepositoryImpl) FindByID(ctx context.Context, babyID string) (*entity.Baby, error) {
     var baby entity.Baby
     err := r.db.WithContext(ctx).
-        Where("baby_id = ? AND deleted_at IS NULL", babyID).
+        Where("baby_id = ?", babyID).
         First(&baby).Error
 
     if errors.Is(err, gorm.ErrRecordNotFound) {

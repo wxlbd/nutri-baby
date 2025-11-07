@@ -4,7 +4,6 @@ import (
 	"context"
 	"time"
 
-	"github.com/google/uuid"
 	"gorm.io/gorm"
 
 	"github.com/wxlbd/nutri-baby-server/internal/domain/entity"
@@ -30,8 +29,8 @@ func NewBabyVaccineScheduleRepository(
 
 // Create 创建疫苗接种日程
 func (r *babyVaccineScheduleRepositoryImpl) Create(ctx context.Context, schedule *entity.BabyVaccineSchedule) error {
-	if schedule.ScheduleID == "" {
-		schedule.ScheduleID = uuid.New().String()
+	if schedule.ID == 0 {
+		schedule.ID = 0 // ID由snowflake生成
 	}
 
 	err := r.db.WithContext(ctx).Create(schedule).Error
@@ -42,10 +41,10 @@ func (r *babyVaccineScheduleRepositoryImpl) Create(ctx context.Context, schedule
 }
 
 // FindByID 根据ID查找日程
-func (r *babyVaccineScheduleRepositoryImpl) FindByID(ctx context.Context, scheduleID string) (*entity.BabyVaccineSchedule, error) {
+func (r *babyVaccineScheduleRepositoryImpl) FindByID(ctx context.Context, scheduleID int64) (*entity.BabyVaccineSchedule, error) {
 	var schedule entity.BabyVaccineSchedule
 	err := r.db.WithContext(ctx).
-		Where("schedule_id = ? AND deleted_at IS NULL", scheduleID).
+		Where("id = ?", scheduleID).
 		First(&schedule).Error
 
 	if err != nil {
@@ -58,10 +57,10 @@ func (r *babyVaccineScheduleRepositoryImpl) FindByID(ctx context.Context, schedu
 }
 
 // FindByBabyID 查找宝宝的所有疫苗接种日程
-func (r *babyVaccineScheduleRepositoryImpl) FindByBabyID(ctx context.Context, babyID string) ([]*entity.BabyVaccineSchedule, error) {
+func (r *babyVaccineScheduleRepositoryImpl) FindByBabyID(ctx context.Context, babyID int64) ([]*entity.BabyVaccineSchedule, error) {
 	var schedules []*entity.BabyVaccineSchedule
 	err := r.db.WithContext(ctx).
-		Where("baby_id = ? AND deleted_at IS NULL", babyID).
+		Where("baby_id = ?", babyID).
 		Order("age_in_months ASC, dose_number ASC").
 		Find(&schedules).Error
 
@@ -72,10 +71,10 @@ func (r *babyVaccineScheduleRepositoryImpl) FindByBabyID(ctx context.Context, ba
 }
 
 // FindByBabyIDWithStatus 根据状态查找宝宝的疫苗接种日程
-func (r *babyVaccineScheduleRepositoryImpl) FindByBabyIDWithStatus(ctx context.Context, babyID string, status string) ([]*entity.BabyVaccineSchedule, error) {
+func (r *babyVaccineScheduleRepositoryImpl) FindByBabyIDWithStatus(ctx context.Context, babyID int64, status string) ([]*entity.BabyVaccineSchedule, error) {
 	var schedules []*entity.BabyVaccineSchedule
 	err := r.db.WithContext(ctx).
-		Where("baby_id = ? AND vaccination_status = ? AND deleted_at IS NULL", babyID, status).
+		Where("baby_id = ? AND vaccination_status = ?", babyID, status).
 		Order("age_in_months ASC, dose_number ASC").
 		Find(&schedules).Error
 
@@ -88,7 +87,7 @@ func (r *babyVaccineScheduleRepositoryImpl) FindByBabyIDWithStatus(ctx context.C
 // Update 更新日程
 func (r *babyVaccineScheduleRepositoryImpl) Update(ctx context.Context, schedule *entity.BabyVaccineSchedule) error {
 	err := r.db.WithContext(ctx).
-		Where("schedule_id = ? AND deleted_at IS NULL", schedule.ScheduleID).
+		Where("id = ?", schedule.ID).
 		Updates(schedule).Error
 
 	if err != nil {
@@ -98,12 +97,11 @@ func (r *babyVaccineScheduleRepositoryImpl) Update(ctx context.Context, schedule
 }
 
 // Delete 删除日程(软删除)
-func (r *babyVaccineScheduleRepositoryImpl) Delete(ctx context.Context, scheduleID string) error {
-	now := time.Now()
+func (r *babyVaccineScheduleRepositoryImpl) Delete(ctx context.Context, scheduleID int64) error {
 	err := r.db.WithContext(ctx).
 		Model(&entity.BabyVaccineSchedule{}).
-		Where("schedule_id = ? AND deleted_at IS NULL", scheduleID).
-		Update("deleted_at", now).Error
+		Where("id = ?", scheduleID).
+		Delete(&entity.BabyVaccineSchedule{}).Error
 
 	if err != nil {
 		return errors.Wrap(errors.DatabaseError, "删除疫苗接种日程失败", err)
@@ -117,13 +115,6 @@ func (r *babyVaccineScheduleRepositoryImpl) BatchCreate(ctx context.Context, sch
 		return nil
 	}
 
-	// 为每个日程生成ID
-	for _, schedule := range schedules {
-		if schedule.ScheduleID == "" {
-			schedule.ScheduleID = uuid.New().String()
-		}
-	}
-
 	err := r.db.WithContext(ctx).Create(&schedules).Error
 	if err != nil {
 		return errors.Wrap(errors.DatabaseError, "批量创建疫苗接种日程失败", err)
@@ -132,10 +123,10 @@ func (r *babyVaccineScheduleRepositoryImpl) BatchCreate(ctx context.Context, sch
 }
 
 // InitializeFromTemplates 从模板为宝宝初始化疫苗接种日程
-func (r *babyVaccineScheduleRepositoryImpl) InitializeFromTemplates(ctx context.Context, babyID, createBy string) error {
+func (r *babyVaccineScheduleRepositoryImpl) InitializeFromTemplates(ctx context.Context, babyID, createdBy int64) error {
 	// 1. 获取宝宝信息(需要出生日期)
 	var baby entity.Baby
-	err := r.db.WithContext(ctx).Where("baby_id = ?", babyID).First(&baby).Error
+	err := r.db.WithContext(ctx).Where("id = ?", babyID).First(&baby).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return errors.New(errors.NotFound, "宝宝不存在")
@@ -169,9 +160,8 @@ func (r *babyVaccineScheduleRepositoryImpl) InitializeFromTemplates(ctx context.
 		scheduledDate := birthTime.AddDate(0, template.AgeInMonths, 0).UnixMilli()
 
 		schedule := &entity.BabyVaccineSchedule{
-			ScheduleID:        uuid.New().String(),
 			BabyID:            babyID,
-			TemplateID:        &template.TemplateID,
+			TemplateID:        &template.ID,
 			VaccineType:       template.VaccineType,
 			VaccineName:       template.VaccineName,
 			Description:       template.Description,
@@ -183,7 +173,7 @@ func (r *babyVaccineScheduleRepositoryImpl) InitializeFromTemplates(ctx context.
 			VaccinationStatus: entity.VaccinationStatusPending,
 			ScheduledDate:     scheduledDate, // 设置计划接种日期
 			ReminderSent:      false,         // 初始化提醒状态
-			CreateBy:          createBy,
+			CreatedBy:         createdBy,
 		}
 		schedules = append(schedules, schedule)
 	}
@@ -193,11 +183,11 @@ func (r *babyVaccineScheduleRepositoryImpl) InitializeFromTemplates(ctx context.
 }
 
 // CountByBabyID 统计宝宝的疫苗接种日程总数
-func (r *babyVaccineScheduleRepositoryImpl) CountByBabyID(ctx context.Context, babyID string) (int64, error) {
+func (r *babyVaccineScheduleRepositoryImpl) CountByBabyID(ctx context.Context, babyID int64) (int64, error) {
 	var count int64
 	err := r.db.WithContext(ctx).
 		Model(&entity.BabyVaccineSchedule{}).
-		Where("baby_id = ? AND deleted_at IS NULL", babyID).
+		Where("baby_id = ?", babyID).
 		Count(&count).Error
 
 	if err != nil {
@@ -207,11 +197,11 @@ func (r *babyVaccineScheduleRepositoryImpl) CountByBabyID(ctx context.Context, b
 }
 
 // CountCompletedByBabyID 统计宝宝已完成接种的数量
-func (r *babyVaccineScheduleRepositoryImpl) CountCompletedByBabyID(ctx context.Context, babyID string) (int64, error) {
+func (r *babyVaccineScheduleRepositoryImpl) CountCompletedByBabyID(ctx context.Context, babyID int64) (int64, error) {
 	var count int64
 	err := r.db.WithContext(ctx).
 		Model(&entity.BabyVaccineSchedule{}).
-		Where("baby_id = ? AND vaccination_status = ? AND deleted_at IS NULL", babyID, entity.VaccinationStatusCompleted).
+		Where("baby_id = ? AND vaccination_status = ?", babyID, entity.VaccinationStatusCompleted).
 		Count(&count).Error
 
 	if err != nil {
@@ -223,11 +213,12 @@ func (r *babyVaccineScheduleRepositoryImpl) CountCompletedByBabyID(ctx context.C
 // MarkAsCompleted 标记日程为已完成
 func (r *babyVaccineScheduleRepositoryImpl) MarkAsCompleted(
 	ctx context.Context,
-	scheduleID string,
+	scheduleID int64,
 	vaccineDate int64,
 	hospital string,
 	batchNumber, doctor, reaction, note *string,
-	completedBy, completedByName, completedByAvatar string,
+	completedBy int64,
+	completedByName, completedByAvatar string,
 ) error {
 	now := time.Now().UnixMilli()
 
@@ -247,7 +238,7 @@ func (r *babyVaccineScheduleRepositoryImpl) MarkAsCompleted(
 
 	err := r.db.WithContext(ctx).
 		Model(&entity.BabyVaccineSchedule{}).
-		Where("schedule_id = ? AND deleted_at IS NULL", scheduleID).
+		Where("id = ?", scheduleID).
 		Updates(updates).Error
 
 	if err != nil {
@@ -257,10 +248,10 @@ func (r *babyVaccineScheduleRepositoryImpl) MarkAsCompleted(
 }
 
 // MarkAsSkipped 标记日程为跳过
-func (r *babyVaccineScheduleRepositoryImpl) MarkAsSkipped(ctx context.Context, scheduleID string) error {
+func (r *babyVaccineScheduleRepositoryImpl) MarkAsSkipped(ctx context.Context, scheduleID int64) error {
 	err := r.db.WithContext(ctx).
 		Model(&entity.BabyVaccineSchedule{}).
-		Where("schedule_id = ? AND deleted_at IS NULL", scheduleID).
+		Where("id = ?", scheduleID).
 		Update("vaccination_status", entity.VaccinationStatusSkipped).Error
 
 	if err != nil {
@@ -270,7 +261,7 @@ func (r *babyVaccineScheduleRepositoryImpl) MarkAsSkipped(ctx context.Context, s
 }
 
 // GetStatistics 获取宝宝疫苗接种统计
-func (r *babyVaccineScheduleRepositoryImpl) GetStatistics(ctx context.Context, babyID string) (total, completed, pending, skipped int64, err error) {
+func (r *babyVaccineScheduleRepositoryImpl) GetStatistics(ctx context.Context, babyID int64) (total, completed, pending, skipped int64, err error) {
 	// 使用单个查询获取所有统计数据
 	type StatusCount struct {
 		Status string
@@ -281,7 +272,7 @@ func (r *babyVaccineScheduleRepositoryImpl) GetStatistics(ctx context.Context, b
 	err = r.db.WithContext(ctx).
 		Model(&entity.BabyVaccineSchedule{}).
 		Select("vaccination_status as status, COUNT(*) as count").
-		Where("baby_id = ? AND deleted_at IS NULL", babyID).
+		Where("baby_id = ?", babyID).
 		Group("vaccination_status").
 		Scan(&statusCounts).Error
 

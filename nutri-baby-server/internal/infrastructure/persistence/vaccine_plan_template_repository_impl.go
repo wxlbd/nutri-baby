@@ -26,9 +26,9 @@ func (r *vaccinePlanTemplateRepositoryImpl) FindAll(ctx context.Context) ([]*ent
 	return templates, err
 }
 
-func (r *vaccinePlanTemplateRepositoryImpl) FindByID(ctx context.Context, templateID string) (*entity.VaccinePlanTemplate, error) {
+func (r *vaccinePlanTemplateRepositoryImpl) FindByID(ctx context.Context, templateID int64) (*entity.VaccinePlanTemplate, error) {
 	var template entity.VaccinePlanTemplate
-	err := r.db.WithContext(ctx).Where("template_id = ?", templateID).First(&template).Error
+	err := r.db.WithContext(ctx).Where("id = ?", templateID).First(&template).Error
 	if err != nil {
 		return nil, err
 	}
