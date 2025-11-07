@@ -15,21 +15,27 @@ import (
 
 // VaccineScheduleService 疫苗接种日程服务(新)
 type VaccineScheduleService struct {
-	scheduleRepo repository.BabyVaccineScheduleRepository
-	babyRepo     repository.BabyRepository
-	logger       *zap.Logger
+	scheduleRepo     repository.BabyVaccineScheduleRepository
+	babyRepo         repository.BabyRepository
+	collaboratorRepo repository.BabyCollaboratorRepository
+	userRepository   repository.UserRepository
+	logger           *zap.Logger
 }
 
 // NewVaccineScheduleService 创建疫苗接种日程服务实例
 func NewVaccineScheduleService(
 	scheduleRepo repository.BabyVaccineScheduleRepository,
 	babyRepo repository.BabyRepository,
+	collaboratorRepo repository.BabyCollaboratorRepository,
+	userRepository repository.UserRepository,
 	logger *zap.Logger,
 ) *VaccineScheduleService {
 	return &VaccineScheduleService{
-		scheduleRepo: scheduleRepo,
-		babyRepo:     babyRepo,
-		logger:       logger,
+		scheduleRepo:     scheduleRepo,
+		babyRepo:         babyRepo,
+		collaboratorRepo: collaboratorRepo,
+		userRepository:   userRepository,
+		logger:           logger,
 	}
 }
 
@@ -413,16 +419,11 @@ func (s *VaccineScheduleService) GetStatistics(ctx context.Context, babyID, open
 
 // checkPermission 检查用户是否有权限访问该宝宝的疫苗信息
 func (s *VaccineScheduleService) checkPermission(ctx context.Context, babyID, openID string) error {
-	baby, err := s.babyRepo.FindByID(ctx, babyID)
+	collaborator, err := s.collaboratorRepo.FindByBabyAndUser(ctx, babyID, openID)
 	if err != nil {
 		return err
 	}
-
-	// 检查是否为创建者或协作者
-	// 注意: 这里简化处理,实际应该检查 BabyCollaborator 表
-	if baby.CreatorID != openID {
-		// TODO: 检查协作者权限
-		// 暂时简化为只检查创建者
+	if collaborator == nil {
 		return errors.New(errors.PermissionDenied, "无权访问该宝宝的疫苗信息")
 	}
 
@@ -431,13 +432,7 @@ func (s *VaccineScheduleService) checkPermission(ctx context.Context, babyID, op
 
 // getUserInfo 获取用户信息
 func (s *VaccineScheduleService) getUserInfo(ctx context.Context, openID string) (*entity.User, error) {
-	// 注意: 这里需要UserRepository,暂时简化
-	// 实际实现需要在 NewVaccineScheduleService 中注入 UserRepository
-	return &entity.User{
-		OpenID:    openID,
-		NickName:  "用户",
-		AvatarURL: "",
-	}, nil
+	return s.userRepository.FindByOpenID(ctx, openID)
 }
 
 // toScheduleDTO 将实体转换为DTO
