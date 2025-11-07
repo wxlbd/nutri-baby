@@ -58,6 +58,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from "vue";
 import { getUserInfo, setUserInfo } from "@/store/user";
+import { uploadFile } from "@/utils/request";
 import * as authApi from "@/api/auth";
 
 // 表单数据
@@ -99,24 +100,55 @@ const uploadLocalImage = () => {
     count: 1,
     sizeType: ["compressed"],
     sourceType: ["album", "camera"],
-    success: (res) => {
-      formData.value.avatarUrl = res.tempFilePaths[0] || "";
-      uni.showToast({
-        title: "图片已选择",
-        icon: "success",
-      });
-      // TODO: 上传到服务器
-      // uploadFile(res.tempFilePaths[0])
+    success: async (res) => {
+      const tempFilePath = res.tempFilePaths[0]
+      if (!tempFilePath) return
+
+      try {
+        // 显示上传中提示
+        uni.showLoading({
+          title: "上传中...",
+          mask: true,
+        })
+
+        // 使用封装的uploadFile函数
+        const uploadResult: any = await uploadFile({
+          filePath: tempFilePath,
+          name: "file",
+          formData: {
+            type: "user_avatar",
+          },
+        })
+
+        // 解析响应数据
+        if (uploadResult.code === 0) {
+          formData.value.avatarUrl = uploadResult.data.url
+          uni.showToast({
+            title: "上传成功",
+            icon: "success",
+          })
+        } else {
+          throw new Error(uploadResult.message || "上传失败")
+        }
+      } catch (error: any) {
+        console.error("[Profile] 上传头像失败:", error)
+        uni.showToast({
+          title: error.message || "上传失败",
+          icon: "none",
+        })
+      } finally {
+        uni.hideLoading()
+      }
     },
     fail: (err) => {
-      console.error("[Profile] 选择图片失败:", err);
+      console.error("[Profile] 选择图片失败:", err)
       uni.showToast({
         title: "选择图片失败",
         icon: "none",
-      });
+      })
     },
-  });
-};
+  })
+}
 
 // 昵称输入完成
 const onNicknameBlur = () => {
