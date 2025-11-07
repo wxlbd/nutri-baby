@@ -30,11 +30,11 @@ func (r *subscribeRepositoryImpl) CreateSubscribeRecord(ctx context.Context, rec
 }
 
 // GetAvailableSubscribeRecord 获取用户可用的授权记录(按授权时间倒序,取最新的一条)
-func (r *subscribeRepositoryImpl) GetAvailableSubscribeRecord(ctx context.Context, openid, templateType string) (*entity.SubscribeRecord, error) {
+func (r *subscribeRepositoryImpl) GetAvailableSubscribeRecord(ctx context.Context, userID int64, templateType string) (*entity.SubscribeRecord, error) {
 	var record entity.SubscribeRecord
 	err := r.db.WithContext(ctx).
-		Where("openid = ? AND template_type = ? AND status = ?", openid, templateType, "available").
-		Where("expire_time > ?", time.Now()).
+		Where("user_id = ? AND template_type = ? AND status = ?", userID, templateType, "available").
+		Where("expire_time > ?", time.Now().UnixMilli()).
 		Order("authorize_time DESC").
 		First(&record).Error
 
@@ -48,11 +48,11 @@ func (r *subscribeRepositoryImpl) GetAvailableSubscribeRecord(ctx context.Contex
 	return &record, nil
 }
 
-// GetSubscribeRecord 根据openid和模板类型获取最新的订阅记录
-func (r *subscribeRepositoryImpl) GetSubscribeRecord(ctx context.Context, openid, templateType string) (*entity.SubscribeRecord, error) {
+// GetSubscribeRecord 根据userID和模板类型获取最新的订阅记录
+func (r *subscribeRepositoryImpl) GetSubscribeRecord(ctx context.Context, userID int64, templateType string) (*entity.SubscribeRecord, error) {
 	var record entity.SubscribeRecord
 	err := r.db.WithContext(ctx).
-		Where("openid = ? AND template_type = ?", openid, templateType).
+		Where("user_id = ? AND template_type = ?", userID, templateType).
 		Order("authorize_time DESC").
 		First(&record).Error
 
@@ -63,27 +63,22 @@ func (r *subscribeRepositoryImpl) GetSubscribeRecord(ctx context.Context, openid
 }
 
 // ListUserSubscriptions 获取用户的所有订阅记录(包括已使用和已过期)
-func (r *subscribeRepositoryImpl) ListUserSubscriptions(ctx context.Context, openid string) ([]*entity.SubscribeRecord, error) {
+func (r *subscribeRepositoryImpl) ListUserSubscriptions(ctx context.Context, userID int64) ([]*entity.SubscribeRecord, error) {
 	var records []*entity.SubscribeRecord
 	err := r.db.WithContext(ctx).
-		Where("openid = ?", openid).
+		Where("user_id = ?", userID).
 		Order("authorize_time DESC").
 		Find(&records).Error
 	return records, err
 }
 
-// UpdateSubscribeRecord 更新订阅记录
-func (r *subscribeRepositoryImpl) UpdateSubscribeRecord(ctx context.Context, record *entity.SubscribeRecord) error {
-	return r.db.WithContext(ctx).Save(record).Error
-}
-
 // CountAvailableAuthorizations 统计用户可用的授权数量
-func (r *subscribeRepositoryImpl) CountAvailableAuthorizations(ctx context.Context, openid, templateType string) (int64, error) {
+func (r *subscribeRepositoryImpl) CountAvailableAuthorizations(ctx context.Context, userID int64, templateType string) (int64, error) {
 	var count int64
 	err := r.db.WithContext(ctx).
 		Model(&entity.SubscribeRecord{}).
-		Where("openid = ? AND template_type = ? AND status = ?", openid, templateType, "available").
-		Where("expire_time > ?", time.Now()).
+		Where("user_id = ? AND template_type = ? AND status = ?", userID, templateType, "available").
+		Where("expire_time > ?", time.Now().UnixMilli()).
 		Count(&count).Error
 	return count, err
 }
@@ -118,10 +113,10 @@ func (r *subscribeRepositoryImpl) GetPendingMessages(ctx context.Context, limit 
 	return messages, err
 }
 
-func (r *subscribeRepositoryImpl) UpdateQueueStatus(ctx context.Context, id uint, status string, errorMsg string) error {
+func (r *subscribeRepositoryImpl) UpdateQueueStatus(ctx context.Context, id int64, status string, errorMsg string) error {
 	updates := map[string]interface{}{
 		"status":     status,
-		"updated_at": time.Now(),
+		"updated_at": time.Now().UnixMilli(),
 	}
 	if errorMsg != "" {
 		updates["error_msg"] = errorMsg
@@ -132,14 +127,14 @@ func (r *subscribeRepositoryImpl) UpdateQueueStatus(ctx context.Context, id uint
 		Updates(updates).Error
 }
 
-func (r *subscribeRepositoryImpl) IncrementRetryCount(ctx context.Context, id uint) error {
+func (r *subscribeRepositoryImpl) IncrementRetryCount(ctx context.Context, id int64) error {
 	return r.db.WithContext(ctx).
 		Model(&entity.MessageSendQueue{}).
 		Where("id = ?", id).
 		UpdateColumn("retry_count", gorm.Expr("retry_count + 1")).Error
 }
 
-func (r *subscribeRepositoryImpl) DeleteQueueMessage(ctx context.Context, id uint) error {
+func (r *subscribeRepositoryImpl) DeleteQueueMessage(ctx context.Context, id int64) error {
 	return r.db.WithContext(ctx).
 		Delete(&entity.MessageSendQueue{}, id).Error
 }
@@ -150,11 +145,11 @@ func (r *subscribeRepositoryImpl) CreateSendLog(ctx context.Context, log *entity
 	return r.db.WithContext(ctx).Create(log).Error
 }
 
-func (r *subscribeRepositoryImpl) GetSendLogs(ctx context.Context, openid string, offset, limit int) ([]*entity.MessageSendLog, int64, error) {
+func (r *subscribeRepositoryImpl) GetSendLogs(ctx context.Context, userID int64, offset, limit int) ([]*entity.MessageSendLog, int64, error) {
 	var logs []*entity.MessageSendLog
 	var total int64
 
-	query := r.db.WithContext(ctx).Model(&entity.MessageSendLog{}).Where("openid = ?", openid)
+	query := r.db.WithContext(ctx).Model(&entity.MessageSendLog{}).Where("user_id = ?", userID)
 
 	if err := query.Count(&total).Error; err != nil {
 		return nil, 0, err

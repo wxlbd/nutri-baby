@@ -27,10 +27,10 @@ func (r *growthRecordRepositoryImpl) Create(ctx context.Context, record *entity.
 	return nil
 }
 
-func (r *growthRecordRepositoryImpl) FindByID(ctx context.Context, recordID string) (*entity.GrowthRecord, error) {
+func (r *growthRecordRepositoryImpl) FindByID(ctx context.Context, recordID int64) (*entity.GrowthRecord, error) {
 	var record entity.GrowthRecord
 	err := r.db.WithContext(ctx).
-		Where("record_id = ? AND deleted_at IS NULL", recordID).
+		Where("id = ?", recordID).
 		First(&record).Error
 
 	if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -45,7 +45,7 @@ func (r *growthRecordRepositoryImpl) FindByID(ctx context.Context, recordID stri
 
 func (r *growthRecordRepositoryImpl) FindByBabyID(
 	ctx context.Context,
-	babyID string,
+	babyID int64,
 	startTime, endTime int64,
 	page, pageSize int,
 ) ([]*entity.GrowthRecord, int64, error) {
@@ -54,7 +54,7 @@ func (r *growthRecordRepositoryImpl) FindByBabyID(
 
 	query := r.db.WithContext(ctx).
 		Model(&entity.GrowthRecord{}).
-		Where("baby_id = ? AND deleted_at IS NULL", babyID)
+		Where("baby_id = ?", babyID)
 
 	if startTime > 0 {
 		query = query.Where("time >= ?", startTime)
@@ -84,7 +84,7 @@ func (r *growthRecordRepositoryImpl) FindByBabyID(
 func (r *growthRecordRepositoryImpl) Update(ctx context.Context, record *entity.GrowthRecord) error {
 	err := r.db.WithContext(ctx).
 		Model(&entity.GrowthRecord{}).
-		Where("record_id = ? AND deleted_at IS NULL", record.RecordID).
+		Where("id = ?", record.ID).
 		Updates(record).Error
 
 	if err != nil {
@@ -94,9 +94,9 @@ func (r *growthRecordRepositoryImpl) Update(ctx context.Context, record *entity.
 	return nil
 }
 
-func (r *growthRecordRepositoryImpl) Delete(ctx context.Context, recordID string) error {
+func (r *growthRecordRepositoryImpl) Delete(ctx context.Context, recordID int64) error {
 	err := r.db.WithContext(ctx).
-		Where("record_id = ?", recordID).
+		Where("id = ?", recordID).
 		Delete(&entity.GrowthRecord{}).Error
 
 	if err != nil {
@@ -108,14 +108,13 @@ func (r *growthRecordRepositoryImpl) Delete(ctx context.Context, recordID string
 
 func (r *growthRecordRepositoryImpl) FindUpdatedAfter(
 	ctx context.Context,
-	familyID string,
+	babyID int64,
 	timestamp int64,
 ) ([]*entity.GrowthRecord, error) {
 	var records []*entity.GrowthRecord
 
 	err := r.db.WithContext(ctx).
-		Joins("JOIN babies ON babies.baby_id = growth_records.baby_id").
-		Where("babies.family_id = ? AND growth_records.update_time > ?", familyID, timestamp).
+		Where("baby_id = ? AND updated_at > ?", babyID, timestamp).
 		Find(&records).Error
 
 	if err != nil {
@@ -125,10 +124,10 @@ func (r *growthRecordRepositoryImpl) FindUpdatedAfter(
 	return records, nil
 }
 
-func (r *growthRecordRepositoryImpl) GetLatestRecord(ctx context.Context, babyID string) (*entity.GrowthRecord, error) {
+func (r *growthRecordRepositoryImpl) GetLatestRecord(ctx context.Context, babyID int64) (*entity.GrowthRecord, error) {
 	var record entity.GrowthRecord
 	err := r.db.WithContext(ctx).
-		Where("baby_id = ? AND deleted_at IS NULL", babyID).
+		Where("baby_id = ?", babyID).
 		Order("time DESC").
 		First(&record).Error
 

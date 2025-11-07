@@ -24,6 +24,7 @@ type TimelineService struct {
 func NewTimelineService(
 	babyRepo repository.BabyRepository,
 	collaboratorRepo repository.BabyCollaboratorRepository,
+	userRepo repository.UserRepository,
 	feedingService *FeedingRecordService,
 	sleepService *SleepRecordService,
 	diaperService *DiaperRecordService,
@@ -31,7 +32,7 @@ func NewTimelineService(
 	logger *zap.Logger,
 ) *TimelineService {
 	return &TimelineService{
-		BaseRecordService: NewBaseRecordService(babyRepo, collaboratorRepo, logger),
+		BaseRecordService: NewBaseRecordService(babyRepo, collaboratorRepo, userRepo, logger),
 		feedingService:    feedingService,
 		sleepService:      sleepService,
 		diaperService:     diaperService,

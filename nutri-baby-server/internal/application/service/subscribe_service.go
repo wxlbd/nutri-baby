@@ -16,6 +16,7 @@ import (
 type SubscribeService struct {
 	subscribeRepo         repository.SubscribeRepository
 	subscriptionCacheRepo repository.SubscriptionCacheRepository
+	userRepo              repository.UserRepository
 	wechatService         *WechatService
 	logger                *zap.Logger
 }
@@ -23,12 +24,14 @@ type SubscribeService struct {
 func NewSubscribeService(
 	subscribeRepo repository.SubscribeRepository,
 	subscriptionCacheRepo repository.SubscriptionCacheRepository,
+	userRepo repository.UserRepository,
 	wechatService *WechatService,
 	logger *zap.Logger,
 ) *SubscribeService {
 	return &SubscribeService{
 		subscribeRepo:         subscribeRepo,
 		subscriptionCacheRepo: subscriptionCacheRepo,
+		userRepo:              userRepo,
 		wechatService:         wechatService,
 		logger:                logger,
 	}
@@ -193,16 +196,25 @@ func (s *SubscribeService) SendSubscribeMessage(
 	// 5. 记录发送日志
 	s.logger.Info("📝 [SendSubscribeMessage] STEP 5 - 保存发送日志")
 
+	// 获取用户信息以获取UserID
+	user, err := s.userRepo.FindByOpenID(ctx, req.OpenID)
+	if err != nil {
+		s.logger.Error("Failed to find user",
+			zap.String("openid", req.OpenID),
+			zap.Error(err))
+		return err
+	}
+
 	dataJSON, _ := json.Marshal(req.Data)
+	now := time.Now().UnixMilli()
 	log := &entity.MessageSendLog{
-		OpenID:           req.OpenID,
+		UserID:           user.ID,
 		TemplateID:       req.TemplateID,
 		Data:             string(dataJSON),
 		Page:             req.Page,
 		MiniprogramState: "formal",
 	}
 
-	now := time.Now()
 	if err != nil {
 		log.SendStatus = "failed"
 		log.ErrMsg = err.Error()
@@ -242,7 +254,16 @@ func (s *SubscribeService) SendSubscribeMessage(
 
 // GetMessageLogs 获取消息发送日志
 func (s *SubscribeService) GetMessageLogs(ctx context.Context, openid string, offset, limit int) (*dto.MessageLogsResponse, error) {
-	logs, total, err := s.subscribeRepo.GetSendLogs(ctx, openid, offset, limit)
+	// 获取用户信息以获取UserID
+	user, err := s.userRepo.FindByOpenID(ctx, openid)
+	if err != nil {
+		s.logger.Error("Failed to find user",
+			zap.String("openid", openid),
+			zap.Error(err))
+		return nil, errs.ErrInternal
+	}
+
+	logs, total, err := s.subscribeRepo.GetSendLogs(ctx, user.ID, offset, limit)
 	if err != nil {
 		s.logger.Error("Failed to get message logs",
 			zap.String("openid", openid),
@@ -254,13 +275,13 @@ func (s *SubscribeService) GetMessageLogs(ctx context.Context, openid string, of
 	items := make([]dto.MessageLogItem, 0, len(logs))
 	for _, log := range logs {
 		item := dto.MessageLogItem{
-			ID:         log.ID,
+			ID:         uint(log.ID),
 			SendStatus: log.SendStatus,
 			ErrMsg:     log.ErrMsg,
-			CreatedAt:  log.CreatedAt.Unix(),
+			CreatedAt:  log.CreatedAt / 1000, // 毫秒转秒
 		}
 		if log.SendTime != nil {
-			item.SendTime = log.SendTime.Unix()
+			item.SendTime = *log.SendTime / 1000 // 毫秒转秒
 		}
 		items = append(items, item)
 	}

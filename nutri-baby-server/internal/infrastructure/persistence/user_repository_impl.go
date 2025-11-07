@@ -32,7 +32,24 @@ func (r *userRepositoryImpl) Create(ctx context.Context, user *entity.User) erro
 func (r *userRepositoryImpl) FindByOpenID(ctx context.Context, openID string) (*entity.User, error) {
 	var user entity.User
 	err := r.db.WithContext(ctx).
-		Where("openid = ? AND deleted_at IS NULL", openID).
+		Where("openid = ?", openID).
+		First(&user).Error
+
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, errors.ErrUserNotFound
+	}
+	if err != nil {
+		return nil, errors.Wrap(errors.DatabaseError, "failed to find user", err)
+	}
+
+	return &user, nil
+}
+
+// FindByID 根据ID查找用户
+func (r *userRepositoryImpl) FindByID(ctx context.Context, userID int64) (*entity.User, error) {
+	var user entity.User
+	err := r.db.WithContext(ctx).
+		Where("id = ?", userID).
 		First(&user).Error
 
 	if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -49,7 +66,7 @@ func (r *userRepositoryImpl) FindByOpenID(ctx context.Context, openID string) (*
 func (r *userRepositoryImpl) Update(ctx context.Context, user *entity.User) error {
 	err := r.db.WithContext(ctx).
 		Model(&entity.User{}).
-		Where("openid = ? AND deleted_at IS NULL", user.OpenID).
+		Where("openid = ?", user.OpenID).
 		Updates(user).Error
 
 	if err != nil {
@@ -74,10 +91,10 @@ func (r *userRepositoryImpl) UpdateLastLoginTime(ctx context.Context, openID str
 }
 
 // UpdateDefaultBabyID 更新默认宝宝ID
-func (r *userRepositoryImpl) UpdateDefaultBabyID(ctx context.Context, openID string, babyID string) error {
+func (r *userRepositoryImpl) UpdateDefaultBabyID(ctx context.Context, openID string, babyID int64) error {
 	err := r.db.WithContext(ctx).
 		Model(&entity.User{}).
-		Where("openid = ? AND deleted_at IS NULL", openID).
+		Where("openid = ?", openID).
 		Update("default_baby_id", babyID).Error
 
 	if err != nil {

@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"sort"
+	"strconv"
 	"time"
 
 	"go.uber.org/zap"
@@ -46,14 +47,20 @@ func (s *VaccineScheduleService) GetVaccineSchedules(ctx context.Context, babyID
 		return nil, err
 	}
 
+	// 转换 babyID 从 string 到 int64
+	babyIDInt64, err := strconv.ParseInt(babyID, 10, 64)
+	if err != nil {
+		return nil, errors.New(errors.ParamError, "invalid baby id format")
+	}
+
 	// 2. 查询所有日程
-	schedules, err := s.scheduleRepo.FindByBabyID(ctx, babyID)
+	schedules, err := s.scheduleRepo.FindByBabyID(ctx, babyIDInt64)
 	if err != nil {
 		return nil, err
 	}
 
 	// 3. 获取统计数据
-	total, completed, pending, skipped, err := s.scheduleRepo.GetStatistics(ctx, babyID)
+	total, completed, pending, skipped, err := s.scheduleRepo.GetStatistics(ctx, babyIDInt64)
 	if err != nil {
 		return nil, err
 	}
@@ -90,6 +97,12 @@ func (s *VaccineScheduleService) GetVaccineSchedulesByStatus(ctx context.Context
 		return nil, err
 	}
 
+	// 转换 babyID 从 string 到 int64
+	babyIDInt64, err := strconv.ParseInt(babyID, 10, 64)
+	if err != nil {
+		return nil, errors.New(errors.ParamError, "invalid baby id format")
+	}
+
 	// 2. 验证状态值
 	if status != entity.VaccinationStatusPending &&
 		status != entity.VaccinationStatusCompleted &&
@@ -98,7 +111,7 @@ func (s *VaccineScheduleService) GetVaccineSchedulesByStatus(ctx context.Context
 	}
 
 	// 3. 查询日程
-	schedules, err := s.scheduleRepo.FindByBabyIDWithStatus(ctx, babyID, status)
+	schedules, err := s.scheduleRepo.FindByBabyIDWithStatus(ctx, babyIDInt64, status)
 	if err != nil {
 		return nil, err
 	}
@@ -123,14 +136,25 @@ func (s *VaccineScheduleService) UpdateVaccineSchedule(
 		return err
 	}
 
+	// 转换 IDs from string to int64
+	babyIDInt64, err := strconv.ParseInt(babyID, 10, 64)
+	if err != nil {
+		return errors.New(errors.ParamError, "invalid baby id format")
+	}
+
+	scheduleIDInt64, err := strconv.ParseInt(scheduleID, 10, 64)
+	if err != nil {
+		return errors.New(errors.ParamError, "invalid schedule id format")
+	}
+
 	// 2. 查询日程是否存在
-	schedule, err := s.scheduleRepo.FindByID(ctx, scheduleID)
+	schedule, err := s.scheduleRepo.FindByID(ctx, scheduleIDInt64)
 	if err != nil {
 		return err
 	}
 
 	// 3. 验证日程是否属于该宝宝
-	if schedule.BabyID != babyID {
+	if schedule.BabyID != babyIDInt64 {
 		return errors.New(errors.PermissionDenied, "无权操作该疫苗接种日程")
 	}
 
@@ -139,10 +163,16 @@ func (s *VaccineScheduleService) UpdateVaccineSchedule(
 		return errors.New(errors.Conflict, "该疫苗接种日程已完成,无法重复记录")
 	}
 
+	// 获取用户信息
+	user, err := s.getUserInfo(ctx, openID)
+	if err != nil {
+		return err
+	}
+
 	// 5. 根据请求的状态处理
 	if req.VaccinationStatus == entity.VaccinationStatusSkipped {
 		// 5a. 标记为跳过
-		err = s.scheduleRepo.MarkAsSkipped(ctx, scheduleID)
+		err = s.scheduleRepo.MarkAsSkipped(ctx, scheduleIDInt64)
 		if err != nil {
 			return err
 		}
@@ -160,22 +190,16 @@ func (s *VaccineScheduleService) UpdateVaccineSchedule(
 			return errors.New(errors.ParamError, "接种医院不能为空")
 		}
 
-		// 获取用户信息(用于冗余记录者信息)
-		user, err := s.getUserInfo(ctx, openID)
-		if err != nil {
-			return err
-		}
-
 		err = s.scheduleRepo.MarkAsCompleted(
 			ctx,
-			scheduleID,
+			scheduleIDInt64,
 			req.VaccineDate,
 			req.Hospital,
 			req.BatchNumber,
 			req.Doctor,
 			req.Reaction,
 			req.Note,
-			openID,
+			user.ID,
 			user.NickName,
 			user.AvatarURL,
 		)
@@ -201,13 +225,25 @@ func (s *VaccineScheduleService) CreateCustomSchedule(
 		return err
 	}
 
+	// 转换 babyID from string to int64
+	babyIDInt64, err := strconv.ParseInt(babyID, 10, 64)
+	if err != nil {
+		return errors.New(errors.ParamError, "invalid baby id format")
+	}
+
 	// 2. 获取宝宝信息以计算 scheduled_date
-	baby, err := s.babyRepo.FindByID(ctx, babyID)
+	baby, err := s.babyRepo.FindByID(ctx, babyIDInt64)
 	if err != nil {
 		if errors.Is(err, errors.ErrNotFound) {
 			return errors.New(errors.BabyNotFound, "宝宝不存在")
 		}
 		return errors.Wrap(errors.DatabaseError, "查询宝宝信息失败", err)
+	}
+
+	// 获取用户信息
+	user, err := s.getUserInfo(ctx, openID)
+	if err != nil {
+		return err
 	}
 
 	// 3. 解析出生日期并计算预定接种日期
@@ -220,9 +256,17 @@ func (s *VaccineScheduleService) CreateCustomSchedule(
 	scheduledDate := birthTime.AddDate(0, req.AgeInMonths, 0).UnixMilli()
 
 	// 4. 创建日程实体
+	var templateID *int64
+	if req.TemplateID != nil {
+		templateIDInt64, err := strconv.ParseInt(*req.TemplateID, 10, 64)
+		if err == nil {
+			templateID = &templateIDInt64
+		}
+	}
+
 	schedule := &entity.BabyVaccineSchedule{
-		BabyID:            babyID,
-		TemplateID:        req.TemplateID,
+		BabyID:            babyIDInt64,
+		TemplateID:        templateID,
 		VaccineType:       req.VaccineType,
 		VaccineName:       req.VaccineName,
 		Description:       req.Description,
@@ -234,7 +278,9 @@ func (s *VaccineScheduleService) CreateCustomSchedule(
 		VaccinationStatus: entity.VaccinationStatusPending,
 		ScheduledDate:     scheduledDate, // 设置计划接种日期
 		ReminderSent:      false,         // 初始化提醒状态
-		CreateBy:          openID,
+		CompletedBy:       &user.ID,
+		CompletedByName:   &user.NickName,
+		CompletedByAvatar: &user.AvatarURL,
 	}
 
 	// 5. 保存日程
@@ -252,14 +298,25 @@ func (s *VaccineScheduleService) UpdateScheduleInfo(
 		return err
 	}
 
+	// 转换 IDs from string to int64
+	babyIDInt64, err := strconv.ParseInt(babyID, 10, 64)
+	if err != nil {
+		return errors.New(errors.ParamError, "invalid baby id format")
+	}
+
+	scheduleIDInt64, err := strconv.ParseInt(scheduleID, 10, 64)
+	if err != nil {
+		return errors.New(errors.ParamError, "invalid schedule id format")
+	}
+
 	// 2. 查询日程是否存在
-	schedule, err := s.scheduleRepo.FindByID(ctx, scheduleID)
+	schedule, err := s.scheduleRepo.FindByID(ctx, scheduleIDInt64)
 	if err != nil {
 		return err
 	}
 
 	// 3. 验证日程是否属于该宝宝
-	if schedule.BabyID != babyID {
+	if schedule.BabyID != babyIDInt64 {
 		return errors.New(errors.PermissionDenied, "无权操作该疫苗接种日程")
 	}
 
@@ -296,7 +353,7 @@ func (s *VaccineScheduleService) UpdateScheduleInfo(
 
 	// 6. 如果月龄变化，重新计算 scheduled_date
 	if needRecalculateDate {
-		baby, err := s.babyRepo.FindByID(ctx, babyID)
+		baby, err := s.babyRepo.FindByID(ctx, babyIDInt64)
 		if err != nil {
 			return errors.Wrap(errors.DatabaseError, "查询宝宝信息失败", err)
 		}
@@ -320,14 +377,25 @@ func (s *VaccineScheduleService) DeleteSchedule(ctx context.Context, babyID, sch
 		return err
 	}
 
+	// 转换 IDs from string to int64
+	babyIDInt64, err := strconv.ParseInt(babyID, 10, 64)
+	if err != nil {
+		return errors.New(errors.ParamError, "invalid baby id format")
+	}
+
+	scheduleIDInt64, err := strconv.ParseInt(scheduleID, 10, 64)
+	if err != nil {
+		return errors.New(errors.ParamError, "invalid schedule id format")
+	}
+
 	// 2. 查询日程
-	schedule, err := s.scheduleRepo.FindByID(ctx, scheduleID)
+	schedule, err := s.scheduleRepo.FindByID(ctx, scheduleIDInt64)
 	if err != nil {
 		return err
 	}
 
 	// 3. 验证所属
-	if schedule.BabyID != babyID {
+	if schedule.BabyID != babyIDInt64 {
 		return errors.New(errors.PermissionDenied, "无权操作该疫苗接种日程")
 	}
 
@@ -342,7 +410,7 @@ func (s *VaccineScheduleService) DeleteSchedule(ctx context.Context, babyID, sch
 	}
 
 	// 6. 删除日程
-	return s.scheduleRepo.Delete(ctx, scheduleID)
+	return s.scheduleRepo.Delete(ctx, scheduleIDInt64)
 }
 
 // GetStatistics 获取疫苗接种统计
@@ -352,8 +420,14 @@ func (s *VaccineScheduleService) GetStatistics(ctx context.Context, babyID, open
 		return nil, err
 	}
 
+	// 转换 babyID from string to int64
+	babyIDInt64, err := strconv.ParseInt(babyID, 10, 64)
+	if err != nil {
+		return nil, errors.New(errors.ParamError, "invalid baby id format")
+	}
+
 	// 2. 获取统计数据
-	total, completed, pending, skipped, err := s.scheduleRepo.GetStatistics(ctx, babyID)
+	total, completed, pending, skipped, err := s.scheduleRepo.GetStatistics(ctx, babyIDInt64)
 	if err != nil {
 		return nil, err
 	}
@@ -366,7 +440,7 @@ func (s *VaccineScheduleService) GetStatistics(ctx context.Context, babyID, open
 	}
 
 	// 4. 查询最近完成的日程(最多5条)
-	completedSchedules, err := s.scheduleRepo.FindByBabyIDWithStatus(ctx, babyID, entity.VaccinationStatusCompleted)
+	completedSchedules, err := s.scheduleRepo.FindByBabyIDWithStatus(ctx, babyIDInt64, entity.VaccinationStatusCompleted)
 	if err != nil {
 		return nil, err
 	}
@@ -380,7 +454,7 @@ func (s *VaccineScheduleService) GetStatistics(ctx context.Context, babyID, open
 
 	// 5. 获取下一个待接种疫苗(通过日程计算)
 	var nextVaccine *dto.NextVaccineDTO
-	pendingSchedules, err := s.scheduleRepo.FindByBabyIDWithStatus(ctx, babyID, entity.VaccinationStatusPending)
+	pendingSchedules, err := s.scheduleRepo.FindByBabyIDWithStatus(ctx, babyIDInt64, entity.VaccinationStatusPending)
 	if err == nil && len(pendingSchedules) > 0 {
 		// 找到最近的待接种日程(scheduled_date 最小的)
 		var nearest *entity.BabyVaccineSchedule
@@ -419,7 +493,19 @@ func (s *VaccineScheduleService) GetStatistics(ctx context.Context, babyID, open
 
 // checkPermission 检查用户是否有权限访问该宝宝的疫苗信息
 func (s *VaccineScheduleService) checkPermission(ctx context.Context, babyID, openID string) error {
-	collaborator, err := s.collaboratorRepo.FindByBabyAndUser(ctx, babyID, openID)
+	// 转换 babyID from string to int64
+	babyIDInt64, err := strconv.ParseInt(babyID, 10, 64)
+	if err != nil {
+		return errors.New(errors.ParamError, "invalid baby id format")
+	}
+
+	// 获取用户信息以获取用户ID
+	user, err := s.getUserInfo(ctx, openID)
+	if err != nil {
+		return err
+	}
+
+	collaborator, err := s.collaboratorRepo.FindByBabyAndUser(ctx, babyIDInt64, user.ID)
 	if err != nil {
 		return err
 	}
@@ -437,10 +523,28 @@ func (s *VaccineScheduleService) getUserInfo(ctx context.Context, openID string)
 
 // toScheduleDTO 将实体转换为DTO
 func (s *VaccineScheduleService) toScheduleDTO(schedule *entity.BabyVaccineSchedule) dto.VaccineScheduleDTO {
+	// 将 ID 转换为字符串
+	scheduleID := strconv.FormatInt(schedule.ID, 10)
+	babyID := strconv.FormatInt(schedule.BabyID, 10)
+
+	// 转换 TemplateID
+	var templateID *string
+	if schedule.TemplateID != nil {
+		templateIDStr := strconv.FormatInt(*schedule.TemplateID, 10)
+		templateID = &templateIDStr
+	}
+
+	// 转换 CompletedBy
+	var completedBy *string
+	if schedule.CompletedBy != nil {
+		completedByStr := strconv.FormatInt(*schedule.CompletedBy, 10)
+		completedBy = &completedByStr
+	}
+
 	return dto.VaccineScheduleDTO{
-		ScheduleID:        schedule.ScheduleID,
-		BabyID:            schedule.BabyID,
-		TemplateID:        schedule.TemplateID,
+		ScheduleID:        scheduleID,
+		BabyID:            babyID,
+		TemplateID:        templateID,
 		VaccineType:       schedule.VaccineType,
 		VaccineName:       schedule.VaccineName,
 		Description:       schedule.Description,
@@ -456,12 +560,12 @@ func (s *VaccineScheduleService) toScheduleDTO(schedule *entity.BabyVaccineSched
 		Doctor:            schedule.Doctor,
 		Reaction:          schedule.Reaction,
 		Note:              schedule.Note,
-		CompletedBy:       schedule.CompletedBy,
+		CompletedBy:       completedBy,
 		CompletedByName:   schedule.CompletedByName,
 		CompletedByAvatar: schedule.CompletedByAvatar,
 		CompletedTime:     schedule.CompletedTime,
-		CreateBy:          schedule.CreateBy,
-		CreateTime:        schedule.CreateTime,
+		CreateBy:          scheduleID, // 创建者是创建这条日程的人
+		CreateTime:        schedule.CreatedAt,
 	}
 }
 
@@ -472,8 +576,20 @@ func (s *VaccineScheduleService) toScheduleDTO(schedule *entity.BabyVaccineSched
 // InitializeSchedulesForBaby 为新宝宝初始化疫苗接种日程(从模板)
 // 此方法应该在创建宝宝后立即调用,为宝宝生成完整的疫苗接种计划
 func (s *VaccineScheduleService) InitializeSchedulesForBaby(ctx context.Context, babyID, openID string) error {
+	// 转换 babyID from string to int64
+	babyIDInt64, err := strconv.ParseInt(babyID, 10, 64)
+	if err != nil {
+		return errors.New(errors.ParamError, "invalid baby id format")
+	}
+
+	// 获取用户信息
+	user, err := s.getUserInfo(ctx, openID)
+	if err != nil {
+		return err
+	}
+
 	// 1. 验证宝宝是否存在
-	baby, err := s.babyRepo.FindByID(ctx, babyID)
+	baby, err := s.babyRepo.FindByID(ctx, babyIDInt64)
 	if err != nil {
 		if errors.Is(err, errors.ErrNotFound) {
 			return errors.New(errors.NotFound, "宝宝不存在")
@@ -482,12 +598,12 @@ func (s *VaccineScheduleService) InitializeSchedulesForBaby(ctx context.Context,
 	}
 
 	// 2. 检查权限
-	if baby.CreatorID != openID {
+	if baby.UserID != user.ID {
 		return errors.New(errors.PermissionDenied, "无权为该宝宝初始化疫苗日程")
 	}
 
 	// 3. 检查是否已初始化
-	count, err := s.scheduleRepo.CountByBabyID(ctx, babyID)
+	count, err := s.scheduleRepo.CountByBabyID(ctx, babyIDInt64)
 	if err != nil {
 		return errors.Wrap(errors.DatabaseError, "查询宝宝信息失败", err)
 	}
@@ -498,7 +614,7 @@ func (s *VaccineScheduleService) InitializeSchedulesForBaby(ctx context.Context,
 	}
 
 	// 4. 从模板初始化日程(Repository 层会自动计算 scheduled_date)
-	err = s.scheduleRepo.InitializeFromTemplates(ctx, babyID, openID)
+	err = s.scheduleRepo.InitializeFromTemplates(ctx, babyIDInt64, user.ID)
 	if err != nil {
 		return errors.Wrap(errors.DatabaseError, "从模板初始化疫苗日程失败", err)
 	}
@@ -517,8 +633,14 @@ func (s *VaccineScheduleService) GetVaccineReminders(
 		return nil, err
 	}
 
+	// 转换 babyID from string to int64
+	babyIDInt64, err := strconv.ParseInt(babyID, 10, 64)
+	if err != nil {
+		return nil, errors.New(errors.ParamError, "invalid baby id format")
+	}
+
 	// 2. 查询待接种的日程
-	schedules, err := s.scheduleRepo.FindByBabyIDWithStatus(ctx, babyID, entity.VaccinationStatusPending)
+	schedules, err := s.scheduleRepo.FindByBabyIDWithStatus(ctx, babyIDInt64, entity.VaccinationStatusPending)
 	if err != nil {
 		return nil, errors.Wrap(errors.DatabaseError, "查询疫苗日程失败", err)
 	}
@@ -536,17 +658,21 @@ func (s *VaccineScheduleService) GetVaccineReminders(
 			continue
 		}
 
+		// 将 ID 转换为字符串
+		scheduleID := strconv.FormatInt(schedule.ID, 10)
+		babyIDStr := strconv.FormatInt(schedule.BabyID, 10)
+
 		result = append(result, &dto.VaccineReminderDTO{
-			ReminderID:    schedule.ScheduleID, // 使用 scheduleID 作为 reminderID
-			BabyID:        schedule.BabyID,
-			PlanID:        schedule.ScheduleID,
+			ReminderID:    scheduleID, // 使用 scheduleID 作为 reminderID
+			BabyID:        babyIDStr,
+			PlanID:        scheduleID,
 			VaccineName:   schedule.VaccineName,
 			DoseNumber:    schedule.DoseNumber,
 			ScheduledDate: schedule.ScheduledDate,
 			Status:        reminderStatus,
 			DaysUntilDue:  schedule.DaysUntilDue(),
 			ReminderSent:  schedule.ReminderSent,
-			CreateTime:    schedule.CreateTime,
+			CreateTime:    schedule.CreatedAt,
 		})
 	}
 
