@@ -17,6 +17,7 @@ func NewRouter(
 	vaccineScheduleHandler *handler.VaccineScheduleHandler, // 新增
 	subscribeHandler *handler.SubscribeHandler,
 	syncHandler *handler.SyncHandler,
+	uploadHandler *handler.UploadHandler,
 ) *gin.Engine {
 	// 设置Gin运行模式
 	gin.SetMode(cfg.Server.Mode)
@@ -56,6 +57,9 @@ func NewRouter(
 			authRequired.GET("/auth/user-info", authHandler.GetUserInfo)
 			authRequired.PUT("/auth/user-info", authHandler.UpdateUserInfo)
 			authRequired.PUT("/auth/default-baby", authHandler.SetDefaultBaby)
+
+			// 文件上传
+			authRequired.POST("/upload", uploadHandler.Upload)
 
 			// 宝宝管理 (去家庭化架构)
 			babies := authRequired.Group("/babies")

@@ -150,12 +150,19 @@ export function del<T = any>(url: string, data?: any): Promise<ApiResponse<T>> {
 /**
  * 文件上传
  */
-export function uploadFile(filePath: string, name: string = 'file'): Promise<any> {
+interface UploadConfig {
+  filePath: string
+  name?: string
+  formData?: Record<string, string>
+}
+
+export function uploadFile(config: UploadConfig): Promise<any> {
   return new Promise((resolve, reject) => {
     uni.uploadFile({
       url: `${BASE_URL}/upload`,
-      filePath,
-      name,
+      filePath: config.filePath,
+      name: config.name || 'file',
+      formData: config.formData || {},
       header: getHeaders(),
       success: (res) => {
         if (res.statusCode === 200) {

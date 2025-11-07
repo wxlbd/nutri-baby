@@ -97,6 +97,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { formatDate } from '@/utils/date'
+import { uploadFile } from '@/utils/request'
 
 // 直接调用 API 层
 import * as babyApi from '@/api/baby'
@@ -181,10 +182,46 @@ const chooseAvatar = () => {
     count: 1,
     sizeType: ['compressed'],
     sourceType: ['album', 'camera'],
-    success: (res) => {
-      formData.value.avatarUrl = res.tempFilePaths[0] || ''
-      // 这里可以上传到服务器
-      // uploadFile(res.tempFilePaths[0])
+    success: async (res) => {
+      const tempFilePath = res.tempFilePaths[0]
+      if (!tempFilePath) return
+
+      try {
+        // 显示上传中提示
+        uni.showLoading({
+          title: '上传中...',
+          mask: true
+        })
+
+        // 调用上传接口
+        const uploadResult: any = await uploadFile({
+          filePath: tempFilePath,
+          name: 'file',
+          formData: {
+            type: 'baby_avatar',
+            related_id: isEdit.value ? editId.value : ''
+          }
+        })
+
+        // 解析响应数据
+        if (uploadResult.code === 0) {
+          formData.value.avatarUrl = uploadResult.data.url
+          uni.showToast({
+            title: '上传成功',
+            icon: 'success'
+          })
+        } else {
+          throw new Error(uploadResult.message || '上传失败')
+        }
+      } catch (error: any) {
+        console.error('上传头像失败:', error)
+        uni.showToast({
+          title: error.message || '上传失败',
+          icon: 'none'
+        })
+      } finally {
+        uni.hideLoading()
+      }
     }
   })
 }
