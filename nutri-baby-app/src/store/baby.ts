@@ -99,21 +99,32 @@ export async function fetchBabyList(): Promise<BabyProfile[]> {
     setStorage(StorageKeys.BABY_LIST, babies);
 
     // 设置当前宝宝的逻辑优化：
-    // 1. 如果用户设置了默认宝宝且该宝宝在列表中,使用默认宝宝
-    // 2. 如果没有默认宝宝或默认宝宝不在列表中,选中第一个
-    // 3. 每次调用 fetchBabyList 都会重新设置 currentBabyId（用户手动切换除外）
+    // 1. 如果已经有选中的宝宝且该宝宝仍在列表中，保持不变（用户手动选择优先）
+    // 2. 如果没有选中宝宝或选中的宝宝不在列表中，则自动选择：
+    //    a. 优先使用用户设置的默认宝宝
+    //    b. 否则选择列表中的第一个宝宝
     const userInfo = getUserInfo();
     const defaultBabyId = userInfo?.defaultBabyId;
 
     if (babies.length > 0) {
-      if (defaultBabyId && babies.some((b) => b.babyId === defaultBabyId)) {
-        setCurrentBaby(defaultBabyId);
-      } else {
-        const firstBaby = babies[0];
-        if (firstBaby) {
-          setCurrentBaby(firstBaby.babyId);
+      // 检查当前选中的宝宝是否仍在列表中
+      const currentBabyStillExists = currentBabyId.value && babies.some((b) => b.babyId === currentBabyId.value);
+      
+      if (!currentBabyStillExists) {
+        // 当前宝宝不存在，需要重新选择
+        if (defaultBabyId && babies.some((b) => b.babyId === defaultBabyId)) {
+          setCurrentBaby(defaultBabyId);
+        } else {
+          const firstBaby = babies[0];
+          if (firstBaby) {
+            setCurrentBaby(firstBaby.babyId);
+          }
         }
       }
+      // 如果当前宝宝仍然存在，保持不变
+    } else {
+      // 没有宝宝，清空选择
+      setCurrentBaby("");
     }
 
     return babies;

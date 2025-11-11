@@ -90,6 +90,8 @@
                 label="喂养量"
                 v-model="bottleForm.amount"
                 type="number"
+                :min="30"
+                step="10"
               />
             </view>
           </wd-cell>
@@ -100,6 +102,8 @@
                 label="剩余量"
                 v-model="bottleForm.remaining"
                 type="number"
+                :min="0"
+                step="10"
               />
             </view>
           </wd-cell>
@@ -167,10 +171,10 @@
               inline
               shape="button"
             >
-              <wd-radio value="60">1h</wd-radio>
-              <wd-radio value="120">2h</wd-radio>
-              <wd-radio value="180">3h</wd-radio>
-              <wd-radio value="240">4h</wd-radio>
+              <wd-radio :value="60">1h</wd-radio>
+              <wd-radio :value="120">2h</wd-radio>
+              <wd-radio :value="180">3h</wd-radio>
+              <wd-radio :value="240">4h</wd-radio>
             </wd-radio-group>
           </view>
         </wd-cell>
@@ -480,7 +484,7 @@ const maxDateTime = ref(new Date().getTime()); // 最大: 当前时间
 
 // 提醒设置相关
 const reminderEnabled = ref(true);
-const reminderInterval = ref(180); // 默认3小时(分钟)
+const reminderInterval = ref<number>(180); // 默认3小时(分钟)
 
 // 提醒间隔快捷选项（预设）
 const quickReminderOptions = [
@@ -808,7 +812,7 @@ const handleSubmit = async () => {
 
       // 添加提醒间隔（如果启用了提醒）
       if (reminderEnabled.value) {
-        requestData.reminderInterval = reminderInterval.value;
+        requestData.reminderInterval = Number(reminderInterval.value);
         console.log(
           "[Feeding] 已设置提醒间隔:",
           reminderInterval.value,
