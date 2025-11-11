@@ -982,38 +982,16 @@
   "code": 0,
   "message": "success",
   "data": {
-    "total": 20,           // 总计划数
-    "completed": 5,        // 已完成数
-    "pending": 13,         // 未完成数
-    "overdue": 2,          // 已逾期数
-    "percentage": 25,      // 完成百分比
-    "nextVaccine": {
-      "vaccineName": "乙肝疫苗",
-      "doseNumber": 2,
-      "scheduledDate": 1234567890,
-      "daysUntilDue": 5
-    },
-    "recentRecords": [
-      {
-        "recordId": "记录ID",
-        "babyId": "宝宝ID",
-        "planId": "计划ID",
-        "vaccineType": "BCG",
-        "vaccineName": "卡介苗",
-        "doseNumber": 1,
-        "vaccineDate": 1234567890,
-        "hospital": "市妇幼保健院",
-        "batchNumber": "202401001",
-        "doctor": "张医生",
-        "reaction": "无不良反应",
-        "note": "备注",
-        "createBy": "创建者openid",
-        "createTime": 1234567890
-      }
-    ]
+    "total": 20,
+    "completed": 5,
+    "pending": 13,
+    "skipped": 2,
+    "percentage": 35
   }
 }
 ```
+
+**说明**: 详见 Swagger 文档
 
 ---
 
@@ -1045,13 +1023,83 @@
 
 ## 10. 统计分析
 
-**说明**: 统计分析功能待实现,可通过记录列表接口获取数据后在客户端进行统计
+### 10.1 获取宝宝统计数据
+
+**接口**: `GET /babies/{babyId}/statistics`
+
+**Headers**: `Authorization: Bearer {token}`
+
+**说明**: 获取宝宝的今日及本周统计数据，包括喂养、睡眠、换尿布、成长等多维度统计
+
+**响应**:
+```json
+{
+  "code": 0,
+  "message": "success",
+  "data": {
+    "today": {
+      "feeding": {
+        "breastCount": 6,        // 母乳喂养次数
+        "bottleMl": 240,         // 奶瓶总毫升数
+        "totalCount": 8          // 总喂养次数
+      },
+      "sleep": {
+        "totalMinutes": 780,     // 总睡眠分钟数
+        "lastSleepMinutes": 130, // 上次睡眠分钟数
+        "sessionCount": 4        // 睡眠次数
+      },
+      "diaper": {
+        "totalCount": 8,         // 总换尿布次数
+        "wetCount": 5,           // 尿湿次数
+        "dirtyCount": 3          // 排便次数
+      },
+      "growth": {
+        "latestWeight": 7.5,     // 最新体重 (kg)
+        "latestHeight": 65.0,    // 最新身高 (cm)
+        "latestHeadCircumference": 42.0 // 最新头围 (cm)
+      }
+    },
+    "weekly": {
+      "feeding": {
+        "totalCount": 56,        // 本周总喂养次数
+        "trend": 5,              // 趋势对比（与上周的差异）
+        "avgPerDay": 8.0         // 日均喂养次数
+      },
+      "sleep": {
+        "totalHours": 98.5,      // 本周总睡眠小时数
+        "trend": 2.5,            // 趋势对比（与上周的小时数差异）
+        "avgPerDay": 14.1        // 日均睡眠小时数
+      },
+      "growth": {
+        "weightGain": 0.2,       // 周内体重增长 (kg)
+        "heightGain": 1.5,       // 周内身高增长 (cm)
+        "weekStartWeight": 7.3   // 周初体重 (kg)
+      }
+    }
+  },
+  "timestamp": 1234567890
+}
+```
+
+**统计逻辑说明**:
+- **今日**: 当前日期 00:00:00 到 23:59:59
+- **本周**: 最近7天（包括今天）
+- **趋势**: 本周数据与前7天（上周同期）的对比
+- **睡眠分钟数转小时**: 总分钟数 / 60
+- **换尿布统计**:
+  - `wetCount`: 类型为 "pee" 或 "both" 的记录数
+  - `dirtyCount`: 类型为 "poop" 或 "both" 的记录数
+- **成长数据**: 从最新的成长记录中获取
 
 ---
 
 ## 11. 文件上传
 
-**说明**: 文件上传功能待实现,当前版本暂不支持图片上传
+**接口**: `POST /upload`
+
+**Headers**: `Authorization: Bearer {token}`
+
+**说明**: 支持上传用户头像和宝宝头像
 
 ---
 
@@ -1213,13 +1261,13 @@ WebSocket实时推送功能待实现,未来版本将支持以下特性:
 - ✅ 换尿布记录管理(创建、列表查询)
 - ✅ 成长记录管理(创建、列表查询)
 - ✅ 疫苗接种管理(计划查询、记录创建、提醒列表、统计)
+- ✅ 统计分析接口(今日和本周统计数据)
+- ✅ 文件上传功能(用户头像、宝宝头像)
 
 ### 待实现功能
 
 - ⏳ WebSocket实时推送
 - ⏳ 数据批量同步
-- ⏳ 统计分析接口
-- ⏳ 文件上传功能
 - ⏳ 记录更新和删除接口
 
 ---

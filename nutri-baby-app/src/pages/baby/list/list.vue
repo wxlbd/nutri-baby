@@ -87,6 +87,13 @@
             设为默认
           </wd-button>
 
+          <!-- 协作者预览组件 -->
+          <BabyCollaboratorsPreview
+            :baby-id="baby.babyId"
+            :collaborators="getCollaborators(baby.babyId)"
+            @go-to-collaborators="() => handleGoToCollaborators(baby.babyId, baby.name)"
+          />
+
           <!-- 编辑和删除按钮（并排，各占50%） -->
           <view class="action-row">
             <wd-button
@@ -135,12 +142,14 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from "vue";
-import { currentBabyId, setCurrentBaby } from "@/store/baby";
+import { currentBabyId, setCurrentBaby, getCollaborators, setCollaborators } from "@/store/baby";
 import { userInfo, setDefaultBaby } from "@/store/user";
 import { calculateAge } from "@/utils/date";
+import BabyCollaboratorsPreview from "@/components/BabyCollaboratorsPreview.vue";
 
 // 直接调用 API 层
 import * as babyApi from "@/api/baby";
+import * as collaboratorApi from "@/api/collaborator";
 
 // 宝宝列表(从 API 获取)
 const babyList = ref<babyApi.BabyProfileResponse[]>([]);
@@ -150,6 +159,19 @@ const loadBabyList = async () => {
   try {
     const data = await babyApi.apiFetchBabyList();
     babyList.value = data;
+
+    // 并行加载所有宝宝的协作者信息
+    await Promise.all(
+      data.map(async (baby) => {
+        try {
+          const collaborators = await collaboratorApi.apiFetchCollaborators(baby.babyId);
+          setCollaborators(baby.babyId, collaborators);
+        } catch (error) {
+          console.warn(`[BabyList] 加载宝宝 ${baby.babyId} 的协作者失败:`, error);
+          // 协作者加载失败不影响宝宝列表显示
+        }
+      })
+    );
 
     // 如果只有一个宝宝且没有选中任何宝宝,默认选中这个宝宝
     if (babyList.value.length === 1 && !currentBabyId.value) {
@@ -215,6 +237,15 @@ const handleInvite = (id: string, name: string) => {
   });
 };
 
+// 进入协作者管理页面
+const handleGoToCollaborators = (babyId: string, babyName: string) => {
+  uni.navigateTo({
+    url: `/pages/baby/collaborators/collaborators?babyId=${babyId}&babyName=${encodeURIComponent(
+      babyName
+    )}`,
+  });
+};
+
 // 编辑宝宝
 const handleEdit = (id: string) => {
   uni.navigateTo({
@@ -257,23 +288,24 @@ const handleDelete = (id: string) => {
 </script>
 
 <style lang="scss" scoped>
+@import '@/styles/colors.scss';
 .baby-list-page {
   min-height: 100vh;
-  background: linear-gradient(180deg, #f8f9fa 0%, #e9ecef 100%);
+  background: $gradient-bg-light;
   padding-bottom: 140rpx;
 }
 
 .header {
-  background: white;
+  background: $color-bg-primary;
   padding: 40rpx 30rpx;
   text-align: center;
-  box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.06);
+  box-shadow: $shadow-sm;
 }
 
 .title {
   font-size: 36rpx;
-  font-weight: bold;
-  color: #1a1a1a;
+  font-weight: $font-weight-bold;
+  color: $color-text-primary;
 }
 
 .baby-list {
@@ -282,21 +314,21 @@ const handleDelete = (id: string) => {
 
 /* 卡片样式 */
 .baby-card {
-  background: white;
-  border-radius: 20rpx;
-  margin-bottom: 24rpx;
+  background: $color-bg-primary;
+  border-radius: $radius-xl;
+  margin-bottom: $spacing-2xl;
   overflow: hidden;
-  box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.08);
-  transition: all 0.3s ease;
+  box-shadow: $shadow-md;
+  transition: all $transition-slow;
   position: relative;
 
   &.active {
-    box-shadow: 0 4rpx 20rpx rgba(250, 44, 25, 0.25);
-    border: 2px solid #fa2c19;
+    box-shadow: 0 4rpx 20rpx rgba(50, 220, 110, 0.25);
+    border: 2px solid $color-primary;
   }
 
   &.is-default {
-    background: linear-gradient(135deg, #fff8e1 0%, #ffffff 20%);
+    background: linear-gradient(135deg, rgba(50, 220, 110, 0.05) 0%, $color-bg-primary 20%);
   }
 }
 
@@ -305,17 +337,17 @@ const handleDelete = (id: string) => {
   position: absolute;
   top: 16rpx;
   right: 16rpx;
-  background: linear-gradient(135deg, #ffd54f 0%, #ffb300 100%);
+  background: linear-gradient(135deg, $color-primary 0%, $color-primary-light 100%);
   color: white;
   font-size: 22rpx;
   padding: 8rpx 16rpx;
-  border-radius: 20rpx;
+  border-radius: $radius-xl;
   display: flex;
   flex-direction: row;
   align-items: center;
   gap: 6rpx;
-  font-weight: bold;
-  box-shadow: 0 2rpx 8rpx rgba(255, 152, 0, 0.3);
+  font-weight: $font-weight-bold;
+  box-shadow: $shadow-primary-md;
   z-index: 10;
 
   text {
@@ -333,7 +365,7 @@ const handleDelete = (id: string) => {
   display: flex;
   align-items: center;
   cursor: pointer;
-  transition: background 0.2s;
+  transition: background $transition-base;
 
   &:active {
     background: rgba(0, 0, 0, 0.02);
@@ -343,10 +375,10 @@ const handleDelete = (id: string) => {
 .baby-avatar {
   width: 120rpx;
   height: 120rpx;
-  border-radius: 50%;
+  border-radius: $radius-full;
   overflow: hidden;
   flex-shrink: 0;
-  box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.1);
+  box-shadow: $shadow-md;
 
   image {
     width: 100%;
@@ -356,12 +388,12 @@ const handleDelete = (id: string) => {
   .avatar-placeholder {
     width: 100%;
     height: 100%;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: $gradient-primary;
     display: flex;
     align-items: center;
     justify-content: center;
     font-size: 48rpx;
-    font-weight: bold;
+    font-weight: $font-weight-bold;
     color: white;
   }
 }
@@ -382,44 +414,44 @@ const handleDelete = (id: string) => {
 
 .baby-name {
   font-size: 34rpx;
-  font-weight: bold;
-  color: #1a1a1a;
+  font-weight: $font-weight-bold;
+  color: $color-text-primary;
   line-height: 1.2;
 }
 
 .nickname {
   font-size: 26rpx;
-  color: #999;
-  background: #f5f5f5;
+  color: $color-text-secondary;
+  background: $color-bg-secondary;
   padding: 4rpx 12rpx;
-  border-radius: 12rpx;
-  font-weight: normal;
+  border-radius: $radius-md;
+  font-weight: $font-weight-normal;
 }
 
 .baby-meta {
   font-size: 26rpx;
-  color: #666;
+  color: $color-text-secondary;
   display: flex;
   align-items: center;
   gap: 12rpx;
 
   .divider {
-    color: #ddd;
+    color: $color-border-light;
   }
 
   .gender {
-    font-weight: 500;
+    font-weight: $font-weight-medium;
   }
 
   .age {
-    color: #999;
+    color: $color-text-secondary;
   }
 }
 
 .check-icon {
   margin-left: 16rpx;
   flex-shrink: 0;
-  animation: scaleIn 0.3s ease;
+  animation: scaleIn $transition-slow;
 }
 
 @keyframes scaleIn {
@@ -437,7 +469,7 @@ const handleDelete = (id: string) => {
   background: linear-gradient(
     90deg,
     transparent 0%,
-    #e0e0e0 50%,
+    $color-divider 50%,
     transparent 100%
   );
   margin: 0 30rpx;
@@ -445,10 +477,10 @@ const handleDelete = (id: string) => {
 
 /* 操作按钮区域 */
 .card-actions {
-  padding: 20rpx 30rpx 30rpx;
+  padding: $spacing-md 30rpx 30rpx;
   display: flex;
   flex-direction: column;
-  gap: 16rpx;
+  gap: $spacing-md;
 }
 
 .full-width-btn {
@@ -458,13 +490,13 @@ const handleDelete = (id: string) => {
     width: 100%;
     height: 64rpx;
     font-size: 26rpx;
-    border-radius: 12rpx;
+    border-radius: $radius-md;
     display: flex;
     flex-direction: row;
     align-items: center;
     justify-content: center;
     gap: 8rpx;
-    transition: all 0.2s;
+    transition: all $transition-base;
 
     &:active {
       transform: scale(0.96);
@@ -482,7 +514,7 @@ const handleDelete = (id: string) => {
   // 使用两列网格布局，保证两个按钮各占 50% 且与上方全宽按钮保持同宽
   display: grid;
   grid-template-columns: 1fr 1fr;
-  column-gap: 16rpx;
+  column-gap: $spacing-md;
   width: 100%;
 
   :deep(.nut-button),
@@ -490,13 +522,13 @@ const handleDelete = (id: string) => {
     width: 100%;
     height: 64rpx;
     font-size: 26rpx;
-    border-radius: 12rpx;
+    border-radius: $radius-md;
     display: flex;
     flex-direction: row;
     align-items: center;
     justify-content: center;
     gap: 8rpx;
-    transition: all 0.2s;
+    transition: all $transition-base;
 
     &:active {
       transform: scale(0.96);
@@ -512,7 +544,7 @@ const handleDelete = (id: string) => {
 
 /* 空状态 */
 .empty-text {
-  color: #999;
+  color: $color-text-secondary;
   font-size: 28rpx;
 }
 
@@ -522,20 +554,20 @@ const handleDelete = (id: string) => {
   bottom: 0;
   left: 0;
   right: 0;
-  padding: 24rpx;
-  background: linear-gradient(180deg, transparent 0%, white 20%);
+  padding: $spacing-2xl;
+  background: linear-gradient(180deg, transparent 0%, $color-bg-primary 20%);
   backdrop-filter: blur(10rpx);
 
   :deep(.nut-button) {
     height: 88rpx;
     font-size: 32rpx;
-    border-radius: 16rpx;
-    box-shadow: 0 4rpx 16rpx rgba(250, 44, 25, 0.3);
+    border-radius: $radius-lg;
+    box-shadow: $shadow-primary-md;
     display: flex;
     flex-direction: row;
     align-items: center;
     justify-content: center;
-    gap: 12rpx;
+    gap: $spacing-md;
 
     &:active {
       transform: scale(0.98);
