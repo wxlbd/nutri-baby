@@ -1,67 +1,75 @@
 <template>
-  <view class="vaccine-page">
-    <!-- 疫苗完成度 -->
-    <view v-if="currentBaby" class="progress-card">
-      <view class="card-header">
-        <image src="/static/progress_activity.svg" class="header-icon" />
-        <text class="header-title">疫苗接种进度</text>
-      </view>
-
-      <view class="progress-info">
-        <view class="progress-bar-container">
-          <view class="progress-bar">
-            <view
-              class="progress-fill"
-              :style="{ width: completionStats.completionRate + '%' }"
-            ></view>
-          </view>
-          <text class="progress-text">
-            {{ completionStats.completed + completionStats.skipped }} /
-            {{ completionStats.total }} ({{ completionStats.completionRate }}%)
-          </text>
+  <view>
+    <wd-navbar title="疫苗日程" left-text="返回" right-text="设置" left-arrow fixed placeholder safeAreaInsetTop>
+      <template #capsule>
+        <wd-navbar-capsule @back="goBack" @back-home="goBackHome" />
+      </template>
+    </wd-navbar>
+    <view class="vaccine-page">
+      <!-- 疫苗完成度 -->
+      <view v-if="currentBaby" class="progress-card">
+        <view class="card-header">
+          <image src="/static/progress_activity.svg" class="header-icon" />
+          <text class="header-title">疫苗接种进度</text>
         </view>
-      </view>
-    </view>
 
-    <!-- 即将到期提醒 (基于待接种的日程计算) -->
-    <view
-      v-if="upcomingSchedules && upcomingSchedules.length > 0"
-      class="reminders-section"
-    >
-      <view class="section-title">
-        <image src="/static/recent.svg" class="section-icon" />
-        近期待接种 ({{ upcomingSchedules.length }})
-      </view>
-
-      <view class="reminder-list">
-        <view
-          v-for="schedule in upcomingSchedules"
-          :key="schedule.scheduleId"
-          class="reminder-item"
-        >
-          <view class="reminder-content">
-            <view class="vaccine-name">
-              {{ schedule.vaccineName }} (第{{ schedule.doseNumber }}针)
+        <view class="progress-info">
+          <view class="progress-bar-container">
+            <view class="progress-bar">
+              <view
+                class="progress-fill"
+                :style="{ width: completionStats.completionRate + '%' }"
+              ></view>
             </view>
-            <view class="vaccine-date">
-              建议月龄: {{ schedule.ageInMonths }}个月
-            </view>
-          </view>
-          <view class="reminder-action">
-            <wd-button
-              size="small"
-              type="primary"
-              @click.stop="handleRecordVaccine(schedule)"
-            >
-              记录接种
-            </wd-button>
+            <text class="progress-text">
+              {{ completionStats.completed + completionStats.skipped }} /
+              {{ completionStats.total }} ({{
+                completionStats.completionRate
+              }}%)
+            </text>
           </view>
         </view>
       </view>
-    </view>
 
-    <!-- 疫苗计划列表 -->
-    <view class="plan-section">
+      <!-- 即将到期提醒 (基于待接种的日程计算) -->
+      <view
+        v-if="upcomingSchedules && upcomingSchedules.length > 0"
+        class="reminders-section"
+      >
+        <view class="section-title">
+          <image src="/static/recent.svg" class="section-icon" />
+          近期待接种 ({{ upcomingSchedules.length }})
+        </view>
+
+        <view class="reminder-list">
+          <view
+            v-for="schedule in upcomingSchedules"
+            :key="schedule.scheduleId"
+            class="reminder-item"
+          >
+            <view class="reminder-content">
+              <view class="vaccine-name">
+                {{ schedule.vaccineName }} (第{{ schedule.doseNumber }}针)
+              </view>
+              <view class="vaccine-date">
+                建议月龄: {{ schedule.ageInMonths }}个月
+              </view>
+            </view>
+            <view class="reminder-action">
+              <wd-button
+                size="small"
+                type="primary"
+                @click.stop="handleRecordVaccine(schedule)"
+              >
+                记录接种
+              </wd-button>
+            </view>
+          </view>
+        </view>
+      </view>
+
+      <!-- 疫苗计划列表 -->
+      <view class="plan-section">
         <view class="section-header">
           <view class="section-title">
             <image src="/static/calendar_month.svg" class="section-icon" />
@@ -72,241 +80,252 @@
           </wd-button>
         </view>
 
-      <wd-tabs v-model="activeTab">
-        <wd-tab title="全部" pane-key="all" name="all" />
-        <wd-tab title="已完成" pane-key="completed" name="completed" />
-        <wd-tab title="未完成" pane-key="pending" name="pending" />
-        <wd-tab title="已跳过" pane-key="skipped" name="skipped" />
-      </wd-tabs>
+        <wd-tabs v-model="activeTab">
+          <wd-tab title="全部" pane-key="all" name="all" />
+          <wd-tab title="已完成" pane-key="completed" name="completed" />
+          <wd-tab title="未完成" pane-key="pending" name="pending" />
+          <wd-tab title="已跳过" pane-key="skipped" name="skipped" />
+        </wd-tabs>
 
-      <view class="plan-list">
-        <view
-          v-for="schedule in vaccineSchedules"
-          :key="schedule.scheduleId"
-          class="plan-item"
-          :class="{ completed: schedule.vaccinationStatus === 'completed' }"
-        >
-          <view class="plan-header">
-            <view class="plan-name">
-              <text class="required-badge" v-if="schedule.isRequired"
-                >必打</text
-              >
-              <text class="custom-badge" v-if="isCustomPlan(schedule)">自定义</text>
-              {{ schedule.vaccineName }}
-            </view>
-            <view class="plan-header-right">
-              <text class="plan-age">{{ schedule.ageInMonths }}个月</text>
-              <view class="plan-actions" v-if="schedule.vaccinationStatus === 'pending'">
-                <wd-button
-                  size="small"
-                  type="default"
-                  @click.stop="handleEditPlan(schedule)"
+        <view class="plan-list">
+          <view
+            v-for="schedule in vaccineSchedules"
+            :key="schedule.scheduleId"
+            class="plan-item"
+            :class="{ completed: schedule.vaccinationStatus === 'completed' }"
+          >
+            <view class="plan-header">
+              <view class="plan-name">
+                <text class="required-badge" v-if="schedule.isRequired"
+                  >必打</text
                 >
-                  编辑
-                </wd-button>
-                <wd-button
-                  v-if="isCustomPlan(schedule)"
-                  size="small"
-                  type="danger"
-                  @click.stop="handleDeletePlan(schedule)"
+                <text class="custom-badge" v-if="isCustomPlan(schedule)"
+                  >自定义</text
                 >
-                  删除
-                </wd-button>
+                {{ schedule.vaccineName }}
+              </view>
+              <view class="plan-header-right">
+                <text class="plan-age">{{ schedule.ageInMonths }}个月</text>
+                <view
+                  class="plan-actions"
+                  v-if="schedule.vaccinationStatus === 'pending'"
+                >
+                  <wd-button
+                    size="small"
+                    type="info"
+                    @click.stop="handleEditPlan(schedule)"
+                  >
+                    编辑
+                  </wd-button>
+                  <wd-button
+                    v-if="isCustomPlan(schedule)"
+                    size="small"
+                    type="danger"
+                    @click.stop="handleDeletePlan(schedule)"
+                  >
+                    删除
+                  </wd-button>
+                </view>
               </view>
             </view>
-          </view>
 
-          <view class="plan-detail">
-            <text class="plan-dose">第{{ schedule.doseNumber }}针</text>
-            <text v-if="schedule.description" class="plan-desc">{{
-              schedule.description
-            }}</text>
-          </view>
-
-          <view
-            v-if="schedule.vaccinationStatus === 'completed'"
-            class="plan-record"
-          >
-            <image src="/static/check-icon.svg" class="completed-icon" />
-            <text class="completed-text">已接种</text>
-            <text class="completed-date">
-              {{ formatDate(schedule.vaccineDate || 0, "YYYY-MM-DD") }}
-            </text>
-            <text v-if="schedule.hospital" class="hospital-info">
-              {{ schedule.hospital }}
-            </text>
-          </view>
-
-          <view
-            v-else-if="schedule.vaccinationStatus === 'skipped'"
-            class="plan-record"
-          >
-            <image src="/static/skip-icon.svg" class="skipped-icon" />
-            <text class="skipped-text">已跳过</text>
-          </view>
-
-          <view v-else class="plan-action">
-            <wd-button
-              size="small"
-              type="primary"
-              @click="handleRecordBySchedule(schedule)"
-            >
-              记录接种
-            </wd-button>
-            <wd-button
-              size="small"
-              type="info"
-              @click="handleSkipSchedule(schedule)"
-            >
-              跳过
-            </wd-button>
-          </view>
-        </view>
-
-        <!-- 加载更多组件 -->
-        <wd-loadmore
-          :state="loadMoreState"
-          @reload="loadMore"
-          loading-text="加载中..."
-          finished-text="没有更多了"
-          error-text="加载失败，点击重试"
-        />
-      </view>
-    </view>
-
-    <!-- 接种记录对话框 -->
-    <wd-popup
-      v-model="showRecordDialog"
-      position="bottom"
-      custom-style="height: 75%"
-      round
-      closeable
-    >
-      <wd-cell-group title="记录疫苗接种" border>
-        <wd-input
-          v-model="recordForm.vaccineName"
-          placeholder="疫苗名称"
-          readonly
-          label="疫苗名称"
-        />
-        <wd-datetime-picker
-          v-model="recordForm.vaccineDate"
-          type="date"
-          label="接种日期"
-        />
-        <wd-input
-          v-model="recordForm.hospital"
-          placeholder="接种医院"
-          label="接种医院*"
-          required
-        />
-        <wd-input
-          v-model="recordForm.batchNumber"
-          placeholder="疫苗批号"
-          label="疫苗批号"
-        />
-        <wd-input
-          v-model="recordForm.doctor"
-          placeholder="接种医生"
-          label="接种医生"
-        />
-        <wd-textarea
-          v-model="recordForm.reaction"
-          placeholder="不良反应"
-          label="不良反应"
-          auto-height
-        />
-        <wd-textarea
-          v-model="recordForm.note"
-          placeholder="备注"
-          label="备注"
-          auto-height
-        />
-      </wd-cell-group>
-      <view class="dialog-footer">
-        <wd-button type="primary" size="large" @click="handleSaveRecord">
-          保存
-        </wd-button>
-        <wd-button type="info" size="large" @click="showRecordDialog = false">
-          取消
-        </wd-button>
-      </view>
-    </wd-popup>
-
-    <!-- 添加/编辑疫苗计划对话框 -->
-    <wd-popup
-      v-model="showAddDialog"
-      position="bottom"
-      :style="{ height: '80%' }"
-      round
-      closeable
-    >
-      <wd-cell-group :title="isEdit ? '编辑疫苗计划' : '添加疫苗计划'" border>
-        <wd-form ref="formRef">
-          <wd-input
-            label="疫苗名称"
-            v-model="planForm.vaccineName"
-            placeholder="疫苗名称"
-            required
-          />
-          <wd-input
-            label="疫苗类型"
-            v-model="planForm.vaccineType"
-            placeholder="例如: HepB, BCG, DTaP"
-            required
-          />
-          <wd-input
-            type="number"
-            label="接种月龄"
-            v-model.number="planForm.ageInMonths"
-            placeholder="接种月龄"
-            required
-          />
-          <wd-input
-            type="number"
-            label="剂次"
-            v-model.number="planForm.doseNumber"
-            placeholder="剂次"
-            required
-          />
-          <wd-input
-            type="number"
-            label="提醒天数"
-            v-model.number="planForm.reminderDays"
-            placeholder="提醒天数"
-          />
-          <wd-cell title="是否必打" title-width="100px" prop="switchVal" center>
-            <view style="text-align: left; padding-left: 46rpx">
-              <wd-switch v-model="planForm.isRequired" />
+            <view class="plan-detail">
+              <text class="plan-dose">第{{ schedule.doseNumber }}针</text>
+              <text v-if="schedule.description" class="plan-desc">{{
+                schedule.description
+              }}</text>
             </view>
-          </wd-cell>
-          <wd-textarea
-            label="疫苗说明"
-            v-model="planForm.description"
-            placeholder="疫苗说明"
-            :max-length="200"
-          />
-          <view class="dialog-footer">
-            <wd-button
-              type="primary"
-              size="large"
-              @click="handleSubmitPlan"
-              block
+
+            <view
+              v-if="schedule.vaccinationStatus === 'completed'"
+              class="plan-record"
             >
-              {{ isEdit ? "保存" : "添加" }}
-            </wd-button>
-            <wd-button
-              type="info"
-              size="large"
-              @click="handleCancelPlan"
-              block
+              <image src="/static/check-icon.svg" class="completed-icon" />
+              <text class="completed-text">已接种</text>
+              <text class="completed-date">
+                {{ formatDate(schedule.vaccineDate || 0, "YYYY-MM-DD") }}
+              </text>
+              <text v-if="schedule.hospital" class="hospital-info">
+                {{ schedule.hospital }}
+              </text>
+            </view>
+
+            <view
+              v-else-if="schedule.vaccinationStatus === 'skipped'"
+              class="plan-record"
             >
-              取消
-            </wd-button>
+              <image src="/static/skip-icon.svg" class="skipped-icon" />
+              <text class="skipped-text">已跳过</text>
+            </view>
+
+            <view v-else class="plan-action">
+              <wd-button
+                size="small"
+                type="primary"
+                @click="handleRecordBySchedule(schedule)"
+              >
+                记录接种
+              </wd-button>
+              <wd-button
+                size="small"
+                type="info"
+                @click="handleSkipSchedule(schedule)"
+              >
+                跳过
+              </wd-button>
+            </view>
           </view>
-        </wd-form>
-      </wd-cell-group>
-    </wd-popup>
+
+          <!-- 加载更多组件 -->
+          <wd-loadmore
+            :state="loadMoreState"
+            @reload="loadMore"
+            loading-text="加载中..."
+            finished-text="没有更多了"
+            error-text="加载失败，点击重试"
+          />
+        </view>
+      </view>
+
+      <!-- 接种记录对话框 -->
+      <wd-popup
+        v-model="showRecordDialog"
+        position="bottom"
+        custom-style="height: 75%"
+        round
+        closeable
+      >
+        <wd-cell-group title="记录疫苗接种" border>
+          <wd-input
+            v-model="recordForm.vaccineName"
+            placeholder="疫苗名称"
+            readonly
+            label="疫苗名称"
+          />
+          <wd-datetime-picker
+            v-model="recordForm.vaccineDate"
+            type="date"
+            label="接种日期"
+          />
+          <wd-input
+            v-model="recordForm.hospital"
+            placeholder="接种医院"
+            label="接种医院*"
+            required
+          />
+          <wd-input
+            v-model="recordForm.batchNumber"
+            placeholder="疫苗批号"
+            label="疫苗批号"
+          />
+          <wd-input
+            v-model="recordForm.doctor"
+            placeholder="接种医生"
+            label="接种医生"
+          />
+          <wd-textarea
+            v-model="recordForm.reaction"
+            placeholder="不良反应"
+            label="不良反应"
+            auto-height
+          />
+          <wd-textarea
+            v-model="recordForm.note"
+            placeholder="备注"
+            label="备注"
+            auto-height
+          />
+        </wd-cell-group>
+        <view class="dialog-footer">
+          <wd-button type="primary" size="large" @click="handleSaveRecord">
+            保存
+          </wd-button>
+          <wd-button type="info" size="large" @click="showRecordDialog = false">
+            取消
+          </wd-button>
+        </view>
+      </wd-popup>
+
+      <!-- 添加/编辑疫苗计划对话框 -->
+      <wd-popup
+        v-model="showAddDialog"
+        position="bottom"
+        :style="{ height: '80%' }"
+        round
+        closeable
+      >
+        <wd-cell-group :title="isEdit ? '编辑疫苗计划' : '添加疫苗计划'" border>
+          <wd-form ref="formRef">
+            <wd-input
+              label="疫苗名称"
+              v-model="planForm.vaccineName"
+              placeholder="疫苗名称"
+              required
+            />
+            <wd-input
+              label="疫苗类型"
+              v-model="planForm.vaccineType"
+              placeholder="例如: HepB, BCG, DTaP"
+              required
+            />
+            <wd-input
+              type="number"
+              label="接种月龄"
+              v-model.number="planForm.ageInMonths"
+              placeholder="接种月龄"
+              required
+            />
+            <wd-input
+              type="number"
+              label="剂次"
+              v-model.number="planForm.doseNumber"
+              placeholder="剂次"
+              required
+            />
+            <wd-input
+              type="number"
+              label="提醒天数"
+              v-model.number="planForm.reminderDays"
+              placeholder="提醒天数"
+            />
+            <wd-cell
+              title="是否必打"
+              title-width="100px"
+              prop="switchVal"
+              center
+            >
+              <view style="text-align: left; padding-left: 46rpx">
+                <wd-switch v-model="planForm.isRequired" />
+              </view>
+            </wd-cell>
+            <wd-textarea
+              label="疫苗说明"
+              v-model="planForm.description"
+              placeholder="疫苗说明"
+              :max-length="200"
+            />
+            <view class="dialog-footer">
+              <wd-button
+                type="primary"
+                size="large"
+                @click="handleSubmitPlan"
+                block
+              >
+                {{ isEdit ? "保存" : "添加" }}
+              </wd-button>
+              <wd-button
+                type="info"
+                size="large"
+                @click="handleCancelPlan"
+                block
+              >
+                取消
+              </wd-button>
+            </view>
+          </wd-form>
+        </wd-cell-group>
+      </wd-popup>
+    </view>
   </view>
 </template>
 
@@ -317,6 +336,7 @@ import { currentBaby, currentBabyId } from "@/store/baby";
 import { userInfo } from "@/store/user";
 import { formatDate } from "@/utils/date";
 import { shouldShowGuide } from "@/store/subscribe";
+import { goBack,goBackHome } from "@/utils/common";
 
 // 直接调用 API 层 (使用新架构)
 import * as vaccineApi from "@/api/vaccine";
@@ -404,7 +424,7 @@ const loadVaccineData = async (isRefresh: boolean = false) => {
 
   const babyId = currentBaby.value.babyId;
   const pageToLoad = currentPage.value;
-  
+
   console.log("加载疫苗日程数据", {
     babyId,
     page: pageToLoad,

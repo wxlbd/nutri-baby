@@ -42,3 +42,5 @@ nutri-baby-server/MAKEFILE_UPDATE.md
 /nutri-baby-server/cmd/server/__debug_*
 /nutri-baby-server/bin/server
 /nutri-baby-server/bin/server-linux-amd64
+BUGFIX_REPORT.md
+UPLOAD_FEATURE.md

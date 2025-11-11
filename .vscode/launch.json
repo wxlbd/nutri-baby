@@ -1,42 +1,43 @@
 {
-    // 使用 IntelliSense 了解相关属性。
-    // 悬停以查看现有属性的描述。
-    // 欲了解更多信息，请访问: https://go.microsoft.com/fwlink/?linkid=830387
-    "version": "0.2.0",
-    "configurations": [
-        {
-            "name": "后端服务",
-            "type": "go",
-            "request": "launch",
-            "mode": "auto",
-            "program": "${workspaceFolder}/nutri-baby-server/cmd/server/main.go",
-            "cwd": "${workspaceFolder}/nutri-baby-server",
-            "args": ["-config", "config/config.yaml"],
-            "internalConsoleOptions": "openOnSessionStart",
-            "serverReadyAction": {
-                "pattern": "Server started at",
-                "uriFormat": "http://localhost:8080",
-                "action": "openExternally"
-            }
-        },
-        {
-            "name": "前端开发 - 微信小程序",
-            "type": "node",
-            "request": "launch",
-            "runtimeExecutable": "npm",
-            "runtimeArgs": ["run", "dev:mp-weixin"],
-            "cwd": "${workspaceFolder}/nutri-baby-app",
-            "skipFiles": ["<node_internals>/**"]
-        },
-        {
-            "name": "前端构建 - 微信小程序",
-            "type": "node",
-            "request": "launch",
-            "runtimeExecutable": "npm",
-            "runtimeArgs": ["run", "build:mp-weixin"],
-            "console": "integratedTerminal",
-            "cwd": "${workspaceFolder}/nutri-baby-app",
-            "skipFiles": ["<node_internals>/**"]
-        }
-    ]
+  // 使用 IntelliSense 了解相关属性。
+  // 悬停以查看现有属性的描述。
+  // 欲了解更多信息，请访问: https://go.microsoft.com/fwlink/?linkid=830387
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "后端服务",
+      "type": "go",
+      "request": "launch",
+      "mode": "auto",
+      "program": "${workspaceFolder}/nutri-baby-server/cmd/server/main.go",
+      "cwd": "${workspaceFolder}/nutri-baby-server",
+      "args": ["-config", "config/config.yaml"],
+      "internalConsoleOptions": "neverOpen", // ✅ 改成 neverOpen
+      "console": "integratedTerminal", // ✅ 用集成终端
+      "serverReadyAction": {
+        "pattern": "Server started at",
+        "uriFormat": "http://localhost:8080",
+        "action": "openExternally"
+      }
+    },
+    {
+      "name": "前端开发 - 微信小程序",
+      "type": "node",
+      "request": "launch",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev:mp-weixin"],
+      "cwd": "${workspaceFolder}/nutri-baby-app",
+      "skipFiles": ["<node_internals>/**"]
+    },
+    {
+      "name": "前端构建 - 微信小程序",
+      "type": "node",
+      "request": "launch",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "build:mp-weixin"],
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}/nutri-baby-app",
+      "skipFiles": ["<node_internals>/**"]
+    }
+  ]
 }

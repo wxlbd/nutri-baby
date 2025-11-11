@@ -1,6 +1,6 @@
 <template>
   <wd-popup
-    v-model:visible="visible"
+    v-model="visible"
     position="bottom"
     :closeable="true"
     round

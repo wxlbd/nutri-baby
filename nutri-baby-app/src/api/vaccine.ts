@@ -15,10 +15,17 @@ export type VaccinationStatus = "pending" | "completed" | "skipped";
  * 提醒状态
  */
 export type VaccineReminderStatus =
-  | "upcoming"
-  | "due"
-  | "overdue"
-  | "completed";
+  | "upcoming" // 即将到期
+  | "due" // 已到期
+  | "overdue" // 已逾期
+  | "completed"; // 已完成
+
+export const VaccineReminderStatusMap = {
+  upcoming: "即将到期",
+  due: "已到期",
+  overdue: "已逾期",
+  completed: "已完成",
+};
 
 /**
  * API 响应: 疫苗接种日程详情 (新架构 - 合并计划和记录)
@@ -254,7 +261,6 @@ export async function apiFetchVaccineRecords(params: {
  */
 export async function apiFetchVaccineReminders(params: {
   babyId: string;
-  status?: VaccineReminderStatus[];
 }): Promise<VaccineRemindersListResponse> {
   const { babyId, ...queryParams } = params;
   const response = await get<VaccineRemindersListResponse>(
@@ -274,7 +280,7 @@ export async function apiFetchVaccineStats(
   babyId: string,
 ): Promise<VaccineStatsResponse> {
   const response = await get<VaccineStatsResponse>(
-    `/babies/${babyId}/vaccine-statistics`,
+    `/babies/${babyId}/vaccine-schedule-statistics`,
   );
   return (
     response.data || {
@@ -356,30 +362,59 @@ export async function apiMarkReminderSent(reminderId: string): Promise<void> {
  * 获取宝宝的疫苗接种日程列表 (新架构)
  *
  * @param babyId 宝宝ID
- * @param status 可选: 过滤状态 (pending/completed/skipped)
+ * @param params 可选: 查询参数 (status/page/pageSize)
  * @returns Promise<VaccineScheduleListResponse>
  */
 export async function apiFetchVaccineSchedules(
   babyId: string,
-  status?: VaccinationStatus,
-): Promise<VaccineScheduleListResponse> {
-  const queryParams = status ? { status } : {};
-  const response = await get<VaccineScheduleListResponse>(
+  params?: {
+    status?: VaccinationStatus;
+    page?: number;
+    pageSize?: number;
+  },
+): Promise<{
+  schedules: VaccineScheduleResponse[];
+  total: number;
+  page?: number;
+  pageSize?: number;
+  hasMore?: boolean;
+  statistics?: any;
+}> {
+  // 过滤掉 undefined 的参数
+  const queryParams = params ? Object.fromEntries(
+    Object.entries(params).filter(([_, v]) => v !== undefined)
+  ) : {};
+
+  console.log("apiFetchVaccineSchedules 调用，babyId:", babyId, "queryParams:", queryParams);
+
+  const response = await get<any>(
     `/babies/${babyId}/vaccine-schedules`,
     queryParams,
   );
-  return (
-    response.data || {
-      schedules: [],
-      statistics: {
-        total: 0,
-        completed: 0,
-        pending: 0,
-        skipped: 0,
-        completionRate: 0,
-      },
-    }
-  );
+
+  console.log("apiFetchVaccineSchedules 响应 response:", response);
+  console.log("response.data:", response.data);
+
+  // 后端返回的数据结构: { schedules, total, page, pageSize, hasMore }
+  // 需要转换为前端期望的结构
+  const result = {
+    schedules: response.data?.schedules || [],
+    total: response.data?.total || 0,
+    page: response.data?.page,
+    pageSize: response.data?.pageSize,
+    hasMore: response.data?.hasMore,
+    statistics: {
+      total: 0,
+      completed: 0,
+      pending: 0,
+      skipped: 0,
+      completionRate: 0,
+    },
+  };
+
+  console.log("apiFetchVaccineSchedules 返回结果:", result);
+
+  return result;
 }
 
 /**
@@ -452,7 +487,7 @@ export async function apiFetchVaccineScheduleStatistics(
   babyId: string,
 ): Promise<VaccineScheduleListResponse["statistics"]> {
   const response = await get<VaccineScheduleListResponse["statistics"]>(
-    `/babies/${babyId}/vaccine-statistics`,
+    `/babies/${babyId}/vaccine-schedule-statistics`,
   );
   return (
     response.data || {
