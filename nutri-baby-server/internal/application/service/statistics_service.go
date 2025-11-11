@@ -195,13 +195,18 @@ func (s *StatisticsService) getTodaySleepStats(ctx context.Context, babyID int64
 
 	for _, record := range records {
 		if record.Duration != nil {
-			stats.TotalMinutes += *record.Duration / 60
+			// ⚠️ 注意：Duration 存储为秒，需要转换为分钟
+			// 为避免整数除法精度丢失，使用向上取整
+			// 例如：9秒 / 60 = 0分钟（整数除法），但应该返回最小1分钟
+			// 所以采用向上取整的方式：(duration + 59) / 60
+			minutes := int((*record.Duration + 59) / 60) // +59用于向上取整
+			stats.TotalMinutes += minutes
 		}
 	}
 
 	// 如果有多条记录，获取最后一条的时长
 	if len(records) > 0 && records[len(records)-1].Duration != nil {
-		stats.LastSleepMinutes = *records[len(records)-1].Duration / 60
+		stats.LastSleepMinutes = int((*records[len(records)-1].Duration + 59) / 60) // +59用于向上取整
 	}
 
 	return stats, nil
@@ -220,10 +225,10 @@ func (s *StatisticsService) getTodayDiaperStats(ctx context.Context, babyID int6
 
 	for _, record := range records {
 		if record.Type == "pee" || record.Type == "both" {
-			stats.WetCount++
+			stats.PeeCount++
 		}
-		if record.Type == "dirty" || record.Type == "both" {
-			stats.DirtyCount++
+		if record.Type == "poop" || record.Type == "both" {
+			stats.PoopCount++
 		}
 	}
 

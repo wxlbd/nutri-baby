@@ -26,11 +26,11 @@ type BabyVaccineScheduleRepository interface {
 	// FindByID 根据ID查找日程
 	FindByID(ctx context.Context, scheduleID int64) (*entity.BabyVaccineSchedule, error)
 
-	// FindByBabyID 查找宝宝的所有疫苗接种日程
-	FindByBabyID(ctx context.Context, babyID int64) ([]*entity.BabyVaccineSchedule, error)
+	// FindByBabyID 查找宝宝的所有疫苗接种日程（分页）
+	FindByBabyID(ctx context.Context, babyID int64, page, pageSize int) ([]*entity.BabyVaccineSchedule, error)
 
-	// FindByBabyIDWithStatus 根据状态查找宝宝的疫苗接种日程
-	FindByBabyIDWithStatus(ctx context.Context, babyID int64, status string) ([]*entity.BabyVaccineSchedule, error)
+	// FindByBabyIDAndStatus 根据状态查找宝宝的疫苗接种日程（分页）
+	FindByBabyIDAndStatus(ctx context.Context, babyID int64, status string, page, pageSize int) (total int64, schedules []*entity.BabyVaccineSchedule, err error)
 
 	// Update 更新日程
 	Update(ctx context.Context, schedule *entity.BabyVaccineSchedule) error
