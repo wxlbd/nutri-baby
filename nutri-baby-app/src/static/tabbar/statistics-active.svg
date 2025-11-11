@@ -1,10 +1,10 @@
 <svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <rect x="10" y="28" width="6" height="12" rx="2" fill="#fa2c19" stroke="#fa2c19" stroke-width="2"/>
-  <rect x="21" y="20" width="6" height="20" rx="2" fill="#fa2c19" stroke="#fa2c19" stroke-width="2"/>
-  <rect x="32" y="12" width="6" height="28" rx="2" fill="#fa2c19" stroke="#fa2c19" stroke-width="2"/>
-  <path d="M15 24L23 16L30 20L40 8" stroke="#fa2c19" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
-  <circle cx="15" cy="24" r="2.5" fill="#ffffff" stroke="#fa2c19" stroke-width="1"/>
-  <circle cx="23" cy="16" r="2.5" fill="#ffffff" stroke="#fa2c19" stroke-width="1"/>
-  <circle cx="30" cy="20" r="2.5" fill="#ffffff" stroke="#fa2c19" stroke-width="1"/>
-  <circle cx="40" cy="8" r="2.5" fill="#ffffff" stroke="#fa2c19" stroke-width="1"/>
+  <rect x="10" y="28" width="6" height="12" rx="2" fill="#32dc6e" stroke="#32dc6e" stroke-width="2"/>
+  <rect x="21" y="20" width="6" height="20" rx="2" fill="#32dc6e" stroke="#32dc6e" stroke-width="2"/>
+  <rect x="32" y="12" width="6" height="28" rx="2" fill="#32dc6e" stroke="#32dc6e" stroke-width="2"/>
+  <path d="M15 24L23 16L30 20L40 8" stroke="#32dc6e" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="15" cy="24" r="2.5" fill="#ffffff" stroke="#32dc6e" stroke-width="1"/>
+  <circle cx="23" cy="16" r="2.5" fill="#ffffff" stroke="#32dc6e" stroke-width="1"/>
+  <circle cx="30" cy="20" r="2.5" fill="#ffffff" stroke="#32dc6e" stroke-width="1"/>
+  <circle cx="40" cy="8" r="2.5" fill="#ffffff" stroke="#32dc6e" stroke-width="1"/>
 </svg>
