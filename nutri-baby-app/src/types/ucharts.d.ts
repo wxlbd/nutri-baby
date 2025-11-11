@@ -5,6 +5,7 @@ declare module '@qiun/ucharts' {
     canvasId?: string
     width?: number
     height?: number
+    background?: string
     categories?: string[]
     series?: Array<{
       name: string
@@ -19,6 +20,7 @@ declare module '@qiun/ucharts' {
     yAxis?: any
     extra?: any
     opts?: any
+    enableScroll?: boolean
     [key: string]: any
   }
 
@@ -42,7 +44,7 @@ declare module '@qiun/ucharts' {
   }
 
   class uCharts {
-    constructor(options: UChartsConstructorOptions)
+    constructor(options: UChartsConstructorOptions, callback?: (chart: UChartsInstance) => void)
     setOption(options: any): void
     updateData(options: any): void
     show(): void
@@ -50,6 +52,13 @@ declare module '@qiun/ucharts' {
     removeOption(index?: number): void
     dispose(): void
     touchLegend?(touch: any): void
+    showToolTip?(event: any): void
+    touchStart?(event: any): void
+    touchMove?(event: any): void
+    touchEnd?(event: any): void
+    scrollStart?(event: any): void
+    scroll?(event: any): void
+    scrollEnd?(event: any): void
     [key: string]: any
   }
 
