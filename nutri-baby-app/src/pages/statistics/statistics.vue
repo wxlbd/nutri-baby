@@ -10,14 +10,14 @@
 
     <!-- 未登录提示 -->
     <view v-if="!isLoggedIn" class="guest-tip">
-      <image src="/static/monitoring_24dp_A2D5AB_FILL0_wght400_GRAD0_opsz24.svg" class="tip-icon" />
+      <image src="/static/monitoring.svg" class="tip-icon" />
       <text class="tip-text">登录后查看数据</text>
     </view>
 
     <!-- 喂养统计 -->
     <view class="stat-section">
       <view class="section-header">
-        <image class="icon-img" src="/static/breastfeeding_24dp_A2D5AB_FILL0_wght400_GRAD0_opsz24.svg" mode="aspectFit" />
+        <image class="icon-img" src="/static/breastfeeding.svg" mode="aspectFit" />
         <text class="title">喂养统计</text>
       </view>
 
@@ -36,25 +36,25 @@
         </view>
       </view>
 
-      <!-- 每日奶量柱状图 - 使用 uCharts -->
+      <!-- 每日奶量柱状图 -->
       <view class="daily-chart">
         <view class="chart-title">每日奶瓶奶量趋势</view>
-        <UChart
-          v-if="feedingChartData.series.length > 0"
-          canvas-id="feedingChart"
-          chart-type="column"
-          :chart-data="feedingChartData"
-          :chart-options="feedingChartOpts"
-          height="350rpx"
-        />
-        <view v-else class="empty-chart">暂无数据</view>
+        <canvas 
+          type="2d"
+          canvas-id="feedingChart" 
+          id="feedingChart" 
+          class="chart-canvas"
+          @touchstart.stop="touchFeeding"
+          @touchmove.stop.prevent="moveFeeding"
+          @touchend.stop="touchEndFeeding"
+        ></canvas>
       </view>
     </view>
 
     <!-- 睡眠统计 -->
     <view class="stat-section">
       <view class="section-header">
-        <image class="icon-img" src="/static/moon_stars_24dp_A2D5AB_FILL0_wght400_GRAD0_opsz24.svg" mode="aspectFit" />
+        <image class="icon-img" src="/static/moon_stars.svg" mode="aspectFit" />
         <text class="title">睡眠统计</text>
       </view>
 
@@ -94,7 +94,7 @@
             <text class="quality-value">{{ sleepStats.napCount }}次 ({{ sleepStats.napHours }}h)</text>
           </view>
           <view v-if="sleepStats.recommendation" class="quality-recommendation">
-            <image src="/static/moon_stars_24dp_A2D5AB_FILL0_wght400_GRAD0_opsz24.svg" class="recommendation-icon" />
+            <image src="/static/lightbulb_yellow.svg" class="recommendation-icon" />
             <text class="recommendation-text">{{ sleepStats.recommendation }}</text>
           </view>
         </view>
@@ -104,7 +104,7 @@
     <!-- 排泄统计 -->
     <view class="stat-section">
       <view class="section-header">
-        <image class="icon-img" src="/static/baby_changing_station_24dp_A2D5AB_FILL0_wght400_GRAD0_opsz24.svg" mode="aspectFit" />
+        <image class="icon-img" src="/static/baby_changing_station.svg" mode="aspectFit" />
         <text class="title">排泄统计</text>
       </view>
 
@@ -127,7 +127,7 @@
     <!-- 成长统计 -->
     <view v-if="growthStats.hasData" class="stat-section">
       <view class="section-header">
-        <image class="icon-img" src="/static/monitoring_24dp_A2D5AB_FILL0_wght400_GRAD0_opsz24.svg" mode="aspectFit" />
+        <image class="icon-img" src="/static/monitoring.svg" mode="aspectFit" />
         <text class="title">成长统计</text>
       </view>
 
@@ -139,7 +139,7 @@
         </view>
         <view v-if="growthStats.latestWeight" class="stat-card">
           <view class="card-label">最新体重</view>
-          <view class="card-value">{{ growthStats.latestWeight }}kg</view>
+          <view class="card-value">{{ growthStats.latestWeight }}g</view>
         </view>
         <view v-if="growthStats.latestHead" class="stat-card">
           <view class="card-label">最新头围</view>
@@ -149,28 +149,32 @@
 
       <!-- 成长曲线 -->
       <view class="growth-charts">
-        <!-- 身高曲线 - 使用 uCharts -->
+        <!-- 身高曲线 -->
         <view v-if="growthStats.heightData.length > 0" class="chart-container">
           <view class="chart-title">身高趋势 (cm)</view>
-          <UChart
-            canvas-id="heightChart"
-            chart-type="line"
-            :chart-data="heightChartData"
-            :chart-options="heightChartOpts"
-            height="350rpx"
-          />
+          <canvas 
+            type="2d"
+            canvas-id="heightChart" 
+            id="heightChart" 
+            class="chart-canvas"
+            @touchstart.stop="touchHeight"
+            @touchmove.stop.prevent="moveHeight"
+            @touchend.stop="touchEndHeight"
+          ></canvas>
         </view>
 
-        <!-- 体重曲线 - 使用 uCharts -->
+        <!-- 体重曲线 -->
         <view v-if="growthStats.weightData.length > 0" class="chart-container">
-          <view class="chart-title">体重趋势 (kg)</view>
-          <UChart
-            canvas-id="weightChart"
-            chart-type="line"
-            :chart-data="weightChartData"
-            :chart-options="weightChartOpts"
-            height="350rpx"
-          />
+          <view class="chart-title">体重趋势 (g)</view>
+          <canvas 
+            type="2d"
+            canvas-id="weightChart" 
+            id="weightChart" 
+            class="chart-canvas"
+            @touchstart.stop="touchWeight"
+            @touchmove.stop.prevent="moveWeight"
+            @touchend.stop="touchEndWeight"
+          ></canvas>
         </view>
       </view>
     </view>
@@ -178,13 +182,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
+import { onShow } from '@dcloudio/uni-app'
 import { isLoggedIn } from '@/store/user'
 import { currentBaby } from '@/store/baby'
 import { getWeekStart, getMonthStart, formatDate } from '@/utils/date'
+import uCharts from '@qiun/ucharts'
 import { useUChart, columnChartPreset, lineChartPreset } from '@/composables/useUChart'
-import type { ChartData, ChartOptions } from '@/composables/useUChart'
-import UChart from '@/components/UChart.vue'
 
 // 直接调用 API 层
 import * as feedingApi from '@/api/feeding'
@@ -192,8 +196,32 @@ import * as sleepApi from '@/api/sleep'
 import * as diaperApi from '@/api/diaper'
 import * as growthApi from '@/api/growth'
 
+// 图表实例
+let feedingChartInstance: any = null
+let heightChartInstance: any = null
+let weightChartInstance: any = null
+
 // 时间范围
 const timeRange = ref<string>('week')
+
+// 初始化图表
+const {
+  chartData: feedingChartData,
+  chartOpts: feedingChartOpts,
+  updateChartData: updateFeedingChart
+} = useUChart('column', columnChartPreset())
+
+const {
+  chartData: heightChartData,
+  chartOpts: heightChartOpts,
+  updateChartData: updateHeightChart
+} = useUChart('line', lineChartPreset())
+
+const {
+  chartData: weightChartData,
+  chartOpts: weightChartOpts,
+  updateChartData: updateWeightChart
+} = useUChart('line', lineChartPreset())
 
 // 获取时间范围
 const getTimeRange = () => {
@@ -237,8 +265,10 @@ const loadRecords = async () => {
 }
 
 // 监听时间范围变化,重新加载数据
-watch(timeRange, () => {
-  loadRecords()
+watch(timeRange, async () => {
+  await loadRecords()
+  await nextTick()
+  drawCharts()
 })
 
 // 喂养统计
@@ -299,38 +329,6 @@ const feedingStats = computed(() => {
     maxDaily,
   }
 })
-
-// 喂养图表数据
-const feedingChartData = computed<ChartData>(() => {
-  if (!feedingStats.value.dailyData || feedingStats.value.dailyData.length === 0) {
-    return {
-      categories: [],
-      series: []
-    }
-  }
-
-  return {
-    categories: feedingStats.value.dailyData.map(d => d.label),
-    series: [
-      {
-        name: '奶量(ml)',
-        data: feedingStats.value.dailyData.map(d => d.amount)
-      }
-    ]
-  }
-})
-
-// 喂养图表配置
-const feedingChartOpts = computed<ChartOptions>(() => ({
-  ...columnChartPreset(),
-  padding: [15, 15, 0, 15],
-  extra: {
-    column: {
-      type: 'group',
-      width: 30
-    }
-  }
-}))
 
 // 睡眠统计
 const sleepStats = computed(() => {
@@ -551,77 +549,399 @@ const growthStats = computed(() => {
   }
 })
 
-// 身高图表数据
-const heightChartData = computed<ChartData>(() => {
-  if (!growthStats.value.heightData || growthStats.value.heightData.length === 0) {
-    return {
-      categories: [],
-      series: []
-    }
-  }
+// 获取 Canvas 上下文
+const getCanvasContext = (canvasId: string, callback: (ctx: any, width: number, height: number) => void) => {
+  console.log('[Statistics] 开始获取 Canvas 上下文:', canvasId)
+  
+  const query = uni.createSelectorQuery()
+  const selector = query.select(`#${canvasId}`) as any
+  selector
+    .fields({ node: true, size: true }, null as any)
+    .exec((res: any) => {
+      console.log('[Statistics] Canvas 查询结果:', canvasId, res)
+      
+      if (!res || !res[0]) {
+        console.error('[Statistics] Canvas 节点未找到:', canvasId)
+        return
+      }
+      
+      if (!res[0].node) {
+        console.error('[Statistics] Canvas node 属性不存在:', canvasId, res[0])
+        return
+      }
+      
+      const canvas = res[0].node
+      const ctx = canvas.getContext('2d')
+      const dpr = uni.getSystemInfoSync().pixelRatio || 1
+      
+      console.log('[Statistics] Canvas 信息:', {
+        canvasId,
+        width: res[0].width,
+        height: res[0].height,
+        dpr
+      })
+      
+      canvas.width = res[0].width * dpr
+      canvas.height = res[0].height * dpr
+      ctx.scale(dpr, dpr)
+      
+      callback(ctx, res[0].width, res[0].height)
+    })
+}
 
-  return {
-    categories: growthStats.value.dates,
-    series: [
-      {
+// 绘制喂养柱状图
+const drawFeedingChart = () => {
+  console.log('[Statistics] 开始绘制喂养图表')
+  console.log('[Statistics] 喂养数据:', feedingStats.value.dailyData)
+  
+  getCanvasContext('feedingChart', (ctx, width, height) => {
+    console.log('[Statistics] 创建喂养图表实例')
+    
+    const dataLength = feedingStats.value.dailyData.length
+    const itemCount = timeRange.value === 'week' ? 7 : 10 // 本周显示7天，本月显示10天
+    const enableScroll = dataLength > itemCount // 数据超过单屏数量时启用滚动
+    
+    const chartData = {
+      $this: {},
+      type: 'column',
+      context: ctx,
+      width: width,
+      height: height,
+      background: '#ffffff',
+      categories: feedingStats.value.dailyData.map(d => d.label),
+      series: [{
+        name: '奶量(ml)',
+        data: feedingStats.value.dailyData.map(d => d.amount)
+      }],
+      animation: true,
+      color: ['#7dd3a2'],
+      padding: [15, 20, 0, 15] as [number, number, number, number],
+      enableScroll: enableScroll,
+      legend: {
+        show: false
+      },
+      xAxis: {
+        disableGrid: true,
+        itemCount: itemCount,
+        scrollShow: true,
+        boundaryGap: 'center'
+      },
+      yAxis: {
+        gridType: 'dash',
+        dashLength: 2
+      },
+      extra: {
+        column: {
+          type: 'group',
+          width: enableScroll ? 15 : 20 // 滚动时柱子稍窄一些
+        }
+      }
+    }
+    
+    console.log('[Statistics] 图表配置:', {
+      dataLength,
+      itemCount,
+      enableScroll,
+      chartData
+    })
+    
+    try {
+      feedingChartInstance = new uCharts(chartData, () => {
+        console.log('[Statistics] 喂养图表绘制完成')
+      })
+    } catch (error) {
+      console.error('[Statistics] 喂养图表创建失败:', error)
+    }
+  })
+}
+
+// 绘制身高折线图
+const drawHeightChart = () => {
+  getCanvasContext('heightChart', (ctx, width, height) => {
+    const dataLength = growthStats.value.heightData.length
+    const itemCount = 6 // 成长曲线显示6个数据点
+    const enableScroll = dataLength > itemCount
+    
+    heightChartInstance = new uCharts({
+      $this: {},
+      type: 'line',
+      context: ctx,
+      width: width,
+      height: height,
+      background: '#ffffff',
+      categories: growthStats.value.dates,
+      series: [{
         name: '身高(cm)',
         data: growthStats.value.heightData
+      }],
+      animation: true,
+      color: ['#7dd3a2'],
+      padding: [15, 20, 0, 15] as [number, number, number, number],
+      enableScroll: enableScroll,
+      legend: {
+        show: false
+      },
+      xAxis: {
+        disableGrid: false,
+        itemCount: itemCount,
+        scrollShow: true,
+        boundaryGap: 'center'
+      },
+      yAxis: {
+        gridType: 'dash',
+        dashLength: 2,
+        min: growthStats.value.heightMin,
+        max: growthStats.value.heightMax
+      },
+      extra: {
+        line: {
+          type: 'curve',
+          width: 2
+        }
       }
-    ]
-  }
-})
+    }, () => {})
+  })
+}
 
-// 身高图表配置
-const heightChartOpts = computed<ChartOptions>(() => ({
-  ...lineChartPreset(),
-  color: ['#7dd3a2'],
-  extra: {
-    line: {
-      type: 'curve',
-      width: 2
-    }
-  }
-}))
-
-// 体重图表数据
-const weightChartData = computed<ChartData>(() => {
-  if (!growthStats.value.weightData || growthStats.value.weightData.length === 0) {
-    return {
-      categories: [],
-      series: []
-    }
-  }
-
-  return {
-    categories: growthStats.value.dates,
-    series: [
-      {
+// 绘制体重折线图
+const drawWeightChart = () => {
+  getCanvasContext('weightChart', (ctx, width, height) => {
+    const dataLength = growthStats.value.weightData.length
+    const itemCount = 6 // 成长曲线显示6个数据点
+    const enableScroll = dataLength > itemCount
+    
+    weightChartInstance = new uCharts({
+      $this: {},
+      type: 'line',
+      context: ctx,
+      width: width,
+      height: height,
+      background: '#ffffff',
+      categories: growthStats.value.dates,
+      series: [{
         name: '体重(kg)',
         data: growthStats.value.weightData
+      }],
+      animation: true,
+      color: ['#52c41a'],
+      padding: [15, 20, 0, 15] as [number, number, number, number],
+      enableScroll: enableScroll,
+      legend: {
+        show: false
+      },
+      xAxis: {
+        disableGrid: false,
+        itemCount: itemCount,
+        scrollShow: true,
+        boundaryGap: 'center'
+      },
+      yAxis: {
+        gridType: 'dash',
+        dashLength: 2,
+        min: growthStats.value.weightMin,
+        max: growthStats.value.weightMax
+      },
+      extra: {
+        line: {
+          type: 'curve',
+          width: 2
+        }
       }
-    ]
-  }
-})
+    }, () => {})
+  })
+}
 
-// 体重图表配置
-const weightChartOpts = computed<ChartOptions>(() => ({
-  ...lineChartPreset(),
-  color: ['#ff7f50'],
-  extra: {
-    line: {
-      type: 'curve',
-      width: 2
+// 清理图表实例
+const clearCharts = () => {
+  console.log('[Statistics] 清理旧图表实例')
+  
+  if (feedingChartInstance) {
+    try {
+      feedingChartInstance.dispose?.()
+    } catch (e) {
+      console.warn('[Statistics] 清理喂养图表失败:', e)
+    }
+    feedingChartInstance = null
+  }
+  
+  if (heightChartInstance) {
+    try {
+      heightChartInstance.dispose?.()
+    } catch (e) {
+      console.warn('[Statistics] 清理身高图表失败:', e)
+    }
+    heightChartInstance = null
+  }
+  
+  if (weightChartInstance) {
+    try {
+      weightChartInstance.dispose?.()
+    } catch (e) {
+      console.warn('[Statistics] 清理体重图表失败:', e)
+    }
+    weightChartInstance = null
+  }
+}
+
+// 绘制所有图表
+const drawCharts = async () => {
+  console.log('[Statistics] 准备绘制图表')
+  console.log('[Statistics] 喂养数据长度:', feedingStats.value.dailyData.length)
+  console.log('[Statistics] 身高数据长度:', growthStats.value.heightData.length)
+  console.log('[Statistics] 体重数据长度:', growthStats.value.weightData.length)
+  
+  // 清理旧图表
+  clearCharts()
+  
+  await nextTick()
+  
+  // 延迟绘制，确保 DOM 已渲染
+  setTimeout(() => {
+    console.log('[Statistics] 开始延迟绘制')
+    
+    if (feedingStats.value.dailyData.length > 0) {
+      console.log('[Statistics] 绘制喂养图表')
+      drawFeedingChart()
+    } else {
+      console.log('[Statistics] 跳过喂养图表（无数据）')
+    }
+    
+    if (growthStats.value.heightData.length > 0) {
+      console.log('[Statistics] 绘制身高图表')
+      drawHeightChart()
+    } else {
+      console.log('[Statistics] 跳过身高图表（无数据）')
+    }
+    
+    if (growthStats.value.weightData.length > 0) {
+      console.log('[Statistics] 绘制体重图表')
+      drawWeightChart()
+    } else {
+      console.log('[Statistics] 跳过体重图表（无数据）')
+    }
+  }, 500)
+}
+
+// 触摸事件处理
+const touchFeeding = (e: any) => {
+  console.log('[Statistics] 喂养图表 touchstart', e)
+  if (feedingChartInstance) {
+    // 开始滚动
+    if (feedingChartInstance.scrollStart) {
+      feedingChartInstance.scrollStart(e)
+    }
+    // 显示提示
+    if (feedingChartInstance.showToolTip) {
+      feedingChartInstance.showToolTip(e)
     }
   }
-}))
+}
 
-// 页面加载
-onMounted(() => {
+const moveFeeding = (e: any) => {
+  if (feedingChartInstance) {
+    // 滚动图表
+    if (feedingChartInstance.scroll) {
+      feedingChartInstance.scroll(e)
+    }
+    // 更新提示位置
+    if (feedingChartInstance.showToolTip) {
+      feedingChartInstance.showToolTip(e)
+    }
+  }
+}
+
+const touchEndFeeding = (e: any) => {
+  if (feedingChartInstance) {
+    // 结束滚动
+    if (feedingChartInstance.scrollEnd) {
+      feedingChartInstance.scrollEnd(e)
+    }
+  }
+}
+
+const touchHeight = (e: any) => {
+  console.log('[Statistics] 身高图表 touchstart', e)
+  if (heightChartInstance) {
+    // 开始滚动
+    if (heightChartInstance.scrollStart) {
+      heightChartInstance.scrollStart(e)
+    }
+    // 显示提示
+    if (heightChartInstance.showToolTip) {
+      heightChartInstance.showToolTip(e)
+    }
+  }
+}
+
+const moveHeight = (e: any) => {
+  if (heightChartInstance) {
+    // 滚动图表
+    if (heightChartInstance.scroll) {
+      heightChartInstance.scroll(e)
+    }
+    // 更新提示位置
+    if (heightChartInstance.showToolTip) {
+      heightChartInstance.showToolTip(e)
+    }
+  }
+}
+
+const touchEndHeight = (e: any) => {
+  if (heightChartInstance) {
+    // 结束滚动
+    if (heightChartInstance.scrollEnd) {
+      heightChartInstance.scrollEnd(e)
+    }
+  }
+}
+
+const touchWeight = (e: any) => {
+  console.log('[Statistics] 体重图表 touchstart', e)
+  if (weightChartInstance) {
+    // 开始滚动
+    if (weightChartInstance.scrollStart) {
+      weightChartInstance.scrollStart(e)
+    }
+    // 显示提示
+    if (weightChartInstance.showToolTip) {
+      weightChartInstance.showToolTip(e)
+    }
+  }
+}
+
+const moveWeight = (e: any) => {
+  if (weightChartInstance) {
+    // 滚动图表
+    if (weightChartInstance.scroll) {
+      weightChartInstance.scroll(e)
+    }
+    // 更新提示位置
+    if (weightChartInstance.showToolTip) {
+      weightChartInstance.showToolTip(e)
+    }
+  }
+}
+
+const touchEndWeight = (e: any) => {
+  if (weightChartInstance) {
+    // 结束滚动
+    if (weightChartInstance.scrollEnd) {
+      weightChartInstance.scrollEnd(e)
+    }
+  }
+}
+
+// 初始化页面数据
+const initPageData = async () => {
+  console.log('[Statistics] 初始化页面数据')
+  
   if (!isLoggedIn.value) {
+    console.log('[Statistics] 用户未登录')
     return
   }
 
   if (!currentBaby.value) {
+    console.log('[Statistics] 未选择宝宝')
     uni.showToast({
       title: '请先选择宝宝',
       icon: 'none'
@@ -633,7 +953,28 @@ onMounted(() => {
   }
 
   // 加载数据
-  loadRecords()
+  await loadRecords()
+  
+  // 绘制图表
+  drawCharts()
+}
+
+// 页面加载
+onMounted(() => {
+  console.log('[Statistics] 页面挂载')
+  initPageData()
+})
+
+// 页面显示时重新加载数据
+onShow(() => {
+  console.log('[Statistics] 页面显示')
+  initPageData()
+})
+
+// 组件卸载时清理图表
+onBeforeUnmount(() => {
+  console.log('[Statistics] 组件卸载，清理图表')
+  clearCharts()
 })
 </script>
 
@@ -796,15 +1137,12 @@ onMounted(() => {
   margin-bottom: 20rpx;
 }
 
-.empty-chart {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 350rpx;
-  background: #f6f8f7;
-  border-radius: 12rpx;
-  color: #999;
-  font-size: 26rpx;
+.chart-canvas {
+  width: 100%;
+  height: 500rpx;
+  overflow: hidden;
+  display: block;
+  background-color: #ffffff;
 }
 
 .growth-charts {

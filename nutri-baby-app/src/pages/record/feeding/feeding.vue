@@ -2,252 +2,201 @@
   <view class="feeding-page">
     <!-- 喂养记录主表单 -->
     <view class="form-wrapper">
-      <!-- 喂养类型选择 -->
-      <view class="form-section">
-        <view class="section-title">喂养类型</view>
-        <view class="radio-group-custom">
-          <label
-            v-for="type in feedingTypes"
-            :key="type.value"
-            class="radio-item"
-            :class="{ active: feedingType === type.value }"
-            @click="feedingType = type.value"
-          >
-            <view class="radio-circle"></view>
-            <text>{{ type.label }}</text>
-          </label>
-        </view>
-      </view>
-
-      <!-- 母乳喂养 -->
-      <view v-if="feedingType === 'breast'" class="form-section">
-        <view class="section-title">喂养侧</view>
-        <view class="radio-group-custom">
-          <label
-            v-for="side in breastSides"
-            :key="side.value"
-            class="radio-item"
-            :class="{ active: breastForm.side === side.value }"
-            @click="breastForm.side = side.value"
-          >
-            <view class="radio-circle"></view>
-            <text>{{ side.label }}</text>
-          </label>
-        </view>
-
-        <!-- 计时器 - 独立高亮块 -->
-        <view class="timer-card">
-          <view class="timer-display">
-            <text class="timer-time">{{ formattedTime }}</text>
-            <text class="timer-status">{{
-              timerRunning ? "进行中" : "未开始"
-            }}</text>
+      <wd-cell-group title="喂养记录" border>
+        <!-- 喂养类型选择 -->
+        <wd-cell title="喂养类型" title-width="100px" prop="count" center>
+          <view style="text-align: left">
+            <wd-radio-group v-model="feedingType" cell inline shape="button">
+              <wd-radio value="breast">母乳</wd-radio>
+              <wd-radio value="bottle">奶瓶</wd-radio>
+              <wd-radio value="food">辅食</wd-radio>
+            </wd-radio-group>
           </view>
-          <wd-button
-            v-if="!timerRunning"
-            type="primary"
-            size="large"
-            block
-            @click="startTimer"
-          >
-            开始计时
-          </wd-button>
-          <wd-button
-            v-else
-            type="success"
-            size="large"
-            block
-            @click="stopTimer"
-          >
-            停止计时
-          </wd-button>
+        </wd-cell>
+        <!-- 母乳喂养 -->
+        <view v-if="feedingType === 'breast'">
+          <wd-cell title="喂养侧" title-width="100px" prop="count" center>
+            <wd-radio-group
+              v-model="breastForm.side"
+              cell
+              inline
+              shape="button"
+            >
+              <wd-radio value="left">左侧</wd-radio>
+              <wd-radio value="right">右侧</wd-radio>
+              <wd-radio value="both">两侧</wd-radio>
+            </wd-radio-group>
+          </wd-cell>
+          <!-- 手动输入时长 -->
+          <wd-cell v-if="breastForm.side === 'left' || breastForm.side === 'both'" title="左侧时长(秒)" title-width="100px" prop="count">
+            <view style="text-align: left">
+              <wd-input-number
+                input-width="100rpx"
+                v-model="breastForm.leftDuration"
+                type="number"
+                min="0"
+              />
+            </view>
+          </wd-cell>
+          <wd-cell v-if="breastForm.side === 'right' || breastForm.side === 'both'" title="右侧时长(秒)" title-width="100px" prop="count">
+            <view style="text-align: left">
+              <wd-input-number
+                input-width="100rpx"
+                v-model="breastForm.rightDuration"
+                type="number"
+                min="0"
+              />
+            </view>
+          </wd-cell>
         </view>
-      </view>
-
-      <!-- 奶瓶喂养 -->
-      <view v-if="feedingType === 'bottle'" class="form-section">
-        <view class="section-title">奶类型</view>
-        <view class="radio-group-custom">
-          <label
-            v-for="type in bottleTypes"
-            :key="type.value"
-            class="radio-item"
-            :class="{ active: bottleForm.bottleType === type.value }"
-            @click="bottleForm.bottleType = type.value"
-          >
-            <view class="radio-circle"></view>
-            <text>{{ type.label }}</text>
-          </label>
-        </view>
-
-        <view class="form-row">
-          <view class="form-group">
-            <label class="form-label">单位</label>
-            <view class="unit-selector">
-              <label
+        <!-- 奶瓶喂养 -->
+        <view v-if="feedingType === 'bottle'">
+          <view style="text-align: left">
+            <wd-cell title="奶类型" title-width="100px" prop="count" center>
+              <wd-radio-group
+                v-model="bottleForm.bottleType"
+                cell
+                inline
+                shape="button"
+              >
+                <wd-radio
+                  v-for="type in bottleTypes"
+                  :key="type.value"
+                  :value="type.value"
+                  >{{ type.label }}</wd-radio
+                >
+              </wd-radio-group>
+            </wd-cell>
+          </view>
+          <wd-cell title="单位" title-width="100px" prop="count" center>
+            <wd-radio-group
+              v-model="bottleForm.unit"
+              cell
+              inline
+              shape="button"
+            >
+              <wd-radio
                 v-for="unit in units"
                 :key="unit.value"
-                class="unit-item"
-                :class="{ active: bottleForm.unit === unit.value }"
-                @click="bottleForm.unit = unit.value"
+                :value="unit.value"
+                >{{ unit.label }}</wd-radio
               >
-                {{ unit.label }}
-              </label>
+            </wd-radio-group>
+          </wd-cell>
+          <wd-cell title="喂养量" title-width="100px" prop="count">
+            <view style="text-align: left">
+              <wd-input-number
+                input-width="100rpx"
+                label="喂养量"
+                v-model="bottleForm.amount"
+                type="number"
+              />
             </view>
-          </view>
-          <view class="form-group">
-            <label class="form-label">喂养量</label>
-            <view class="input-group">
-              <button
-                class="input-btn"
-                @click="bottleForm.amount = Math.max(0, bottleForm.amount - 10)"
-              >
-                −
-              </button>
-              <text class="input-value">{{ bottleForm.amount }}</text>
-              <button
-                class="input-btn"
-                @click="
-                  bottleForm.amount = Math.min(500, bottleForm.amount + 10)
-                "
-              >
-                +
-              </button>
+          </wd-cell>
+          <wd-cell title="剩余量" title-width="100px" prop="count">
+            <view style="text-align: left">
+              <wd-input-number
+                input-width="100rpx"
+                label="剩余量"
+                v-model="bottleForm.remaining"
+                type="number"
+              />
             </view>
-          </view>
+          </wd-cell>
         </view>
-
-        <view v-if="bottleForm.amount > 0" class="form-group">
-          <label class="form-label">剩余量（可选）</label>
-          <view class="input-group">
-            <button
-              class="input-btn"
-              @click="
-                bottleForm.remaining = Math.max(0, bottleForm.remaining - 5)
-              "
-            >
-              −
-            </button>
-            <text class="input-value">{{ bottleForm.remaining }}</text>
-            <button
-              class="input-btn"
-              @click="
-                bottleForm.remaining = Math.min(
-                  bottleForm.amount,
-                  bottleForm.remaining + 5
-                )
-              "
-            >
-              +
-            </button>
-          </view>
-        </view>
+        <!-- 辅食 -->
+         <view v-if="feedingType === 'food'">
+                 <wd-input label="辅食名称" v-model="foodForm.foodName" placeholder="如：米粉、苹果泥等"></wd-input>
+                 <wd-textarea label="备注（可选）" v-model="foodForm.note" placeholder="记录宝宝的接受程度、有无过敏反应等"></wd-textarea>
+  
+    
       </view>
-
-      <!-- 辅食 -->
-      <view v-if="feedingType === 'food'" class="form-section">
-        <view class="section-title">辅食名称</view>
-        <input
-          v-model="foodForm.foodName"
-          type="text"
-          placeholder="如：米粉、苹果泥等"
-          class="text-input"
-        />
-
-        <view class="form-group" style="margin-top: 20rpx">
-          <label class="form-label">备注（可选）</label>
-          <textarea
-            v-model="foodForm.note"
-            placeholder="记录宝宝的接受程度、有无过敏反应等"
-            class="textarea-input"
-            maxlength="200"
-          ></textarea>
-        </view>
+      </wd-cell-group>
+    </view>
+    <!-- 计时器 - 独立高亮块 -->
+    <view class="timer-card" v-if="feedingType === 'breast'">
+      <view class="timer-display">
+        <text class="timer-time">{{ formattedTime }}</text>
+        <text class="timer-status">{{
+          timerRunning ? "进行中" : "未开始"
+        }}</text>
+      </view>
+      <wd-button
+        v-if="!timerRunning"
+        type="primary"
+        size="large"
+        block
+        @click="startTimer"
+      >
+        开始计时
+      </wd-button>
+      <wd-button v-else type="success" size="large" block @click="stopTimer">
+        停止计时
+      </wd-button>
+      <view class="timer-tips">
+        <text class="tips-text">💡 提示：补录时可直接在下方"喂养侧"后输入时长，不需要使用计时器</text>
       </view>
     </view>
-
     <!-- 时间和提醒 -->
     <view class="form-wrapper" style="margin-top: 16rpx">
-      <!-- 记录时间 -->
-      <view class="form-section">
-        <view class="section-title">记录时间</view>
-
-        <!-- 日期选择器 -->
+      <wd-cell-group title="时间" border>
         <wd-datetime-picker
           v-model="recordDateTime"
+          :label="isEditing ? '更新时间' : '记录时间'"
           type="datetime"
           :min-date="minDateTime"
           :max-date="maxDateTime"
           @confirm="onDateTimeConfirm"
           @cancel="onDateTimeCancel"
         />
-      </view>
-
-      <!-- 提醒设置 -->
-      <view class="form-section">
-        <view class="section-title-with-toggle">
-          <text>下次提醒</text>
-          <view
-            class="toggle-switch"
-            :class="{ active: reminderEnabled }"
-            @click="reminderEnabled = !reminderEnabled"
-          >
-            <view class="switch-slider"></view>
+        <wd-cell title="下次提醒" title-width="100px" prop="count" center>
+          <view style="text-align: left">
+            <wd-switch v-model="reminderEnabled" />
           </view>
-        </view>
-
-        <view v-if="reminderEnabled" class="reminder-settings">
-          <view class="reminder-time">
-            <text class="time-label">预计提醒时间</text>
-            <text class="time-display">{{ formatNextReminderTime }}</text>
+        </wd-cell>
+        <wd-datetime-picker
+          v-model="nextReminderTime"
+          label="预计提醒时间"
+          type="datetime"
+        />
+        <wd-cell title="提醒间隔" title-width="100rpx" prop="count" center>
+          <view style="text-align: left">
+            <wd-radio-group
+              v-model="reminderInterval"
+              cell
+              inline
+              shape="button"
+            >
+              <wd-radio value="60">1h</wd-radio>
+              <wd-radio value="120">2h</wd-radio>
+              <wd-radio value="180">3h</wd-radio>
+              <wd-radio value="240">4h</wd-radio>
+            </wd-radio-group>
           </view>
-
-          <view class="reminder-interval">
-            <view class="interval-label">提醒间隔</view>
-            <view class="interval-buttons">
-              <button
-                v-for="option in quickReminderOptions"
-                :key="option.value"
-                class="interval-btn"
-                :class="{ active: reminderInterval === option.value }"
-                @click="reminderInterval = option.value"
-              >
-                {{ option.label }}
-              </button>
-            </view>
-            <view class="custom-interval">
-              <text class="custom-label">自定义(分钟)</text>
-              <view class="input-group">
-                <button
-                  class="input-btn"
-                  @click="reminderInterval = Math.max(1, reminderInterval - 15)"
-                >
-                  −
-                </button>
-                <text class="input-value">{{ reminderInterval }}</text>
-                <button
-                  class="input-btn"
-                  @click="
-                    reminderInterval = Math.min(1440, reminderInterval + 15)
-                  "
-                >
-                  +
-                </button>
-              </view>
-            </view>
+        </wd-cell>
+        <wd-cell
+          title="自定义(分钟)"
+          title-width="100px"
+          prop="reminderInterval"
+        >
+          <view style="text-align: left">
+            <wd-input-number
+              v-model="reminderInterval"
+              input-width="100rpx"
+              type="number"
+              step="15"
+              min="1"
+              max="2880"
+            />
           </view>
-        </view>
-
-        <view v-else class="reminder-disabled">
-          <text>不设置提醒</text>
-        </view>
-      </view>
+        </wd-cell>
+      </wd-cell-group>
     </view>
 
     <!-- 提交按钮 -->
     <view class="submit-section">
       <wd-button type="primary" size="large" block @click="handleSubmit">
-        {{ isEditing ? '更新记录' : '保存记录' }}
+        {{ isEditing ? "更新记录" : "保存记录" }}
       </wd-button>
     </view>
   </view>
@@ -258,7 +207,12 @@ import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 import { onLoad, onShow } from "@dcloudio/uni-app";
 import { currentBaby, currentBabyId } from "@/store/baby";
 import { getUserInfo } from "@/store/user";
-import { StorageKeys, getStorage, removeStorage, setStorage } from "@/utils/storage";
+import {
+  StorageKeys,
+  getStorage,
+  removeStorage,
+  setStorage,
+} from "@/utils/storage";
 import type { FeedingDetail } from "@/types";
 
 // 直接调用 API 层
@@ -337,7 +291,10 @@ interface TempTimerRecord {
 const formattedTime = computed(() => {
   const minutes = Math.floor(elapsedSeconds.value / 60);
   const seconds = elapsedSeconds.value % 60;
-  return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+  return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(
+    2,
+    "0"
+  )}`;
 });
 
 // 保存临时记录到本地
@@ -362,7 +319,9 @@ const clearTempRecord = () => {
 
 // 恢复临时记录
 const restoreTempRecord = () => {
-  const tempRecord = getStorage<TempTimerRecord>(StorageKeys.TEMP_BREAST_FEEDING);
+  const tempRecord = getStorage<TempTimerRecord>(
+    StorageKeys.TEMP_BREAST_FEEDING
+  );
 
   console.log("[Feeding] 读取到的临时记录:", tempRecord);
 
@@ -392,7 +351,7 @@ const restoreTempRecord = () => {
     now,
     startTime: tempRecord.startTime,
     diff: now - tempRecord.startTime,
-    elapsed
+    elapsed,
   });
 
   // 验证时长是否合理
@@ -406,8 +365,11 @@ const restoreTempRecord = () => {
   uni.showModal({
     title: "检测到未完成的记录",
     content: `您有一个未完成的母乳喂养记录(${
-      tempRecord.side === "left" ? "左侧" :
-      tempRecord.side === "right" ? "右侧" : "两侧"
+      tempRecord.side === "left"
+        ? "左侧"
+        : tempRecord.side === "right"
+        ? "右侧"
+        : "两侧"
     }), 已过 ${Math.floor(elapsed / 60)} 分 ${elapsed % 60} 秒，是否继续？`,
     confirmText: "继续",
     cancelText: "重新开始",
@@ -422,7 +384,9 @@ const restoreTempRecord = () => {
 
         // 启动定时器
         timerInterval = setInterval(() => {
-          elapsedSeconds.value = Math.floor((Date.now() - startTime.value) / 1000);
+          elapsedSeconds.value = Math.floor(
+            (Date.now() - startTime.value) / 1000
+          );
           // 每10秒保存一次
           if (elapsedSeconds.value % 10 === 0) {
             saveTempRecord();
@@ -435,7 +399,7 @@ const restoreTempRecord = () => {
         console.log("[Feeding] 用户选择重新开始");
         clearTempRecord();
       }
-    }
+    },
   });
 };
 
@@ -489,7 +453,8 @@ const stopTimer = () => {
   if (breastForm.value.side === "both") {
     // 两侧平均分配
     breastForm.value.leftDuration = Math.floor(totalDuration / 2);
-    breastForm.value.rightDuration = totalDuration - breastForm.value.leftDuration;
+    breastForm.value.rightDuration =
+      totalDuration - breastForm.value.leftDuration;
   } else if (breastForm.value.side === "left") {
     breastForm.value.leftDuration = totalDuration;
     breastForm.value.rightDuration = 0;
@@ -501,7 +466,7 @@ const stopTimer = () => {
   console.log("[Feeding] 计时器已停止", {
     totalDuration,
     left: breastForm.value.leftDuration,
-    right: breastForm.value.rightDuration
+    right: breastForm.value.rightDuration,
   });
 };
 
@@ -525,13 +490,15 @@ const quickReminderOptions = [
   { label: "4h", value: 240 },
 ];
 
-// 计算下次提醒时间显示
-const formatNextReminderTime = computed(() => {
-  if (!reminderEnabled.value) return "不提醒";
+// 下次提醒时间（响应式变量，而不是计算属性）
+const nextReminderTime = ref(new Date().getTime());
 
-  const nextTime = recordDateTime.value + reminderInterval.value * 60 * 1000;
-  return formatRecordTime(nextTime);
-});
+// 计算下次提醒时间
+const updateNextReminderTime = () => {
+  // 总是计算提醒时间，不管是否启用
+  nextReminderTime.value = recordDateTime.value + reminderInterval.value * 60 * 1000;
+  console.log("[Feeding] 预计提醒时间已更新:", formatRecordTime(nextReminderTime.value));
+};
 
 // 确认日期时间选择
 const onDateTimeConfirm = ({ value }: { value: number }) => {
@@ -576,35 +543,38 @@ const loadFeedingRecord = async (recordId: string) => {
     recordDateTime.value = record.feedingTime;
 
     // 根据类型填充表单
-    if (record.detail.type === 'breast') {
+    if (record.detail.type === "breast") {
       breastForm.value = {
-        side: record.detail.side || 'left',
+        side: record.detail.side || "left",
         leftDuration: record.detail.leftDuration || 0,
         rightDuration: record.detail.rightDuration || 0,
       };
-    } else if (record.detail.type === 'bottle') {
+    } else if (record.detail.type === "bottle") {
       bottleForm.value = {
-        bottleType: record.detail.bottleType || 'formula',
+        bottleType: record.detail.bottleType || "formula",
         amount: record.detail.amount || 60,
-        unit: record.detail.unit || 'ml',
+        unit: record.detail.unit || "ml",
         remaining: record.detail.remaining || 0,
       };
-    } else if (record.detail.type === 'food') {
+    } else if (record.detail.type === "food") {
       foodForm.value = {
-        foodName: record.detail.foodName || '',
-        note: record.detail.note || '',
+        foodName: record.detail.foodName || "",
+        note: record.detail.note || "",
       };
     }
 
     // 提醒设置默认关闭(编辑模式不修改提醒)
     reminderEnabled.value = false;
 
-    console.log('[Feeding] 已加载记录数据:', record);
+    // 初始化提醒时间（虽然编辑模式不使用，但要保持状态一致）
+    updateNextReminderTime();
+
+    console.log("[Feeding] 已加载记录数据:", record);
   } catch (error: any) {
-    console.error('[Feeding] 加载记录失败:', error);
+    console.error("[Feeding] 加载记录失败:", error);
     uni.showToast({
-      title: error.message || '加载记录失败',
-      icon: 'none',
+      title: error.message || "加载记录失败",
+      icon: "none",
     });
     setTimeout(() => {
       uni.navigateBack();
@@ -615,8 +585,10 @@ const loadFeedingRecord = async (recordId: string) => {
 // 组件挂载时加载偏好和恢复临时记录
 onMounted(() => {
   loadReminderPreferences();
+  // 初始化提醒时间
+  updateNextReminderTime();
   // 编辑模式下不检查临时记录
-  if (!isEditing.value && feedingType.value === 'breast') {
+  if (!isEditing.value && feedingType.value === "breast") {
     restoreTempRecord();
   }
 });
@@ -639,10 +611,35 @@ watch(
   () => feedingType.value,
   () => {
     loadReminderPreferences();
+    updateNextReminderTime();
     console.log(
       "[Feeding] 喂养类型已变更,提醒间隔已更新:",
       reminderInterval.value
     );
+  }
+);
+
+// 监听提醒间隔变化，自动更新预计提醒时间
+watch(
+  () => reminderInterval.value,
+  () => {
+    updateNextReminderTime();
+  }
+);
+
+// 监听记录时间变化，自动更新预计提醒时间
+watch(
+  () => recordDateTime.value,
+  () => {
+    updateNextReminderTime();
+  }
+);
+
+// 监听提醒启用状态变化，自动更新预计提醒时间
+watch(
+  () => reminderEnabled.value,
+  () => {
+    updateNextReminderTime();
   }
 );
 
@@ -812,13 +809,17 @@ const handleSubmit = async () => {
       // 添加提醒间隔（如果启用了提醒）
       if (reminderEnabled.value) {
         requestData.reminderInterval = reminderInterval.value;
-        console.log("[Feeding] 已设置提醒间隔:", reminderInterval.value, "分钟");
+        console.log(
+          "[Feeding] 已设置提醒间隔:",
+          reminderInterval.value,
+          "分钟"
+        );
       }
 
       // 添加实际完成时间（如果有）- 用于准确计算提醒时间
       // 对于母乳喂养,如果用户使用了计时器并停止,则记录实际完成时间
       if (feedingType.value === "breast" && startTime.value > 0) {
-        const actualTime = startTime.value + (elapsedSeconds.value * 1000);
+        const actualTime = startTime.value + elapsedSeconds.value * 1000;
         requestData.actualCompleteTime = actualTime;
         console.log("[Feeding] 已记录实际完成时间:", actualTime);
       }
@@ -883,7 +884,7 @@ const handleSubmit = async () => {
 <style lang="scss" scoped>
 .feeding-page {
   min-height: 100vh;
-  background: #f5f5f5;
+  background: #f6f8f7;
   padding: 16rpx 0;
   padding-bottom: 140rpx;
 }
@@ -894,7 +895,8 @@ const handleSubmit = async () => {
   margin: 0 16rpx;
   border-radius: 12rpx;
   overflow: hidden;
-  box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.04);
+  box-shadow: 0 2rpx 8rpx rgba(125, 211, 162, 0.08);
+  border: 1rpx solid #cae3d4;
 }
 
 // 表单分组
@@ -911,7 +913,7 @@ const handleSubmit = async () => {
 .section-title {
   font-size: 28rpx;
   font-weight: 500;
-  color: #262626;
+  color: #1a1a1a;
   margin-bottom: 16rpx;
   display: block;
 }
@@ -922,7 +924,7 @@ const handleSubmit = async () => {
   align-items: center;
   font-size: 28rpx;
   font-weight: 500;
-  color: #262626;
+  color: #1a1a1a;
   margin-bottom: 16rpx;
 }
 
@@ -938,34 +940,34 @@ const handleSubmit = async () => {
   align-items: center;
   gap: 8rpx;
   padding: 12rpx 16rpx;
-  border: 1rpx solid #e5e5e5;
+  border: 1rpx solid #cae3d4;
   border-radius: 8rpx;
-  background: #fafafa;
+  background: #f6f8f7;
   cursor: pointer;
   transition: all 0.2s ease;
   font-size: 26rpx;
   color: #666;
 
   &.active {
-    border-color: #fa2c19;
-    background: #fff5f3;
-    color: #fa2c19;
+    border-color: #7dd3a2;
+    background: #f0f9f6;
+    color: #333;
 
     .radio-circle {
-      border-color: #fa2c19;
-      background: #fa2c19;
+      border-color: #7dd3a2;
+      background: #7dd3a2;
     }
   }
 
   &:active {
-    background: #f0f0f0;
+    background: #eef3f0;
   }
 }
 
 .radio-circle {
   width: 16rpx;
   height: 16rpx;
-  border: 2rpx solid #e5e5e5;
+  border: 2rpx solid #cae3d4;
   border-radius: 50%;
   transition: all 0.2s ease;
 }
@@ -981,18 +983,18 @@ const handleSubmit = async () => {
   flex: 1;
   padding: 12rpx;
   text-align: center;
-  border: 1rpx solid #e5e5e5;
+  border: 1rpx solid #cae3d4;
   border-radius: 8rpx;
-  background: #fafafa;
+  background: #f6f8f7;
   cursor: pointer;
   font-size: 26rpx;
   color: #666;
   transition: all 0.2s ease;
 
   &.active {
-    border-color: #fa2c19;
-    background: #fff5f3;
-    color: #fa2c19;
+    border-color: #7dd3a2;
+    background: #f0f9f6;
+    color: #333;
     font-weight: 500;
   }
 }
@@ -1028,9 +1030,9 @@ const handleSubmit = async () => {
 .input-group {
   display: flex;
   align-items: center;
-  border: 1rpx solid #e5e5e5;
+  border: 1rpx solid #cae3d4;
   border-radius: 8rpx;
-  background: #fafafa;
+  background: #f6f8f7;
   overflow: hidden;
 
   .input-btn {
@@ -1039,7 +1041,7 @@ const handleSubmit = async () => {
     border: none;
     background: transparent;
     font-size: 32rpx;
-    color: #fa2c19;
+    color: #7dd3a2;
     cursor: pointer;
     transition: background 0.2s ease;
     display: flex;
@@ -1056,7 +1058,7 @@ const handleSubmit = async () => {
     flex: 1;
     text-align: center;
     font-size: 28rpx;
-    color: #262626;
+    color: #1a1a1a;
     font-weight: 500;
     min-width: 0;
   }
@@ -1066,17 +1068,17 @@ const handleSubmit = async () => {
 .text-input {
   width: 100%;
   padding: 12rpx 16rpx;
-  border: 1rpx solid #e5e5e5;
+  border: 1rpx solid #cae3d4;
   border-radius: 8rpx;
   font-size: 28rpx;
-  background: #fafafa;
+  background: #f6f8f7;
   box-sizing: border-box;
-  color: #262626;
+  color: #1a1a1a;
   height: 56rpx;
   line-height: 32rpx;
 
   &:focus {
-    border-color: #fa2c19;
+    border-color: #7dd3a2;
     background: #ffffff;
   }
 }
@@ -1085,28 +1087,29 @@ const handleSubmit = async () => {
 .textarea-input {
   width: 100%;
   padding: 12rpx 16rpx;
-  border: 1rpx solid #e5e5e5;
+  border: 1rpx solid #cae3d4;
   border-radius: 8rpx;
   font-size: 26rpx;
-  background: #fafafa;
+  background: #f6f8f7;
   box-sizing: border-box;
-  color: #262626;
+  color: #1a1a1a;
   min-height: 100rpx;
   font-family: inherit;
 
   &:focus {
-    border-color: #fa2c19;
+    border-color: #7dd3a2;
     background: #ffffff;
   }
 }
 
 // 计时器卡片
 .timer-card {
-  background: linear-gradient(135deg, #fff7f0 0%, #fff9f7 100%);
-  border: 1rpx solid #ffe0cc;
+  background: #f0f9f6;
+  border: 1rpx solid #cae3d4;
   border-radius: 12rpx;
   padding: 28rpx;
   text-align: center;
+  margin: 0 16rpx;
   margin-top: 16rpx;
 }
 
@@ -1118,7 +1121,7 @@ const handleSubmit = async () => {
   display: block;
   font-size: 80rpx;
   font-weight: bold;
-  color: #fa2c19;
+  color: #7dd3a2;
   margin-bottom: 8rpx;
   line-height: 1;
   letter-spacing: -2rpx;
@@ -1130,25 +1133,40 @@ const handleSubmit = async () => {
   color: #999;
 }
 
+// 计时器提示
+.timer-tips {
+  margin-top: 16rpx;
+  padding: 12rpx 16rpx;
+  background: #fef8f0;
+  border-left: 4rpx solid #ff7f50;
+  border-radius: 4rpx;
+
+  .tips-text {
+    font-size: 24rpx;
+    color: #666;
+    line-height: 1.5;
+  }
+}
+
 // 时间选择器
 .time-selector {
   display: flex;
   justify-content: space-between;
   align-items: center;
   padding: 12rpx 16rpx;
-  border: 1rpx solid #e5e5e5;
+  border: 1rpx solid #cae3d4;
   border-radius: 8rpx;
-  background: #fafafa;
+  background: #f6f8f7;
   cursor: pointer;
   transition: all 0.2s ease;
 
   &:active {
-    background: #f0f0f0;
+    background: #eef3f0;
   }
 
   .time-value {
     font-size: 28rpx;
-    color: #fa2c19;
+    color: #7dd3a2;
     font-weight: 500;
   }
 
@@ -1168,7 +1186,7 @@ const handleSubmit = async () => {
   justify-content: space-between;
   align-items: center;
   padding: 12rpx 16rpx;
-  background: #fafafa;
+  background: #f6f8f7;
   border-radius: 8rpx;
   margin-bottom: 16rpx;
 
@@ -1179,7 +1197,7 @@ const handleSubmit = async () => {
 
   .time-display {
     font-size: 28rpx;
-    color: #fa2c19;
+    color: #7dd3a2;
     font-weight: 500;
   }
 }
@@ -1200,23 +1218,23 @@ const handleSubmit = async () => {
     .interval-btn {
       flex: 1;
       padding: 10rpx 12rpx;
-      border: 1rpx solid #e5e5e5;
+      border: 1rpx solid #cae3d4;
       border-radius: 6rpx;
-      background: #fafafa;
+      background: #f6f8f7;
       font-size: 24rpx;
       color: #666;
       cursor: pointer;
       transition: all 0.2s ease;
 
       &.active {
-        border-color: #fa2c19;
-        background: #fff5f3;
-        color: #fa2c19;
+        border-color: #7dd3a2;
+        background: #f0f9f6;
+        color: #333;
         font-weight: 500;
       }
 
       &:active {
-        background: #f0f0f0;
+        background: #eef3f0;
       }
     }
   }
@@ -1240,7 +1258,7 @@ const handleSubmit = async () => {
 
 .reminder-disabled {
   padding: 12rpx 16rpx;
-  background: #fafafa;
+  background: #f6f8f7;
   border-radius: 8rpx;
   font-size: 26rpx;
   color: #999;
@@ -1251,7 +1269,7 @@ const handleSubmit = async () => {
   position: relative;
   width: 52rpx;
   height: 32rpx;
-  background: #e0e0e0;
+  background: #cae3d4;
   border-radius: 16rpx;
   cursor: pointer;
   transition: background 0.3s ease;
@@ -1273,7 +1291,7 @@ const handleSubmit = async () => {
   }
 
   &.active {
-    background: #fa2c19;
+    background: #7dd3a2;
 
     .switch-slider {
       left: 22rpx;
@@ -1303,6 +1321,17 @@ const handleSubmit = async () => {
 :deep(.nut-popup) {
   .nut-date-picker {
     background: #ffffff;
+  }
+}
+
+// 单选框按钮组样式调整 - 让按钮均匀分布
+:deep(.wd-radio-group) {
+  display: flex !important;
+  justify-content: space-around !important;
+  .wd-radio.is-button-radio {
+    width: auto !important;
+    padding: 10rpx 0 0 0 !important;
+    min-width: 0 !important;
   }
 }
 </style>

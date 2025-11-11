@@ -12,11 +12,11 @@ import { get, post, put, del } from "@/utils/request";
 export interface SleepRecordResponse {
   recordId: string;
   babyId: string;
-  sleepType: "nap" | "night";
+  sleepType?: "nap" | "night";  // 新增：兼容后端sleepType字段
+  quality?: "nap" | "night";    // 旧字段：后端返回quality作为睡眠类型
   startTime: number;
   endTime?: number;
-  duration?: number;
-  quality?: "good" | "fair" | "poor";
+  duration?: number;  // 秒数
   note?: string;
   createBy: string;
   createTime: number;
@@ -43,6 +43,26 @@ export interface CreateSleepRecordRequest {
   duration?: number; // 时长(秒)
   quality?: "good" | "fair" | "poor";
   note?: string;
+}
+
+/**
+ * 将API响应转换为前端SleepRecord类型
+ * @param response API响应
+ * @returns 前端SleepRecord
+ */
+export function transformSleepRecordResponse(response: SleepRecordResponse): any {
+  return {
+    id: response.recordId,
+    babyId: response.babyId,
+    startTime: response.startTime,
+    endTime: response.endTime,
+    duration: response.duration ? Math.round(response.duration / 60) : undefined, // 秒转分钟
+    type: response.sleepType || response.quality || 'nap', // 优先使用sleepType，回退到quality
+    createBy: response.createBy,
+    createByName: '',
+    createByAvatar: '',
+    createTime: response.createTime,
+  };
 }
 
 // ============ API 函数 ============

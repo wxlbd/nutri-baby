@@ -85,9 +85,9 @@ export function formatDuration(minutes: number): string {
   const mins = minutes % 60
 
   if (hours > 0) {
-    return `${hours}小时${mins}分钟`
+    return `${hours} 小时 ${mins} 分钟`
   } else {
-    return `${mins}分钟`
+    return `${mins} 分钟`
   }
 }
 

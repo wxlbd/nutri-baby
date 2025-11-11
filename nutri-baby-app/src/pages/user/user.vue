@@ -4,7 +4,7 @@
     <view class="user-card">
       <view class="user-info">
         <!-- 头像 -->
-        <view class="avatar">
+        <view class="avatar" @click="goToProfile">
           <image
             :src="userInfo?.avatarUrl || '/static/default.png'"
             class="avatar-image"
@@ -22,7 +22,6 @@
           <!-- 已登录：显示昵称和时间 -->
           <template v-else>
             <view class="nickname">{{ userInfo?.nickName || "用户" }}</view>
-            <view class="login-time">{{ loginTimeText }}</view>
           </template>
         </view>
       </view>
@@ -59,7 +58,7 @@
             <wd-icon name="user" size="20px" custom-class="cell-icon" />
           </template>
         </wd-cell>
-        <wd-cell title="疫苗提醒" desc="接种计划" is-link @click="goToVaccine">
+        <wd-cell title="疫苗计划" desc="接种计划" is-link @click="goToVaccine">
           <template #icon>
             <wd-icon name="list" size="20px" custom-class="cell-icon" />
           </template>
@@ -71,26 +70,6 @@
     <view class="section">
       <view class="section-title">数据管理</view>
       <wd-cell-group>
-        <wd-cell
-          title="数据导出"
-          desc="导出记录数据"
-          is-link
-          @click="exportData"
-        >
-          <template #icon>
-            <wd-icon name="chart" size="20px" custom-class="cell-icon" />
-          </template>
-        </wd-cell>
-        <wd-cell
-          title="数据导入"
-          desc="从剪贴板导入"
-          is-link
-          @click="importData"
-        >
-          <template #icon>
-            <wd-icon name="download" size="20px" custom-class="cell-icon" />
-          </template>
-        </wd-cell>
         <wd-cell
           title="数据统计"
           :desc="`共 ${totalRecords} 条记录`"
@@ -123,14 +102,38 @@
             <wd-icon name="notification" size="20px" custom-class="cell-icon" />
           </template>
         </wd-cell>
+        <!-- #ifdef MP-WEIXIN -->
+        <button
+          open-type="feedback"
+          class="feedback-button"
+        >
+          <wd-cell
+            title="用户反馈"
+            desc="向我们反馈问题和建议"
+            is-link
+          >
+            <template #icon>
+              <wd-icon name="chat" size="20px" custom-class="cell-icon" />
+            </template>
+          </wd-cell>
+        </button>
+        <!-- #endif -->
+
+        <!-- #ifndef MP-WEIXIN -->
+        <wd-cell
+          title="用户反馈"
+          desc="向我们反馈问题和建议"
+          is-link
+          @click="showFeedbackTip"
+        >
+          <template #icon>
+            <wd-icon name="chat" size="20px" custom-class="cell-icon" />
+          </template>
+        </wd-cell>
+        <!-- #endif -->
         <wd-cell title="关于我们" is-link @click="showAbout">
           <template #icon>
             <wd-icon name="info-circle" size="20px" custom-class="cell-icon" />
-          </template>
-        </wd-cell>
-        <wd-cell title="清除缓存" is-link @click="clearCache">
-          <template #icon>
-            <wd-icon name="delete" size="20px" custom-class="cell-icon" />
           </template>
         </wd-cell>
       </wd-cell-group>
@@ -379,7 +382,7 @@ const showAbout = () => {
   uni.showModal({
     title: "关于我们",
     content:
-      "宝宝喂养日志是一款专为新手父母设计的育儿记录工具,帮助您科学、轻松地记录和追踪宝宝的成长数据。",
+      "宝宝喂养时刻是一款专为新手父母设计的育儿记录工具,帮助您科学、轻松地记录和追踪宝宝的成长数据。",
     showCancel: false,
   });
 };
@@ -397,6 +400,17 @@ const clearCache = () => {
         });
       }
     },
+  });
+};
+
+// 非微信平台反馈提示
+const showFeedbackTip = () => {
+  uni.showModal({
+    title: "用户反馈",
+    content:
+      "该功能仅在微信小程序中可用。请通过以下方式向我们反馈:\n\nEmail: feedback@babylog.com",
+    showCancel: false,
+    confirmText: "我知道了",
   });
 };
 
@@ -420,12 +434,12 @@ const handleLogout = () => {
 <style lang="scss" scoped>
 .user-page {
   min-height: 100vh;
-  background: #f5f5f5;
+  background: #f6f8f7;
   padding-bottom: 40rpx;
 }
 
 .user-card {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #7dd3a2 0%, #52c41a 100%);
   padding: 60rpx 30rpx 40rpx;
   color: white;
 }
@@ -459,7 +473,7 @@ const handleLogout = () => {
 }
 
 .login-button {
-  background: linear-gradient(135deg, #ff6b6b, #ff8e53);
+  background: linear-gradient(135deg, #52c41a, #7dd3a2);
   border-radius: 20rpx;
   padding: 12rpx 32rpx;
   display: inline-block;
@@ -494,7 +508,7 @@ const handleLogout = () => {
 }
 
 :deep(.cell-icon) {
-  color: #667eea;
+  color: #7dd3a2;
   margin-right: 12rpx;
 }
 
@@ -508,5 +522,26 @@ const handleLogout = () => {
   padding: 40rpx 0;
   font-size: 24rpx;
   color: #999;
+}
+
+// 微信小程序原生反馈按钮样式重置
+.feedback-button {
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  width: 100%;
+  text-align: left;
+  font-size: inherit;
+  line-height: inherit;
+  color: inherit;
+
+  &::before {
+    display: none;
+  }
+
+  &::after {
+    display: none;
+  }
 }
 </style>
