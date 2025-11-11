@@ -56,12 +56,14 @@ func (r *babyVaccineScheduleRepositoryImpl) FindByID(ctx context.Context, schedu
 	return &schedule, nil
 }
 
-// FindByBabyID 查找宝宝的所有疫苗接种日程
-func (r *babyVaccineScheduleRepositoryImpl) FindByBabyID(ctx context.Context, babyID int64) ([]*entity.BabyVaccineSchedule, error) {
+// FindByBabyID 查找宝宝的所有疫苗接种日程（分页）
+func (r *babyVaccineScheduleRepositoryImpl) FindByBabyID(ctx context.Context, babyID int64, page, pageSize int) ([]*entity.BabyVaccineSchedule, error) {
 	var schedules []*entity.BabyVaccineSchedule
 	err := r.db.WithContext(ctx).
 		Where("baby_id = ?", babyID).
 		Order("age_in_months ASC, dose_number ASC").
+		Offset((page - 1) * pageSize).
+		Limit(pageSize).
 		Find(&schedules).Error
 
 	if err != nil {
@@ -70,18 +72,28 @@ func (r *babyVaccineScheduleRepositoryImpl) FindByBabyID(ctx context.Context, ba
 	return schedules, nil
 }
 
-// FindByBabyIDWithStatus 根据状态查找宝宝的疫苗接种日程
-func (r *babyVaccineScheduleRepositoryImpl) FindByBabyIDWithStatus(ctx context.Context, babyID int64, status string) ([]*entity.BabyVaccineSchedule, error) {
+// FindByBabyIDAndStatus 根据状态查找宝宝的疫苗接种日程（分页）
+func (r *babyVaccineScheduleRepositoryImpl) FindByBabyIDAndStatus(ctx context.Context, babyID int64, status string, page, pageSize int) (int64, []*entity.BabyVaccineSchedule, error) {
 	var schedules []*entity.BabyVaccineSchedule
-	err := r.db.WithContext(ctx).
-		Where("baby_id = ? AND vaccination_status = ?", babyID, status).
-		Order("age_in_months ASC, dose_number ASC").
-		Find(&schedules).Error
+	var total int64
+	query := r.db.Model(&entity.BabyVaccineSchedule{}).WithContext(ctx).
+		Where("baby_id = ?", babyID).
+		Scopes(func(db *gorm.DB) *gorm.DB {
+			if status != "" {
+				db.Where("vaccination_status = ?", status)
+			}
+			return db
+		})
+	err := query.Count(&total).Error
+	if err != nil {
+		return 0, nil, errors.Wrap(errors.DatabaseError, "查询疫苗接种日程总数失败", err)
+	}
+	err = query.Order("age_in_months ASC, dose_number ASC").Offset((page - 1) * pageSize).Limit(pageSize).Find(&schedules).Error
 
 	if err != nil {
-		return nil, errors.Wrap(errors.DatabaseError, "查询宝宝疫苗接种日程失败", err)
+		return 0, nil, errors.Wrap(errors.DatabaseError, "查询宝宝疫苗接种日程失败", err)
 	}
-	return schedules, nil
+	return total, schedules, nil
 }
 
 // Update 更新日程

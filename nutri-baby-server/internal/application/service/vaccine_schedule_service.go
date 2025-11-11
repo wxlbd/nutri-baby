@@ -40,89 +40,41 @@ func NewVaccineScheduleService(
 	}
 }
 
-// GetVaccineSchedules 获取宝宝的疫苗接种日程列表
-func (s *VaccineScheduleService) GetVaccineSchedules(ctx context.Context, babyID, openID string) (*dto.VaccineScheduleListResponse, error) {
+// GetVaccineSchedules 获取宝宝的疫苗接种日程列表（支持状态过滤和分页）
+// 职责：仅返回日程列表，不包含统计信息
+func (s *VaccineScheduleService) GetVaccineSchedules(ctx context.Context, request *dto.GetVaccineScheduleListRequest) (int64, []dto.VaccineScheduleDTO, error) {
 	// 1. 验证权限
-	if err := s.checkPermission(ctx, babyID, openID); err != nil {
-		return nil, err
+	if err := s.checkPermission(ctx, request.BabyID, request.OpenID); err != nil {
+		return 0, nil, err
 	}
 
 	// 转换 babyID 从 string 到 int64
-	babyIDInt64, err := strconv.ParseInt(babyID, 10, 64)
+	babyIDInt64, err := strconv.ParseInt(request.BabyID, 10, 64)
 	if err != nil {
-		return nil, errors.New(errors.ParamError, "invalid baby id format")
+		return 0, nil, errors.New(errors.ParamError, "invalid baby id format")
 	}
 
-	// 2. 查询所有日程
-	schedules, err := s.scheduleRepo.FindByBabyID(ctx, babyIDInt64)
+	// 2. 如果指定了状态，验证并按状态查询（带分页）
+	// 验证状态值
+	if request.Status != "" {
+		if request.Status != entity.VaccinationStatusPending &&
+			request.Status != entity.VaccinationStatusCompleted &&
+			request.Status != entity.VaccinationStatusSkipped {
+			return 0, nil, errors.New(errors.ParamError, "无效的状态值")
+		}
+	}
+
+	total, schedules, err := s.scheduleRepo.FindByBabyIDAndStatus(ctx, babyIDInt64, request.Status, request.GetPageWithDefault(), request.GetPageSizeWithDefault())
 	if err != nil {
-		return nil, err
+		return 0, nil, err
 	}
 
-	// 3. 获取统计数据
-	total, completed, pending, skipped, err := s.scheduleRepo.GetStatistics(ctx, babyIDInt64)
-	if err != nil {
-		return nil, err
-	}
-
-	// 4. 计算完成百分比 (已完成 + 已跳过 都算作已处理)
-	percentage := 0
-	if total > 0 {
-		processed := completed + skipped // 已完成 + 已跳过
-		percentage = int(float64(processed) / float64(total) * 100)
-	}
-
-	// 5. 转换为DTO
+	// 转换为DTO
 	scheduleDTOs := make([]dto.VaccineScheduleDTO, 0, len(schedules))
 	for _, schedule := range schedules {
 		scheduleDTOs = append(scheduleDTOs, s.toScheduleDTO(schedule))
 	}
-
-	return &dto.VaccineScheduleListResponse{
-		Schedules: scheduleDTOs,
-		Statistics: dto.VaccineScheduleStatistics{
-			Total:          total,
-			Completed:      completed,
-			Pending:        pending,
-			Skipped:        skipped,
-			CompletionRate: percentage,
-		},
-	}, nil
-}
-
-// GetVaccineSchedulesByStatus 根据状态获取疫苗接种日程
-func (s *VaccineScheduleService) GetVaccineSchedulesByStatus(ctx context.Context, babyID, openID, status string) ([]dto.VaccineScheduleDTO, error) {
-	// 1. 验证权限
-	if err := s.checkPermission(ctx, babyID, openID); err != nil {
-		return nil, err
-	}
-
-	// 转换 babyID 从 string 到 int64
-	babyIDInt64, err := strconv.ParseInt(babyID, 10, 64)
-	if err != nil {
-		return nil, errors.New(errors.ParamError, "invalid baby id format")
-	}
-
-	// 2. 验证状态值
-	if status != entity.VaccinationStatusPending &&
-		status != entity.VaccinationStatusCompleted &&
-		status != entity.VaccinationStatusSkipped {
-		return nil, errors.New(errors.ParamError, "无效的状态值")
-	}
-
-	// 3. 查询日程
-	schedules, err := s.scheduleRepo.FindByBabyIDWithStatus(ctx, babyIDInt64, status)
-	if err != nil {
-		return nil, err
-	}
-
-	// 4. 转换为DTO
-	scheduleDTOs := make([]dto.VaccineScheduleDTO, 0, len(schedules))
-	for _, schedule := range schedules {
-		scheduleDTOs = append(scheduleDTOs, s.toScheduleDTO(schedule))
-	}
-
-	return scheduleDTOs, nil
+	return total, scheduleDTOs, nil
 }
 
 // UpdateVaccineSchedule 更新疫苗接种日程(记录接种或跳过)
@@ -439,51 +391,12 @@ func (s *VaccineScheduleService) GetStatistics(ctx context.Context, babyID, open
 		percentage = int(float64(processed) / float64(total) * 100)
 	}
 
-	// 4. 查询最近完成的日程(最多5条)
-	completedSchedules, err := s.scheduleRepo.FindByBabyIDWithStatus(ctx, babyIDInt64, entity.VaccinationStatusCompleted)
-	if err != nil {
-		return nil, err
-	}
-
-	recentSchedules := make([]dto.VaccineScheduleDTO, 0, 5)
-	count := 0
-	for i := len(completedSchedules) - 1; i >= 0 && count < 5; i-- {
-		recentSchedules = append(recentSchedules, s.toScheduleDTO(completedSchedules[i]))
-		count++
-	}
-
-	// 5. 获取下一个待接种疫苗(通过日程计算)
-	var nextVaccine *dto.NextVaccineDTO
-	pendingSchedules, err := s.scheduleRepo.FindByBabyIDWithStatus(ctx, babyIDInt64, entity.VaccinationStatusPending)
-	if err == nil && len(pendingSchedules) > 0 {
-		// 找到最近的待接种日程(scheduled_date 最小的)
-		var nearest *entity.BabyVaccineSchedule
-		for _, schedule := range pendingSchedules {
-			if schedule.ScheduledDate > 0 {
-				// 优先找即将到期的(距离现在最近的)
-				if nearest == nil || schedule.ScheduledDate < nearest.ScheduledDate {
-					nearest = schedule
-				}
-			}
-		}
-		if nearest != nil {
-			nextVaccine = &dto.NextVaccineDTO{
-				VaccineName:   nearest.VaccineName,
-				DoseNumber:    nearest.DoseNumber,
-				ScheduledDate: nearest.ScheduledDate,
-				DaysUntilDue:  nearest.DaysUntilDue(),
-			}
-		}
-	}
-
 	return &dto.VaccineScheduleStatisticsDTO{
-		Total:           total,
-		Completed:       completed,
-		Pending:         pending,
-		Skipped:         skipped,
-		Percentage:      percentage,
-		NextVaccine:     nextVaccine,
-		RecentSchedules: recentSchedules,
+		Total:          total,
+		Completed:      completed,
+		Pending:        pending,
+		Skipped:        skipped,
+		CompletionRate: percentage,
 	}, nil
 }
 
@@ -640,7 +553,7 @@ func (s *VaccineScheduleService) GetVaccineReminders(
 	}
 
 	// 2. 查询待接种的日程
-	schedules, err := s.scheduleRepo.FindByBabyIDWithStatus(ctx, babyIDInt64, entity.VaccinationStatusPending)
+	_, schedules, err := s.scheduleRepo.FindByBabyIDAndStatus(ctx, babyIDInt64, entity.VaccinationStatusPending, 1, 1000)
 	if err != nil {
 		return nil, errors.Wrap(errors.DatabaseError, "查询疫苗日程失败", err)
 	}
