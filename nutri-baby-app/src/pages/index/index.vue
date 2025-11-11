@@ -30,7 +30,7 @@
               <text class="baby-name">{{ currentBaby.name }}</text>
               <text class="baby-age">{{ babyAge }}</text>
             </view>
-            <wd-icon name="right" size="12" color="#999" class="arrow-icon" />
+            <wd-icon name="right" size="12" color="#7f8c8d" class="arrow-icon" />
           </view>
         </view>
         <!-- 没有宝宝时显示录入按钮 -->
@@ -44,7 +44,7 @@
           }"
         >
           <view class="button-content">
-            <wd-icon name="plus" size="18" color="#7dd3a2" class="plus-icon" />
+            <wd-icon name="plus" size="18" color="#32dc6e" class="plus-icon" />
             <text class="button-text">添加宝宝</text>
           </view>
         </view>
@@ -61,13 +61,12 @@
         >
           <wd-notice-bar
             prefix="warn-bold"
-            direction="vertical"
             :text="upcomingVaccines"
             :delay="3"
             custom-class="space"
           >
         <template #suffix>
-          <wd-icon name="arrow-right" size="12" color="#333" />
+          <wd-icon name="arrow-right" size="12" color="#2c3e50" />
         </template>
         </wd-notice-bar>
         </view>
@@ -90,7 +89,7 @@
           </view>
           <view class="feeding-action">
             <view class="action-btn" @click="handleFeeding">
-              <wd-icon name="arrow-right" size="12" color="#333" />
+              <wd-icon name="arrow-right" size="12" color="#2c3e50" />
             </view>
           </view>
         </view>
@@ -499,6 +498,10 @@ const loadTodayData = async () => {
   const babyId = currentBaby.value.babyId;
 
   try {
+    // 清空旧数据
+    statistics.value = null;
+    upcomingVaccines.value = [];
+
     // 并行加载统计数据和疫苗提醒
     const [statisticsResponse, vaccineRemindersResponse] = await Promise.all([
       statisticsApi.apiFetchBabyStatistics(babyId),
@@ -815,7 +818,7 @@ $spacing: 20rpx; // 统一间距
   transition: all $transition-slow;
 
   &:active {
-    background: rgba(50, 220, 110, 0.15);
+    background: $color-primary-lighter;
     transform: scale(0.95);
   }
 }
@@ -838,7 +841,7 @@ $spacing: 20rpx; // 统一间距
   transform: translateX(-50%);
   font-size: 34rpx; // 标准导航栏标题大小 (17px = 34rpx)
   font-weight: 600;
-  color: #000;
+  color: $color-text-primary;
   pointer-events: none;
 }
 
@@ -895,7 +898,7 @@ $spacing: 20rpx; // 统一间距
   width: 48rpx;
   height: 48rpx;
   border-radius: $radius-full;
-  background: rgba(50, 220, 110, 0.15);
+  background: $color-primary-lighter;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -960,7 +963,7 @@ $spacing: 20rpx; // 统一间距
 .banner-icon {
   font-size: 32rpx;
   font-weight: 700;
-  color: #999;
+  color: $color-text-secondary;
   flex-shrink: 0;
 }
 
@@ -973,7 +976,7 @@ $spacing: 20rpx; // 统一间距
 
   text {
     font-size: 32rpx;
-    color: #333;
+    color: $color-text-primary;
     line-height: 1.3;
     word-break: break-word;
   }
@@ -1034,7 +1037,7 @@ $spacing: 20rpx; // 统一间距
 .stat-value {
   font-size: 34rpx;
   font-weight: 450;
-  color: $color-text-primary;
+  color: $color-primary-light;
   line-height: 1.3;
   text-align: center;
 }
@@ -1098,7 +1101,7 @@ $spacing: 20rpx; // 统一间距
 .overview-value {
   font-size: 36rpx;
   font-weight: 450;
-  color: $color-text-primary;
+  color: $color-primary-light;
   line-height: 1.2;
 }
 
@@ -1189,7 +1192,7 @@ $spacing: 20rpx; // 统一间距
 .action-title {
   font-size: 28rpx;
   font-weight: $font-weight-semibold;
-  color: $color-text-secondary;
+  color: $color-text-primary;
   text-align: center;
   margin-bottom: $spacing-lg;
 }
@@ -1228,7 +1231,7 @@ $spacing: 20rpx; // 统一间距
   width: 48rpx;
   height: 48rpx;
   border-radius: $radius-full;
-  background: rgba(50, 220, 110, 0.15);
+  background: $color-primary-lighter;
   display: flex;
   align-items: center;
   justify-content: center;
