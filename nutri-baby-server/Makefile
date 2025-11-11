@@ -1,8 +1,12 @@
-.PHONY: wire run test fmt lint migrate-up migrate-down clean build-linux build-all
+.PHONY: wire swag run test fmt lint migrate-up migrate-down clean build-linux build-all help install-tools
 
 # 生成Wire依赖注入代码
 wire:
 	cd wire && wire
+
+# 生成Swagger API文档
+swag:
+	swag init -g cmd/server/main.go -o docs
 
 # 运行服务
 run:
@@ -47,6 +51,7 @@ migrate-down:
 clean:
 	rm -rf bin/
 	rm -rf logs/
+	rm -rf docs/
 	find . -name "wire_gen.go" -delete
 
 # 安装工具
@@ -54,11 +59,13 @@ install-tools:
 	go install github.com/google/wire/cmd/wire@latest
 	go install golang.org/x/tools/cmd/goimports@latest
 	go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+	go install github.com/swaggo/swag/cmd/swag@latest
 
 # 帮助
 help:
 	@echo "可用命令:"
 	@echo "  make wire         - 生成Wire依赖注入代码"
+	@echo "  make swag         - 生成Swagger API文档"
 	@echo "  make run          - 运行服务"
 	@echo "  make build        - 构建可执行文件 (当前OS)"
 	@echo "  make build-linux  - 构建 Linux amd64 可执行文件"
