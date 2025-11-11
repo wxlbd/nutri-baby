@@ -276,16 +276,19 @@ func (s *BabyService) GetCollaborators(ctx context.Context, babyID, openID strin
 
 	result := make([]dto.CollaboratorDTO, 0, len(collaborators))
 	for _, collab := range collaborators {
-		// 获取用户信息
-		user, err := s.userRepo.FindByOpenID(ctx, collab.User.OpenID)
-		if err != nil {
-			continue // 跳过无法找到的用户
+		// 检查关联的User是否被加载
+		if collab.User == nil {
+			s.logger.Warn("协作者关联的User未加载,跳过该协作者",
+				zap.Int64("babyID", babyIDInt64),
+				zap.Int64("userID", collab.UserID),
+			)
+			continue
 		}
 
 		result = append(result, dto.CollaboratorDTO{
-			OpenID:     user.OpenID,
-			NickName:   user.NickName,
-			AvatarURL:  user.AvatarURL,
+			OpenID:     collab.User.OpenID,
+			NickName:   collab.User.NickName,
+			AvatarURL:  collab.User.AvatarURL,
 			Role:       collab.Role,
 			AccessType: collab.AccessType,
 			ExpiresAt:  collab.ExpiresAt,
@@ -434,7 +437,7 @@ func (s *BabyService) GetInvitationByShortCode(ctx context.Context, shortCode st
 	}
 
 	// 获取邀请人信息 (UserID to User)
-	inviter, err := s.userRepo.FindByOpenID(ctx, "") // 这里需要通过UserID获取User,但userRepo没有这个方法
+	inviter, err := s.userRepo.FindByID(ctx, invitation.UserID) // 这里需要通过UserID获取User,但userRepo没有这个方法
 	// 为了兼容,我们直接从User关联获取
 	// 暂时使用ID查询 - 需要检查是否有GetUserByID方法
 	if err != nil {
