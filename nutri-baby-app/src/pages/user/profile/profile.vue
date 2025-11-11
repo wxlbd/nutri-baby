@@ -74,6 +74,7 @@ import { ref, onMounted } from "vue";
 import { getUserInfo, setUserInfo } from "@/store/user";
 import { uploadFile } from "@/utils/request";
 import * as authApi from "@/api/auth";
+import { goBack, goBackHome } from "@/utils/common";
 
 // 表单数据
 const formData = ref({

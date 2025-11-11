@@ -189,6 +189,7 @@ import { formatDate } from "@/utils/date";
 
 // 直接调用 API 层
 import * as growthApi from "@/api/growth";
+import { goBack, goBackHome } from "@/utils/common";
 
 // 编辑模式相关
 const editId = ref<string>("");
