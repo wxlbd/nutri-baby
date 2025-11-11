@@ -432,6 +432,8 @@ const handleLogout = () => {
 </script>
 
 <style lang="scss" scoped>
+@import "@/styles/colors.scss";
+
 .user-page {
   min-height: 100vh;
   background: #f6f8f7;
@@ -439,27 +441,31 @@ const handleLogout = () => {
 }
 
 .user-card {
-  background: linear-gradient(135deg, #7dd3a2 0%, #52c41a 100%);
-  padding: 60rpx 30rpx 40rpx;
-  color: white;
+  background: #f6f8f7;
+  padding: 40rpx 30rpx;
 }
 
 .user-info {
   display: flex;
   align-items: center;
   gap: 24rpx;
+  background: white;
+  padding: 24rpx;
+  border-radius: 12rpx;
+  box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.04);
 }
 
 .avatar {
-  width: 120rpx;
-  height: 120rpx;
+  width: 100rpx;
+  height: 100rpx;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.2);
+  background: #f0f8f5;
   display: flex;
   align-items: center;
   justify-content: center;
-  border: 4rpx solid rgba(255, 255, 255, 0.3);
+  border: 3rpx solid #32dc6e;
   overflow: hidden;
+  flex-shrink: 0;
 }
 
 .avatar-image {
@@ -470,26 +476,36 @@ const handleLogout = () => {
 
 .info {
   flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
 }
 
 .login-button {
-  background: linear-gradient(135deg, #52c41a, #7dd3a2);
+  background: #32dc6e;
   border-radius: 20rpx;
-  padding: 12rpx 32rpx;
+  padding: 16rpx 28rpx;
   display: inline-block;
   cursor: pointer;
+  transition: all 0.3s ease;
 
   text {
     color: white;
-    font-size: 28rpx;
+    font-size: 26rpx;
     font-weight: 500;
+  }
+
+  &:active {
+    opacity: 0.8;
+    transform: scale(0.98);
   }
 }
 
 .nickname {
-  font-size: 36rpx;
-  font-weight: bold;
-  margin-bottom: 12rpx;
+  font-size: 32rpx;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 8rpx;
 }
 
 .login-time {
@@ -499,12 +515,20 @@ const handleLogout = () => {
 
 .section {
   margin-top: 20rpx;
+  margin-left: 30rpx;
+  margin-right: 30rpx;
+  background: white;
+  border-radius: 12rpx;
+  overflow: hidden;
+  box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.04);
 }
 
 .section-title {
-  padding: 24rpx 30rpx 16rpx;
+  padding: 20rpx 24rpx 12rpx;
   font-size: 28rpx;
   color: #999;
+  margin: 0;
+  border-bottom: 1rpx solid $color-border-primary;
 }
 
 :deep(.cell-icon) {
