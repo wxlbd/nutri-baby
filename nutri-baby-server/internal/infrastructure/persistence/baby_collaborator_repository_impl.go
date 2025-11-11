@@ -33,6 +33,7 @@ func (r *babyCollaboratorRepositoryImpl) Create(ctx context.Context, collaborato
 func (r *babyCollaboratorRepositoryImpl) FindByBabyID(ctx context.Context, babyID int64) ([]*entity.BabyCollaborator, error) {
 	var collaborators []*entity.BabyCollaborator
 	err := r.db.WithContext(ctx).
+		Preload("User").
 		Where("baby_id = ?", babyID).
 		Order("created_at ASC").
 		Find(&collaborators).Error

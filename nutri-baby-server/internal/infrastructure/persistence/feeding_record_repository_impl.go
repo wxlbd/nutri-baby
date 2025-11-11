@@ -15,6 +15,24 @@ type feedingRecordRepositoryImpl struct {
 	db *gorm.DB
 }
 
+// FindLatestRecord 查询宝宝最新的一条喂养记录
+func (r *feedingRecordRepositoryImpl) FindLatestRecord(ctx context.Context, babyID int64) (*entity.FeedingRecord, error) {
+	var record entity.FeedingRecord
+	err := r.db.WithContext(ctx).
+		Where("baby_id = ?", babyID).
+		Order("time DESC").
+		First(&record).Error
+
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, errors.ErrRecordNotFound
+		}
+		return nil, errors.Wrap(errors.DatabaseError, "failed to get last record", err)
+	}
+
+	return &record, nil
+}
+
 // NewFeedingRecordRepository 创建喂养记录仓储
 func NewFeedingRecordRepository(db *gorm.DB) repository.FeedingRecordRepository {
 	return &feedingRecordRepositoryImpl{db: db}

@@ -106,8 +106,8 @@ func (s *DiaperRecordService) GetDiaperRecords(ctx context.Context, openID strin
 		babyIDInt64,
 		query.StartTime,
 		query.EndTime,
-		query.Page,
-		query.PageSize,
+		query.GetPageWithDefault(),
+		query.GetPageSizeWithDefault(),
 	)
 	if err != nil {
 		return nil, 0, err
