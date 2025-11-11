@@ -63,7 +63,8 @@
     {
       "path": "pages/record/feeding/feeding",
       "style": {
-        "navigationBarTitleText": "喂养记录"
+        "navigationBarTitleText": "喂养记录",
+        "navigationStyle": "custom"
       }
     },
     {
@@ -104,7 +105,8 @@
     {
       "path": "pages/record/growth/growth",
       "style": {
-        "navigationBarTitleText": "成长记录"
+        "navigationBarTitleText": "成长记录",
+        "navigationStyle": "custom"
       }
     },
     {
@@ -135,7 +137,8 @@
     {
       "path": "pages/user/profile/profile",
       "style": {
-        "navigationBarTitleText": "编辑资料"
+        "navigationBarTitleText": "编辑资料",
+        "navigationStyle": "custom"
       }
     },
     {
