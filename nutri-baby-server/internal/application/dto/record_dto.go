@@ -241,8 +241,7 @@ type RecordListQuery struct {
 	BabyID    string `form:"babyId"`
 	StartTime int64  `form:"startTime"`
 	EndTime   int64  `form:"endTime"`
-	Page      int    `form:"page"`
-	PageSize  int    `form:"pageSize"`
+	PaginationRequest
 }
 
 // ============ 更新记录 DTO ============

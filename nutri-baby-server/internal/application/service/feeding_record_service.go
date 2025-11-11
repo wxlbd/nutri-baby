@@ -177,8 +177,8 @@ func (s *FeedingRecordService) GetFeedingRecords(ctx context.Context, openID str
 		babyIDInt64,
 		query.StartTime,
 		query.EndTime,
-		query.Page,
-		query.PageSize,
+		query.GetPageWithDefault(),
+		query.GetPageSizeWithDefault(),
 	)
 	if err != nil {
 		return nil, 0, err

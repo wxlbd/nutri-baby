@@ -5,8 +5,7 @@ type TimelineQuery struct {
 	BabyID    string `form:"babyId" binding:"required"`
 	StartTime int64  `form:"startTime"`
 	EndTime   int64  `form:"endTime"`
-	Page      int    `form:"page"`
-	PageSize  int    `form:"pageSize"`
+	PaginationRequest
 }
 
 // TimelineItem 时间线记录项

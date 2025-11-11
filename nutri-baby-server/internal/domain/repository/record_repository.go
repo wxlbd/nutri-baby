@@ -26,6 +26,8 @@ type FeedingRecordRepository interface {
 	UpdateReminderStatus(ctx context.Context, recordID int64, sent bool, reminderTime int64) error
 	// GetTodayStatsByType 获取今日按类型的统计数据
 	GetTodayStatsByType(ctx context.Context, babyID int64, feedingType string, todayStart, todayEnd int64) (count int64, totalAmount float64, totalDuration int, err error)
+	// FindLatestRecord 查询宝宝最新的一条喂养记录
+	FindLatestRecord(ctx context.Context, babyID int64) (*entity.FeedingRecord, error)
 }
 
 // SleepRecordRepository 睡眠记录仓储接口

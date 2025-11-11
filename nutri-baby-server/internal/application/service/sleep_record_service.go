@@ -117,8 +117,8 @@ func (s *SleepRecordService) GetSleepRecords(ctx context.Context, openID string,
 		babyIDInt64,
 		query.StartTime,
 		query.EndTime,
-		query.Page,
-		query.PageSize,
+		query.GetPageWithDefault(),
+		query.GetPageSizeWithDefault(),
 	)
 	if err != nil {
 		return nil, 0, err
