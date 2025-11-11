@@ -1,6 +1,6 @@
 <template>
   <view>
-    <wd-navbar fixed placeholder title="今日概览" left-arrow safeAreaInsetTop>
+    <wd-navbar fixed placeholder title="首页" left-arrow safeAreaInsetTop>
       <template #left>
         <view
           v-if="currentBaby"
@@ -44,7 +44,7 @@
           }"
         >
           <view class="button-content">
-            <wd-icon name="plus" size="18" color="#667eea" class="plus-icon" />
+            <wd-icon name="plus" size="18" color="#7dd3a2" class="plus-icon" />
             <text class="button-text">添加宝宝</text>
           </view>
         </view>
@@ -53,159 +53,221 @@
     <view class="index-page">
       <!-- 页面内容 -->
       <view class="page-content">
-        <!-- 游客模式提示横幅 -->
-        <view v-if="!isLoggedIn" class="guest-banner">
-          <view class="banner-content">
-            <view class="banner-text">
-              <text class="banner-title">欢迎使用宝宝喂养日志</text>
-              <text class="banner-desc">登录后记录您的宝宝成长数据</text>
-            </view>
-            <wd-button size="small" type="primary" @click="goToLogin">
-              立即登录
-            </wd-button>
-          </view>
-        </view>
-
-        <!-- 今日数据概览 -->
-        <view class="today-stats">
-          <view class="stats-title">今日数据</view>
-          <view class="stats-grid">
-            <view class="stat-item stat-milk">
-              <image
-                class="stat-bg"
-                src="/static/stat-bg-milk.png"
-                mode="aspectFill"
-              />
-              <view class="stat-content">
-                <image class="stat-icon" src="/static/naiping.svg" mode="aspectFit" />
-                <view class="stat-value">{{ todayStats.totalMilk }}ml</view>
-                <view class="stat-label">奶瓶奶量</view>
-              </view>
-            </view>
-            <view class="stat-item stat-breast">
-              <image
-                class="stat-bg"
-                src="/static/stat-bg-breast.png"
-                mode="aspectFill"
-              />
-              <view class="stat-content">
-                <image class="stat-icon" src="/static/baomabaozhuoyinger.svg" mode="aspectFit" />
-                <view class="stat-value"
-                  >{{ todayStats.breastfeedingCount }}次</view
-                >
-                <view class="stat-label">母乳喂养</view>
-              </view>
-            </view>
-            <view class="stat-item stat-sleep">
-              <image
-                class="stat-bg"
-                src="/static/stat-bg-sleep.png"
-                mode="aspectFill"
-              />
-              <view class="stat-content">
-                <image class="stat-icon" src="/static/yingershuijue.svg" mode="aspectFit" />
-                <view class="stat-value">{{
-                  formatDuration(todayStats.sleepDuration)
-                }}</view>
-                <view class="stat-label">睡眠时长</view>
-              </view>
-            </view>
-            <view class="stat-item stat-diaper">
-              <image
-                class="stat-bg"
-                src="/static/stat-bg-diaper.png"
-                mode="aspectFill"
-              />
-              <view class="stat-content">
-                <image class="stat-icon" src="/static/niaobushi.svg" mode="aspectFit" />
-                <view class="stat-value">{{ todayStats.diaperCount }}次</view>
-                <view class="stat-label">换尿布</view>
-              </view>
-            </view>
-          </view>
-        </view>
-
-        <!-- 距上次喂奶时间 -->
-        <view class="last-feeding">
-          <view class="time-info">
-            <text class="label">距上次喂奶</text>
-            <text class="time">{{ lastFeedingTime }}</text>
-            <text v-if="nextFeedingTime" class="next-time">
-              {{ nextFeedingTime }}
-            </text>
-          </view>
-        </view>
-
-        <!-- 疫苗提醒 -->
+        <!-- 疫苗提醒横幅 -->
         <view
           v-if="upcomingVaccines.length > 0"
-          class="vaccine-reminder"
+          class="vaccine-banner"
           @click="goToVaccine"
         >
-          <view class="reminder-header">
-            <view class="header-left">
-              <text class="reminder-title">疫苗提醒</text>
+          <wd-notice-bar
+            prefix="warn-bold"
+            direction="vertical"
+            :text="upcomingVaccines"
+            :delay="3"
+            custom-class="space"
+          >
+        <template #suffix>
+          <wd-icon name="arrow-right" size="12" color="#333" />
+        </template>
+        </wd-notice-bar>
+        </view>
+
+        <!-- 距离上次喂养时间提示 - 显眼卡片 -->
+        <view class="last-feeding-card">
+          <view class="feeding-left">
+            <view class="feeding-icon">
+              <image
+                src="/static/breastfeeding.svg"
+                mode="aspectFill"
+                style="width: 40rpx; height: 40rpx"
+              />
             </view>
-            <view class="header-right">
-              <text class="view-all">查看全部</text>
-              <wd-icon name="right" size="14" />
+            <view class="feeding-info">
+              <text class="feeding-label"
+                >距离上次喂养 {{ lastFeedingTime }}</text
+              >
             </view>
           </view>
-          <view class="vaccine-list">
-            <view
-              v-for="vaccine in upcomingVaccines"
-              :key="vaccine.reminderId"
-              class="vaccine-item"
-              :class="`status-${vaccine.status}`"
-            >
-              <view class="vaccine-info">
-                <text class="vaccine-name"
-                  >{{ vaccine.vaccineName }} (第{{
-                    vaccine.doseNumber
-                  }}针)</text
-                >
-                <text class="vaccine-date">{{
-                  formatVaccineDate(vaccine.scheduledDate)
-                }}</text>
+          <view class="feeding-action">
+            <view class="action-btn" @click="handleFeeding">
+              <wd-icon name="arrow-right" size="12" color="#333" />
+            </view>
+          </view>
+        </view>
+
+        <!-- 今日数据概览 - 2x2 网格 -->
+        <view class="today-stats">
+          <view class="card-header">
+            <text class="card-title">今日概览</text>
+            <text class="card-subtitle">实时数据</text>
+          </view>
+          <view class="stats-grid">
+            <!-- 喂养统计 -->
+            <view class="stat-card">
+              <view class="stat-header">
+                <image
+                  src="/static/breastfeeding.svg"
+                  mode="aspectFill"
+                  class="stat-icon"
+                />
+                <text class="stat-card-title">喂养统计</text>
               </view>
-              <view class="vaccine-badge" :class="vaccine.status">
-                {{ vaccine.status === "due" ? "即将到期" : "已逾期" }}
+              <view class="stat-main">
+                <text class="stat-value"
+                  >母乳 {{ todayStats.breastfeedingCount }} 次</text
+                >
+                <text class="stat-sub">奶瓶 {{ todayStats.bottleFeedingCount }} 次 / {{ todayStats.totalMilk }}ml</text>
+              </view>
+            </view>
+
+            <!-- 睡眠时长 -->
+            <view class="stat-card">
+              <view class="stat-header">
+                <image
+                  class="stat-icon"
+                  src="/static/moon_stars.svg"
+                  mode="aspectFill"
+                />
+                <text class="stat-card-title">总睡眠时长</text>
+              </view>
+              <view class="stat-main">
+                <text class="stat-value">{{ todayStats.sleepDurationMinutes }}分钟</text>
+                <text class="stat-sub"
+                  >上次睡眠: {{ todayStats.lastSleepMinutes }}分钟</text
+                >
+              </view>
+            </view>
+
+            <!-- 换尿布次数 -->
+            <view class="stat-card">
+              <view class="stat-header">
+                <image
+                  src="/static/baby_changing_station.svg"
+                  mode="aspectFill"
+                  class="stat-icon"
+                />
+                <text class="stat-card-title">换尿布次数</text>
+              </view>
+              <view class="stat-main">
+                <text class="stat-value">{{ todayStats.diaperCount }} 次</text>
+                <text class="stat-sub"
+                  >小便: {{ todayStats.peeCount }}, 大便:
+                  {{ todayStats.poopCount }}</text
+                >
+              </view>
+            </view>
+
+            <!-- 体重 -->
+            <view class="stat-card">
+              <view class="stat-header">
+                <image
+                  src="/static/weight.svg"
+                  mode="aspectFill"
+                  class="stat-icon"
+                />
+                <text class="stat-card-title">体重</text>
+              </view>
+              <view class="stat-main">
+                <text class="stat-value"
+                  >{{ todayStats.latestWeight ?? "-" }} 克</text
+                >
+                <text class="stat-sub"
+                  >{{ weeklyStats.weightGain >= 0 ? "↑" : "↓" }}
+                  {{ Math.abs(weeklyStats.weightGain) }}克</text
+                >
               </view>
             </view>
           </view>
         </view>
 
-        <!-- 快捷操作 -->
-        <view class="quick-actions">
-          <view class="action-title">快捷记录</view>
-          <view class="action-buttons">
-            <view class="button-row">
-              <wd-button type="primary" size="large" @click="handleFeeding">
-                <view class="button-content">
-                  <image class="icon-img" src="/static/naiping.svg" mode="aspectFit" />
-                  <text>喂养</text>
-                </view>
-              </wd-button>
-              <wd-button type="success" size="large" @click="handleDiaper">
-                <view class="button-content">
-                  <image class="icon-img" src="/static/niaobushi.svg" mode="aspectFit" />
-                  <text>换尿布</text>
-                </view>
-              </wd-button>
+        <!-- 本周概览卡片 -->
+        <view class="weekly-overview">
+          <view class="card-header">
+            <text class="card-title">本周概览</text>
+            <text class="card-subtitle">过去 7 天数据</text>
+          </view>
+          <view class="overview-grid">
+            <view class="overview-item">
+              <view class="overview-label">总喂养次数</view>
+              <text class="overview-value">{{ weeklyStats.feedingCount }} 次</text>
+              <text
+                class="overview-trend"
+                :class="weeklyStats.feedingTrend >= 0 ? 'up' : 'down'"
+              >
+                {{ weeklyStats.feedingTrend >= 0 ? "↑" : "↓" }}
+                {{ Math.abs(weeklyStats.feedingTrend) }}
+              </text>
             </view>
-            <view class="button-row">
-              <wd-button type="info" size="large" @click="handleSleep">
-                <view class="button-content">
-                  <image class="icon-img" src="/static/yingershuijue.svg" mode="aspectFit" />
-                  <text>睡觉</text>
-                </view>
-              </wd-button>
-              <wd-button type="warning" size="large" @click="handleGrowth">
-                <view class="button-content">
-                  <image class="icon-img" src="/static/growth.svg" mode="aspectFit" />
-                  <text>成长</text>
-                </view>
-              </wd-button>
+            <view class="overview-item">
+              <view class="overview-label">总睡眠时长</view>
+              <text class="overview-value">{{ weeklyStats.sleepHours }} 小时</text>
+              <text
+                class="overview-trend"
+                :class="weeklyStats.sleepTrend >= 0 ? 'up' : 'down'"
+              >
+                {{ weeklyStats.sleepTrend >= 0 ? "↑" : "↓" }}
+                {{ Math.abs(weeklyStats.sleepTrend) }}h
+              </text>
+            </view>
+            <view class="overview-item">
+              <view class="overview-label">体重增长</view>
+              <text class="overview-value"
+                >{{ weeklyStats.weightGain }} 克</text
+              >
+              <text
+                class="overview-trend"
+                :class="weeklyStats.weightGain >= 0 ? 'up' : 'down'"
+              >
+                {{ weeklyStats.weightGain >= 0 ? "↑" : "↓" }}
+                {{ Math.abs(weeklyStats.weightGain) }}
+              </text>
+            </view>
+          </view>
+        </view>
+
+        <!-- 快捷操作 - 4 列网格 -->
+        <view class="quick-actions">
+          <view class="action-title">快捷操作</view>
+          <view class="action-grid">
+            <view class="action-card action-feeding" @click="handleFeeding">
+              <view class="action-icon-wrapper">
+                <image
+                  src="/static/breastfeeding.svg"
+                  mode="aspectFill"
+                  class="action-icon"
+                />
+              </view>
+              <text class="action-label">记录喂养</text>
+            </view>
+            <view class="action-card action-sleep" @click="handleSleep">
+              <view class="action-icon-wrapper">
+                <image
+                  src="/static/moon_stars.svg"
+                  mode="aspectFill"
+                  class="action-icon"
+                />
+              </view>
+              <text class="action-label">记录睡眠</text>
+            </view>
+            <view class="action-card action-diaper" @click="handleDiaper">
+              <view class="action-icon-wrapper">
+                <image
+                  src="/static/blanket.svg"
+                  mode="aspectFill"
+                  class="action-icon"
+                />
+              </view>
+              <text class="action-label">记录尿布</text>
+            </view>
+            <view class="action-card action-growth" @click="handleGrowth">
+              <view class="action-icon-wrapper">
+                <image
+                  src="/static/monitoring.svg"
+                  mode="aspectFill"
+                  class="action-icon"
+                />
+              </view>
+              <text class="action-label">记录成长</text>
             </view>
           </view>
         </view>
@@ -221,28 +283,16 @@ import { isLoggedIn, fetchUserInfo } from "@/store/user";
 import { currentBaby, fetchBabyList } from "@/store/baby";
 import {
   formatRelativeTime,
-  formatDuration,
+  calculateAge,
   formatDate,
-  getTodayStart,
-  getTodayEnd,
 } from "@/utils/date";
-import {
-  getFeedingGuidelineByAge,
-  calculateAgeInMonths,
-} from "@/utils/feeding";
-import { calculateAge } from "@/utils/date";
 
 // 直接调用 API 层
-import * as feedingApi from "@/api/feeding";
-import * as diaperApi from "@/api/diaper";
-import * as sleepApi from "@/api/sleep";
+import * as statisticsApi from "@/api/statistics";
 import * as vaccineApi from "@/api/vaccine";
 
 // 喂养订阅消息管理
-import {
-  shouldShowFeedingSubscribeRequest,
-  requestAllFeedingSubscribeMessages,
-} from "@/utils/feeding-subscribe";
+import { requestAllFeedingSubscribeMessages } from "@/utils/feeding-subscribe";
 
 // ============ 导航栏相关 ============
 
@@ -256,15 +306,6 @@ const menuButtonTop = ref(0); // 胶囊按钮顶部距离（px）
 const babyAge = computed(() => {
   if (!currentBaby.value) return "";
   return calculateAge(currentBaby.value.birthDate);
-});
-
-// 导航栏总高度
-const navbarTotalHeight = computed(() => {
-  // 总高度计算与 join.vue 保持一致
-  // = 状态栏高度 (px×2→rpx) + 胶囊顶部距离 (px×2→rpx) + 导航栏内容高度
-  return (
-    Math.round(statusBarHeight.value * 2) + Math.round(menuButtonTop.value * 2)
-  );
 });
 
 // 跳转到宝宝列表
@@ -283,134 +324,87 @@ const handleAddBaby = () => {
 
 // ============ 响应式数据 ============
 
-// 今日喂养记录
-const todayFeedingRecords = ref<feedingApi.FeedingRecordResponse[]>([]);
+// 统计数据
+const statistics = ref<statisticsApi.BabyStatisticsResponse | null>(null);
 
-// 今日换尿布记录
-const todayDiaperRecords = ref<diaperApi.DiaperRecordResponse[]>([]);
-
-// 今日睡眠记录
-const todaySleepRecords = ref<sleepApi.SleepRecordResponse[]>([]);
-
-// 疫苗提醒
-const vaccineReminders = ref<vaccineApi.VaccineReminderResponse[]>([]);
+// 疫苗提醒数据（最多显示2个即将接种或逾期的疫苗）
+const upcomingVaccines = ref<string[]>([]);
 
 // ============ 计算属性 ============
 
 // 今日数据统计
 const todayStats = computed(() => {
-  if (!currentBaby.value) {
+  if (!statistics.value) {
     return {
-      totalMilk: 0,
       breastfeedingCount: 0,
+      bottleFeedingCount: 0,
+      totalMilk: 0,
       sleepDuration: 0,
+      sleepDurationMinutes: 0,
+      lastSleepMinutes: 0,
       diaperCount: 0,
+      peeCount: 0,
+      poopCount: 0,
+      latestWeight: null,
     };
   }
 
-  // 计算奶瓶奶量 (仅统计奶瓶喂养,母乳无法测量毫升数)
-  const totalMilk = todayFeedingRecords.value
-    .filter((r) => r.feedingType === "bottle")
-    .reduce((sum, r) => sum + (r.amount || 0), 0);
-
-  // 计算母乳喂养次数
-  const breastfeedingCount = todayFeedingRecords.value.filter(
-    (r) => r.feedingType === "breast"
-  ).length;
-
-  // 计算睡眠总时长 (秒)
-  const sleepDuration = todaySleepRecords.value.reduce(
-    (sum, r) => sum + (r.duration || 0),
-    0
-  );
-
-  // 换尿布次数
-  const diaperCount = todayDiaperRecords.value.length;
-
+  const today = statistics.value.today;
   return {
-    totalMilk: Math.round(totalMilk),
-    breastfeedingCount,
-    sleepDuration,
-    diaperCount,
+    // 喂养相关
+    breastfeedingCount: today.feeding.breastCount, // 母乳次数
+    bottleFeedingCount: today.feeding.totalCount - today.feeding.breastCount, // 奶瓶次数
+    totalMilk: today.feeding.bottleMl, // 奶瓶总毫升数
+    // 睡眠相关
+    sleepDuration: today.sleep.totalMinutes * 60, // 转换为秒，兼容 formatDuration
+    sleepDurationMinutes: today.sleep.totalMinutes, // 保留分钟数用于显示
+    lastSleepMinutes: today.sleep.lastSleepMinutes,
+    // 尿布相关
+    diaperCount: today.diaper.totalCount,
+    peeCount: today.diaper.peeCount,
+    poopCount: today.diaper.poopCount,
+    // 成长相关
+    latestWeight: today.growth.latestWeight,
   };
 });
 
 // 距上次喂奶时间
 const lastFeedingTime = computed(() => {
-  if (!currentBaby.value || todayFeedingRecords.value.length === 0) return "-";
-
-  // 按时间倒序排列,取第一条
-  const sortedRecords = [...todayFeedingRecords.value].sort(
-    (a, b) => b.feedingTime - a.feedingTime
-  );
-  const lastRecord = sortedRecords[0];
-
-  if (!lastRecord) return "暂无记录";
-
-  return formatRelativeTime(lastRecord.feedingTime);
+  if (!statistics.value?.today?.feeding?.lastFeedingTime) {
+    return "-";
+  }
+  return formatRelativeTime(statistics.value.today.feeding.lastFeedingTime);
 });
 
-// 下次喂奶建议 - 基于医学指南
-const nextFeedingTime = computed(() => {
-  if (!currentBaby.value || todayFeedingRecords.value.length === 0) return "";
+// ============ 本周概览数据 ============
 
-  // 获取最后一次喂奶记录
-  const sortedRecords = [...todayFeedingRecords.value].sort(
-    (a, b) => b.feedingTime - a.feedingTime
-  );
-  const lastRecord = sortedRecords[0];
-
-  if (!lastRecord) return "";
-
-  // 计算宝宝精确月龄
-  const ageInMonths = calculateAgeInMonths(currentBaby.value.birthDate);
-
-  // 根据月龄和医学指南获取推荐喂奶间隔
-  const guideline = getFeedingGuidelineByAge(ageInMonths);
-
-  // 使用推荐间隔的中位数（分钟）
-  const intervalMinutes = Math.round(
-    ((guideline.intervalMinHours + guideline.intervalMaxHours) / 2) * 60
-  );
-
-  const nextTime = lastRecord.feedingTime + intervalMinutes * 60 * 1000;
-  const timeDiff = nextTime - Date.now();
-
-  // 喂养类型提示
-  const feedingTypeHint =
-    guideline.feedingType === "demand" ? "（按需喂养，请观察宝宝信号）" : "";
-
-  if (timeDiff <= 0) {
-    return `建议现在喂奶 ${feedingTypeHint}`.trim();
+// 本周统计数据
+const weeklyStats = computed(() => {
+  if (!statistics.value) {
+    return {
+      feedingCount: 0,
+      feedingTrend: 0,
+      sleepHours: 0,
+      sleepTrend: 0,
+      weightGain: 0,
+    };
   }
 
-  const hours = Math.floor(timeDiff / (60 * 60 * 1000));
-  const minutes = Math.floor((timeDiff % (60 * 60 * 1000)) / (60 * 1000));
-
-  // 显示推荐间隔范围
-  const intervalRange = `${Math.floor(guideline.intervalMinHours)}-${Math.ceil(
-    guideline.intervalMaxHours
-  )}小时`;
-
-  if (hours > 0) {
-    return `建议 ${hours}小时${minutes}分钟后喂奶（推荐间隔：${intervalRange}）`;
-  } else {
-    return `建议 ${minutes}分钟后喂奶（推荐间隔：${intervalRange}）`;
-  }
+  const weekly = statistics.value.weekly;
+  return {
+    feedingCount: weekly.feeding.totalCount,
+    feedingTrend: weekly.feeding.trend,
+    sleepHours: Math.round(weekly.sleep.totalHours * 10) / 10,
+    sleepTrend: weekly.sleep.trend,
+    weightGain: weekly.growth.weightGain,
+  };
 });
 
-// 即将到期的疫苗(最多显示2个)
-const upcomingVaccines = computed(() => {
-  // 仅显示 due 和 overdue 状态的提醒
-  return vaccineReminders.value
-    .filter((r) => r.status === "due" || r.status === "overdue")
-    .slice(0, 2);
+// 最近体重
+const latestWeight = computed(() => {
+  // 示例：从今日数据中获取，实际应从成长记录中获取
+  return "7.5";
 });
-
-// 格式化疫苗日期
-const formatVaccineDate = (timestamp: number): string => {
-  return formatDate(timestamp, "MM-DD");
-};
 
 // 页面加载 (仅在首次挂载时执行)
 onMounted(() => {
@@ -441,7 +435,6 @@ const initializeNavbar = () => {
         menuButtonWidth: menuButton.width,
         menuButtonHeight: menuButton.height,
         menuButtonBottom: menuButton.top + menuButton.height,
-        navbarTotalHeight: navbarTotalHeight.value,
       });
     }
   } catch (e) {
@@ -504,56 +497,45 @@ const loadTodayData = async () => {
   if (!currentBaby.value) return;
 
   const babyId = currentBaby.value.babyId;
-  const todayStart = getTodayStart();
-  const todayEnd = getTodayEnd();
 
   try {
-    // 并行加载所有数据
-    const [feedingData, diaperData, sleepData, vaccineData] = await Promise.all(
-      [
-        // 获取今日喂养记录
-        feedingApi.apiFetchFeedingRecords({
-          babyId,
-          startTime: todayStart,
-          endTime: todayEnd,
-          pageSize: 100,
-        }),
-        // 获取今日换尿布记录
-        diaperApi.apiFetchDiaperRecords({
-          babyId,
-          startTime: todayStart,
-          endTime: todayEnd,
-          pageSize: 100,
-        }),
-        // 获取今日睡眠记录
-        sleepApi.apiFetchSleepRecords({
-          babyId,
-          startTime: todayStart,
-          endTime: todayEnd,
-          pageSize: 100,
-        }),
-        // 获取疫苗提醒
-        vaccineApi.apiFetchVaccineReminders({
-          babyId,
-        }),
-      ]
+    // 并行加载统计数据和疫苗提醒
+    const [statisticsResponse, vaccineRemindersResponse] = await Promise.all([
+      statisticsApi.apiFetchBabyStatistics(babyId),
+      vaccineApi.apiFetchVaccineReminders({
+        babyId,
+      }),
+    ]);
+
+    // 处理统计数据
+    statistics.value = statisticsResponse.data;
+
+    // 处理疫苗提醒：筛选出 upcoming、due、overdue 的记录，最多显示2个
+    const reminders = vaccineRemindersResponse.reminders || [];
+    const filtered = reminders.filter(
+      (r: vaccineApi.VaccineReminderResponse) =>
+        r.status === "upcoming" || r.status === "due" || r.status === "overdue"
     );
+    filtered.forEach((r: vaccineApi.VaccineReminderResponse) => {
+      upcomingVaccines.value.push(
+        `${r.vaccineName} ${r.doseNumber ? `（第${r.doseNumber}针）` : ""} ${
+          vaccineApi.VaccineReminderStatusMap[r.status]
+        }，应于 ${formatDate(r.scheduledDate, "YYYY-MM-DD")}接种`
+      );
+    });
 
-    // 更新响应式数据
-    todayFeedingRecords.value = feedingData.records;
-    todayDiaperRecords.value = diaperData.records;
-    todaySleepRecords.value = sleepData.records;
-    vaccineReminders.value = vaccineData.reminders;
+    console.log("[Index] 统计数据加载完成", {
+      today: statisticsResponse.data?.today,
+      weekly: statisticsResponse.data?.weekly,
+    });
 
-    console.log("[Index] 今日数据加载完成", {
-      feeding: feedingData.records.length,
-      diaper: diaperData.records.length,
-      sleep: sleepData.records.length,
-      vaccine: vaccineData.reminders.length,
+    console.log("[Index] 疫苗提醒加载完成", {
+      total: reminders.length,
+      upcoming: upcomingVaccines.value.length,
     });
   } catch (error) {
-    console.error("[Index] 加载今日数据失败:", error);
-    // 不显示错误提示,静默失败
+    console.error("[Index] 加载数据失败:", error);
+    // 不显示错误提示，静默失败
   }
 };
 
@@ -589,16 +571,8 @@ const handleFeeding = async () => {
   // ✨ 在跳转前申请喂养订阅消息权限
   try {
     console.log("[Index] 检查是否需要申请喂养订阅消息");
-
-    const { shouldShow, bannedCount } = shouldShowFeedingSubscribeRequest();
-
-    if (shouldShow) {
-      console.log("[Index] 显示喂养订阅申请, 已Ban数:", bannedCount);
-      // 申请喂养订阅消息
-      await requestAllFeedingSubscribeMessages();
-    } else {
-      console.log("[Index] 不需要显示订阅申请");
-    }
+    // 申请喂养订阅消息
+    await requestAllFeedingSubscribeMessages();
   } catch (error: any) {
     console.error("[Index] 申请订阅消息失败:", error);
     // 静默失败，不影响主功能
@@ -691,7 +665,7 @@ const handleGrowth = () => {
   });
 };
 
-// 跳转到疫苗提醒
+// 跳转到疫苗页面
 const goToVaccine = () => {
   if (!isLoggedIn.value) {
     uni.showModal({
@@ -720,6 +694,8 @@ const goToVaccine = () => {
 </script>
 
 <style lang="scss" scoped>
+@import '@/styles/colors.scss';
+
 // ===== 设计系统变量 =====
 $spacing: 20rpx; // 统一间距
 
@@ -729,7 +705,7 @@ $spacing: 20rpx; // 统一间距
   top: 0;
   left: 0;
   right: 0;
-  background: #ffffff;
+  background: $color-bg-primary;
   z-index: 9999;
 }
 
@@ -756,7 +732,7 @@ $spacing: 20rpx; // 统一间距
   align-items: center;
   gap: 8rpx;
   padding: 6rpx 16rpx 6rpx 6rpx;
-  background: #f5f7fa;
+  background: $color-bg-secondary;
   border-radius: 40rpx;
   height: 100%;
   max-width: 100%;
@@ -786,8 +762,8 @@ $spacing: 20rpx; // 统一间距
 
 .baby-name {
   font-size: 26rpx;
-  font-weight: 500;
-  color: #333;
+  font-weight: $font-weight-medium;
+  color: $color-text-primary;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -796,7 +772,7 @@ $spacing: 20rpx; // 统一间距
 
 .baby-age {
   font-size: 22rpx;
-  color: #999;
+  color: $color-text-secondary;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -810,10 +786,10 @@ $spacing: 20rpx; // 统一间距
 
 .add-baby-hint {
   padding: 16rpx 32rpx;
-  background: #f5f7fa;
+  background: $color-bg-secondary;
   border-radius: 40rpx;
   font-size: 24rpx;
-  color: #999;
+  color: $color-text-secondary;
 }
 
 // 添加宝宝按钮 - 对齐胶囊位置
@@ -832,14 +808,14 @@ $spacing: 20rpx; // 统一间距
   justify-content: center;
   gap: 8rpx;
   padding: 6rpx 16rpx;
-  background: #f5f7fa;
+  background: $color-bg-secondary;
   border-radius: 40rpx;
   height: 100%;
   max-width: 100%;
-  transition: all 0.3s ease;
+  transition: all $transition-slow;
 
   &:active {
-    background: #eef1f7;
+    background: rgba(50, 220, 110, 0.15);
     transform: scale(0.95);
   }
 }
@@ -850,8 +826,8 @@ $spacing: 20rpx; // 统一间距
 
 .button-text {
   font-size: 26rpx;
-  font-weight: 500;
-  color: #667eea;
+  font-weight: $font-weight-medium;
+  color: $color-text-primary;
   white-space: nowrap;
 }
 
@@ -878,300 +854,391 @@ $spacing: 20rpx; // 统一间距
 .index-page {
   // padding-top 由内联样式动态设置
   min-height: 100vh;
-  background: #f5f5f5;
-  padding-top: 20rpx;
+  background: $color-bg-secondary;
+  padding-top: 12rpx;
 }
 
 // 页面内容区域 - 修复布局
 .page-content {
   // 顶部由内联样式动态设置 (导航栏总高度 + 间距)
-  padding-left: $spacing;
-  padding-right: $spacing;
+  padding-left: 16rpx;
+  padding-right: 16rpx;
   padding-bottom: $spacing;
+  padding-top: 12rpx;
 
   // 为 tabBar 预留空间（env(safe-area-inset-bottom) 处理全面屏底部安全区）
   margin-bottom: calc(100rpx + env(safe-area-inset-bottom));
 }
 
-// 游客模式提示横幅
-.guest-banner {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  border-radius: 16rpx;
-  padding: 30rpx;
-  margin-bottom: $spacing;
-  box-shadow: 0 4rpx 12rpx rgba(102, 126, 234, 0.2);
-}
-
-.banner-content {
+// ============ 距离上次喂养卡片 ============
+.last-feeding-card {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 20rpx;
+  background: $color-bg-primary;
+  border: 1rpx solid $color-border-primary;
+  border-left: 4rpx solid $color-primary;
+  border-radius: $radius-lg;
+  padding: $spacing-lg $spacing-md;
+  margin-bottom: $spacing-2xl;
+  box-shadow: $shadow-primary-sm;
+}
+
+.feeding-left {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+  flex: 1;
+}
+
+.feeding-icon {
+  width: 48rpx;
+  height: 48rpx;
+  border-radius: $radius-full;
+  background: rgba(50, 220, 110, 0.15);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.feeding-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4rpx;
+  flex: 1;
+}
+
+.feeding-label {
+  font-size: 24rpx;
+  color: $color-text-secondary;
+  font-weight: $font-weight-medium;
+}
+
+.feeding-time {
+  font-size: 36rpx;
+  font-weight: $font-weight-bold;
+  color: $color-text-primary;
+  line-height: 1.2;
+}
+
+.feeding-action {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.action-btn {
+  display: flex;
+  align-items: center;
+  gap: 6rpx;
+  padding: 10rpx 14rpx;
+  background: $color-bg-secondary;
+  border: 1rpx solid $color-border-primary;
+  border-radius: $radius-xl;
+  transition: all $transition-base;
+
+  &:active {
+    background: $color-primary-lighter;
+    transform: scale(0.98);
+  }
+}
+
+// 疫苗提醒横幅
+.vaccine-banner {
+  padding: 20rpx 0;
+}
+
+.banner-left {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+  flex: 1;
+  min-width: 0;
+}
+
+.banner-icon {
+  font-size: 32rpx;
+  font-weight: 700;
+  color: #999;
+  flex-shrink: 0;
 }
 
 .banner-text {
-  flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 8rpx;
-  color: white;
-}
+  gap: 4rpx;
+  flex: 1;
+  min-width: 0;
 
-.banner-title {
-  font-size: 32rpx;
-  font-weight: bold;
-}
-
-.banner-desc {
-  font-size: 24rpx;
-  opacity: 0.9;
+  text {
+    font-size: 32rpx;
+    color: #333;
+    line-height: 1.3;
+    word-break: break-word;
+  }
 }
 
 // 今日数据卡片
 .today-stats {
-  background: white;
-  border-radius: 16rpx;
-  padding: 30rpx;
-  margin-bottom: $spacing;
-}
-
-.stats-title {
-  font-size: 32rpx;
-  font-weight: bold;
-  margin-bottom: 24rpx;
+  margin-bottom: $spacing-2xl;
+  background: $color-bg-primary;
+  border: 1rpx solid $color-border-primary;
+  border-radius: $radius-lg;
+  padding: $spacing-lg $spacing-md;
 }
 
 .stats-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 20rpx;
+  gap: 16rpx;
 }
 
-.stat-item {
-  position: relative;
-  text-align: center;
-  padding: 20rpx;
-  border-radius: 12rpx;
-  overflow: hidden;
-  background-color: #f5f5f5;
-}
-
-.stat-bg {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  z-index: 0;
-  object-fit: cover;
-  object-position: center;
-}
-
-.stat-content {
-  position: relative;
-  z-index: 1;
-}
-
-// 奶瓶奶量背景
-.stat-milk {
-}
-
-// 母乳喂养背景
-.stat-breast {
-}
-
-// 睡眠时长背景
-.stat-sleep {
-}
-
-// 换尿布背景
-.stat-diaper {
+// 新的数据卡片样式
+.stat-card {
+  background: $color-bg-secondary;
+  border-radius: $radius-md;
+  padding: $spacing-lg $spacing-md;
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-md;
 }
 
 .stat-icon {
-  width: 80rpx;
-  height: 80rpx;
-  margin-bottom: 12rpx;
+  width: 40rpx;
+  height: 40rpx;
+}
+
+.stat-header {
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+  text-align: center;
+}
+
+.stat-card-title {
+  font-size: 28rpx;
+  color: $color-text-primary;
+  font-weight: 350;
+  text-align: left;
+  padding-bottom: 0;
+  padding-left: 4rpx;
+}
+
+.stat-main {
+  display: flex;
+  flex-direction: column;
+  gap: 6rpx;
 }
 
 .stat-value {
-  font-size: 32rpx;
-  font-weight: bold;
-  color: #1a1a1a;
-  margin-bottom: 8rpx;
-}
-
-.stat-label {
-  font-size: 24rpx;
-  color: #808080;
-}
-
-.last-feeding {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  border-radius: 16rpx;
-  padding: 30rpx;
-  margin-bottom: $spacing;
-  color: white;
+  font-size: 34rpx;
+  font-weight: 450;
+  color: $color-text-primary;
+  line-height: 1.3;
   text-align: center;
 }
 
-.time-info {
-  display: flex;
-  flex-direction: column;
-  gap: 12rpx;
-}
-
-.label {
-  font-size: 28rpx;
-  opacity: 0.9;
-}
-
-.time {
-  font-size: 48rpx;
-  font-weight: bold;
-}
-
-.next-time {
+.stat-sub {
+  padding-top: 0;
   font-size: 24rpx;
-  opacity: 0.8;
+  color: $color-text-secondary;
   text-align: center;
 }
 
-.vaccine-reminder {
-  background: white;
-  border-radius: 16rpx;
-  padding: 30rpx;
-  margin-bottom: $spacing;
+// ============ 本周概览卡片 ============
+.weekly-overview {
+  background: $color-bg-primary;
+  border: 1rpx solid $color-border-primary;
+  border-radius: $radius-lg;
+  padding: $spacing-lg $spacing-md;
+  margin-bottom: $spacing-2xl;
 }
 
-.reminder-header {
+.card-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 20rpx;
+  margin-bottom: 16rpx;
 }
 
-.header-left {
-  display: flex;
-  align-items: center;
-  gap: 12rpx;
-}
-
-.reminder-icon {
+.card-title {
   font-size: 32rpx;
+  font-weight: $font-weight-semibold;
+  color: $color-text-primary;
 }
 
-.reminder-title {
-  font-size: 32rpx;
-  font-weight: bold;
-  color: #1a1a1a;
-}
-
-.header-right {
-  display: flex;
-  align-items: center;
-  gap: 8rpx;
-  color: #999;
-  font-size: 24rpx;
-}
-
-.vaccine-list {
-  display: flex;
-  flex-direction: column;
-  gap: 12rpx;
-}
-
-.vaccine-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 20rpx;
-  background: #f8f9fa;
-  border-radius: 12rpx;
-  border-left: 6rpx solid #fa2c19;
-
-  &.status-due {
-    border-left-color: #fa2c19;
-    background: #fff7f0;
-  }
-
-  &.status-overdue {
-    border-left-color: #ff4d4f;
-    background: #fff1f0;
-  }
-}
-
-.vaccine-info {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 8rpx;
-}
-
-.vaccine-name {
-  font-size: 28rpx;
-  font-weight: bold;
-  color: #1a1a1a;
-}
-
-.vaccine-date {
-  font-size: 24rpx;
-  color: #666;
-}
-
-.vaccine-badge {
-  padding: 6rpx 16rpx;
-  border-radius: 8rpx;
+.card-subtitle {
   font-size: 22rpx;
-  color: white;
+  color: $color-text-secondary;
+}
 
-  &.due {
-    background: #fa2c19;
-  }
+.overview-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12rpx;
+}
 
-  &.overdue {
-    background: #ff4d4f;
+.overview-item {
+  background: $color-bg-secondary;
+  border-radius: $radius-md;
+  padding: $spacing-md 8rpx;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-md;
+}
+
+.overview-label {
+  font-size: 22rpx;
+  color: $color-text-secondary;
+  font-weight: $font-weight-medium;
+}
+
+.overview-value {
+  font-size: 36rpx;
+  font-weight: 450;
+  color: $color-text-primary;
+  line-height: 1.2;
+}
+
+.overview-trend {
+  font-size: 22rpx;
+  font-weight: $font-weight-semibold;
+  color: $color-text-secondary;
+}
+
+// ============ 宝宝成长进度卡片 ============
+.growth-milestone {
+  background: $color-bg-primary;
+  border: 1rpx solid $color-border-primary;
+  border-radius: $radius-lg;
+  padding: $spacing-lg $spacing-md;
+  margin-bottom: $spacing-2xl;
+}
+
+.milestone-content {
+  display: flex;
+  flex-direction: column;
+  gap: 16rpx;
+}
+
+.milestone-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12rpx 0;
+  border-bottom: 1rpx solid $color-divider;
+
+  &:last-of-type {
+    border-bottom: none;
   }
 }
 
+.milestone-label {
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+}
+
+.label-icon {
+  font-size: 28rpx;
+}
+
+.label-text {
+  font-size: 26rpx;
+  color: $color-text-secondary;
+  font-weight: $font-weight-medium;
+}
+
+.milestone-value {
+  font-size: 28rpx;
+  font-weight: $font-weight-semibold;
+  color: $color-text-primary;
+}
+
+.progress-bar {
+  width: 100%;
+  height: 8rpx;
+  background: $color-bg-disabled;
+  border-radius: $radius-xs;
+  overflow: hidden;
+  margin-top: 8rpx;
+}
+
+.progress-fill {
+  height: 100%;
+  background: $gradient-primary-secondary;
+  transition: width $transition-slow;
+  border-radius: $radius-xs;
+}
+
+.progress-text {
+  text-align: center;
+  font-size: 20rpx;
+  color: $color-text-secondary;
+  font-weight: $font-weight-medium;
+  margin-top: 8rpx;
+}
+
+// 快捷操作
 .quick-actions {
-  background: white;
-  border-radius: 16rpx;
-  padding: 30rpx;
   margin-bottom: $spacing;
 }
 
 .action-title {
-  font-size: 32rpx;
-  font-weight: bold;
-  margin-bottom: 24rpx;
+  font-size: 28rpx;
+  font-weight: $font-weight-semibold;
+  color: $color-text-secondary;
+  text-align: center;
+  margin-bottom: $spacing-lg;
 }
 
-.action-buttons {
+.action-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12rpx;
+}
+
+// 快捷操作卡片
+.action-card {
   display: flex;
   flex-direction: column;
-  gap: 16rpx;
+  align-items: center;
+  justify-content: center;
+  gap: $spacing-md;
+  padding: $spacing-md 12rpx;
+  background: $color-bg-primary;
+  border: 1rpx solid $color-border-primary;
+  border-radius: $radius-lg;
+  transition: all $transition-slow;
+
+  &:active {
+    transform: scale(0.95);
+    box-shadow: $shadow-md;
+  }
 }
 
-.button-row {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 16rpx;
+.action-icon {
+  width: 44rpx;
+  height: 44rpx;
 }
 
-.button-content {
+.action-icon-wrapper {
+  width: 48rpx;
+  height: 48rpx;
+  border-radius: $radius-full;
+  background: rgba(50, 220, 110, 0.15);
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 12rpx;
+}
 
-  .icon {
-    font-size: 36rpx;
-  }
-
-  .icon-img {
-    width: 40rpx;
-    height: 40rpx;
-  }
+.action-label {
+  font-size: 22rpx;
+  font-weight: $font-weight-medium;
+  color: $color-text-primary;
+  text-align: center;
+  line-height: 1.2;
 }
 </style>

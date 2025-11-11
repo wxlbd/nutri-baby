@@ -11,8 +11,9 @@
 export * from './user'
 
 // 宝宝状态管理 (简化版,保留)
+// 注: 协作者数据已集成到 baby.ts 中，使用 getCollaborators/setCollaborators/getMyPermission/setMyPermission
 export * from './baby'
 
 // 其他模块 (根据需要保留)
-export * from './collaborator'
+// export * from './collaborator'  // 已整合到 baby.ts 中，避免导出冲突
 export * from './subscribe'

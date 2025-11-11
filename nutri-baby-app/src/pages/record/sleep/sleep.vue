@@ -1,85 +1,107 @@
 <template>
-  <view class="sleep-page">
-    <!-- 当前状态 -->
-    <view class="status-card">
-      <view v-if="ongoingRecord" class="sleeping">
-        <view class="status-icon">💤</view>
-        <view class="status-text">宝宝正在睡觉</view>
-        <view class="sleep-duration">
-          <text class="duration">{{ formattedTime }}</text>
-          <text class="label">已睡眠</text>
+  <view>
+    <!-- 导航栏 -->
+    <wd-navbar fixed placeholder title="睡眠记录" left-arrow safeAreaInsetTop>
+      <template #capsule>
+        <wd-navbar-capsule @back="goBack" @back-home="goBackHome" />
+      </template>
+    </wd-navbar>
+
+    <view class="sleep-page">
+      <!-- 当前状态卡片 -->
+      <view class="status-card">
+        <view v-if="ongoingRecord" class="status-content">
+          <view class="status-icon">💤</view>
+          <view class="status-info">
+            <text class="status-text">宝宝正在睡觉</text>
+            <view class="sleep-duration">
+              <text class="duration">{{ formattedTime }}</text>
+              <text class="duration-label">已睡眠</text>
+            </view>
+          </view>
+        </view>
+        <view v-else class="status-content">
+          <view class="status-icon">👀</view>
+          <view class="status-info">
+            <text class="status-text">宝宝醒着</text>
+            <text class="status-subtitle">点击下方开始记录睡眠</text>
+          </view>
         </view>
       </view>
-      <view v-else class="awake">
-        <view class="status-icon">👀</view>
-        <view class="status-text">宝宝醒着</view>
+
+      <!-- 睡眠类型选择 -->
+      <view v-if="!ongoingRecord" class="sleep-type-card">
+        <view class="card-header">
+          <text class="card-title">睡眠类型</text>
+        </view>
+        <wd-radio-group v-model="sleepType">
+          <wd-radio value="nap">小睡</wd-radio>
+          <wd-radio value="night">夜间长睡</wd-radio>
+        </wd-radio-group>
       </view>
-    </view>
 
-    <!-- 睡眠类型选择 -->
-    <view v-if="!ongoingRecord" class="sleep-type">
-      <view class="section-title">睡眠类型</view>
-      <wd-radio-group v-model="sleepType">
-        <wd-radio value="nap">小睡</wd-radio>
-        <wd-radio value="night">夜间长睡</wd-radio>
-      </wd-radio-group>
-    </view>
-
-    <!-- 操作按钮 -->
-    <view class="action-buttons">
-      <wd-button
-        v-if="!ongoingRecord"
-        type="primary"
-        size="large"
-        block
-        @click="startSleep"
-      >
-        <view class="button-content">
-          <text class="icon">💤</text>
-          <text>开始睡觉</text>
-        </view>
-      </wd-button>
-
-      <wd-button v-else type="success" size="large" block @click="endSleep">
-        <view class="button-content">
-          <text class="icon">🌟</text>
-          <text>宝宝醒了</text>
-        </view>
-      </wd-button>
-    </view>
-
-    <!-- 快速补记睡眠 -->
-    <view v-if="!ongoingRecord" class="quick-record-section">
-      <view class="section-title">快速补记睡眠</view>
-      <wd-button
-        type="info"
-        size="large"
-        block
-        @click="showQuickRecordModal = true"
-      >
-        <view class="button-content">
-          <text class="icon">⏰</text>
-          <text>补记历史睡眠</text>
-        </view>
-      </wd-button>
-    </view>
-
-    <!-- 最近记录 -->
-    <view v-if="lastRecord && !ongoingRecord" class="last-record">
-      <view class="section-title">上次睡眠</view>
-      <wd-cell-group>
-        <wd-cell
-          :title="lastRecord.type === 'nap' ? '小睡' : '夜间长睡'"
-          :desc="formatRecordTime(lastRecord)"
+      <!-- 操作按钮 -->
+      <view class="action-buttons">
+        <wd-button
+          v-if="!ongoingRecord"
+          type="primary"
+          size="large"
+          block
+          @click="startSleep"
         >
-          <template #link>
+          <view class="button-content">
+            <text class="icon">💤</text>
+            <text>开始睡觉</text>
+          </view>
+        </wd-button>
+
+        <wd-button v-else type="success" size="large" block @click="endSleep">
+          <view class="button-content">
+            <text class="icon">✓</text>
+            <text>宝宝醒了</text>
+          </view>
+        </wd-button>
+      </view>
+
+      <!-- 快速补记睡眠卡片 -->
+      <view v-if="!ongoingRecord" class="quick-record-card">
+        <view class="card-header">
+          <text class="card-title">快速补记</text>
+        </view>
+        <wd-button
+          type="info"
+          size="large"
+          block
+          @click="showQuickRecordModal = true"
+        >
+          <view class="button-content">
+            <text class="icon">⏰</text>
+            <text>补记历史睡眠</text>
+          </view>
+        </wd-button>
+      </view>
+
+      <!-- 最近记录卡片 -->
+      <view v-if="lastRecord && !ongoingRecord" class="last-record-card">
+        <view class="card-header">
+          <text class="card-title">上次睡眠</text>
+        </view>
+        <view class="record-item">
+          <view class="record-left">
+            <view class="record-label">{{
+              lastRecord.type === "nap" ? "小睡" : "夜间长睡"
+            }}</view>
+            <text class="record-time">{{ formatRecordTime(lastRecord) }}</text>
+          </view>
+          <view class="record-right">
             <text class="duration-text">{{
               formatDuration(lastRecord.duration || 0)
             }}</text>
-          </template>
-        </wd-cell>
-      </wd-cell-group>
+          </view>
+        </view>
+      </view>
     </view>
+
     <!-- 快速补记睡眠对话框 -->
     <wd-popup
       v-model="showQuickRecordModal"
@@ -129,7 +151,7 @@
               size="large"
               @click="handleQuickSleepConfirm"
             >
-              {{ isEditing ? '更新记录' : '确定' }}
+              {{ isEditing ? "更新记录" : "确定" }}
             </wd-button>
           </view>
         </view>
@@ -144,7 +166,7 @@ import { onLoad, onShow } from "@dcloudio/uni-app";
 import { currentBabyId, currentBaby } from "@/store/baby";
 import { getUserInfo } from "@/store/user";
 import { formatDate, formatDuration } from "@/utils/date";
-import { padZero } from "@/utils/common";
+import { goBack, goBackHome, padZero } from "@/utils/common";
 import {
   StorageKeys,
   getStorage,
@@ -271,7 +293,7 @@ const handleQuickSleepConfirm = async () => {
       uni.navigateBack();
     }, 1000);
   } catch (error: any) {
-    console.error("[Sleep] 保存快速补记睡眠失败:", error);
+    console.error("保存快速补记睡眠失败:", error);
     uni.showToast({
       title: error.message || "保存失败",
       icon: "none",
@@ -311,14 +333,14 @@ const saveTempRecord = () => {
     startTime: startTime.value,
   };
   setStorage(StorageKeys.TEMP_SLEEP_RECORDING, tempRecord);
-  console.log("[Sleep] 临时记录已保存:", tempRecord);
+  console.log("临时记录已保存:", tempRecord);
 };
 
 // 清除临时睡眠记录
 const clearTempRecord = () => {
   removeStorage(StorageKeys.TEMP_SLEEP_RECORDING);
   tempRecordCheckDone.value = false; // 重置标志，允许下次检测
-  console.log("[Sleep] 临时记录已清除");
+  console.log("临时记录已清除");
 };
 
 // 恢复临时睡眠记录
@@ -351,7 +373,7 @@ const restoreTempRecord = (tempRecord: TempSleepRecording) => {
   }, 1000) as unknown as number;
 
   console.log(
-    "[Sleep] 临时记录已恢复, 已过时长:",
+    "临时记录已恢复, 已过时长:",
     Math.floor((Date.now() - tempRecord.startTime) / 1000),
     "秒"
   );
@@ -407,7 +429,7 @@ const startSleep = async () => {
       icon: "success",
     });
 
-    console.log("[Sleep] 开始计时");
+    console.log("开始计时");
   } catch (error: any) {
     uni.showToast({
       title: error.message || "开始失败",
@@ -443,7 +465,7 @@ const endSleep = async () => {
     // 计算总时长(秒)
     const elapsedSeconds = Math.floor((Date.now() - startTime.value) / 1000);
 
-    console.log("[Sleep] 停止计时,总时长:", elapsedSeconds, "秒");
+    console.log("停止计时,总时长:", elapsedSeconds, "秒");
 
     // 调用 API 创建睡眠记录
     await sleepApi.apiCreateSleepRecord({
@@ -454,7 +476,7 @@ const endSleep = async () => {
       duration: elapsedSeconds, // 添加时长字段
     });
 
-    console.log("[Sleep] 睡眠记录保存成功");
+    console.log("睡眠记录保存成功");
 
     // 清除临时记录和进行中的记录
     clearTempRecord();
@@ -469,7 +491,7 @@ const endSleep = async () => {
       uni.navigateBack();
     }, 1000);
   } catch (error: any) {
-    console.error("[Sleep] 保存睡眠记录失败:", error);
+    console.error("保存睡眠记录失败:", error);
 
     // 如果保存失败,恢复计时器
     timerRunning.value = true;
@@ -502,14 +524,17 @@ onLoad((options) => {
 // 加载睡眠记录数据(用于编辑模式)
 const loadSleepRecord = async (recordId: string) => {
   try {
-    const record = await sleepApi.apiGetSleepRecordById(recordId);
+    const apiResponse = await sleepApi.apiGetSleepRecordById(recordId);
+
+    // 转换API响应为前端类型
+    const record = sleepApi.transformSleepRecordResponse(apiResponse);
 
     // 设置睡眠类型
-    sleepType.value = record.sleepType;
+    sleepType.value = record.type || 'nap';
 
     // 设置快速补记表单的开始和结束时间
     quickRecord.value = {
-      type: record.sleepType,
+      type: record.type || 'nap',
       startTime: record.startTime,
       endTime: record.endTime || Date.now(),
     };
@@ -517,12 +542,12 @@ const loadSleepRecord = async (recordId: string) => {
     // 直接打开快速补记模态框
     showQuickRecordModal.value = true;
 
-    console.log('[Sleep] 已加载记录数据:', record);
+    console.log("已加载记录数据:", record);
   } catch (error: any) {
-    console.error('[Sleep] 加载记录失败:', error);
+    console.error("加载记录失败:", error);
     uni.showToast({
-      title: error.message || '加载记录失败',
-      icon: 'none',
+      title: error.message || "加载记录失败",
+      icon: "none",
     });
     setTimeout(() => {
       uni.navigateBack();
@@ -562,7 +587,7 @@ watch(
   () => {
     if (timerRunning.value && startTime.value > 0) {
       saveTempRecord();
-      console.log("[Sleep] 睡眠类型已更改,临时记录已更新");
+      console.log("睡眠类型已更改,临时记录已更新");
     }
   }
 );
@@ -590,7 +615,7 @@ const checkTempRecord = () => {
 
   // 检查临时记录是否属于当前宝宝
   if (tempRecord.babyId !== currentBabyId.value) {
-    console.log("[Sleep] 临时记录不属于当前宝宝,已忽略");
+    console.log("临时记录不属于当前宝宝,已忽略");
     tempRecordCheckDone.value = true; // 标记已检测
     return;
   }
@@ -605,7 +630,7 @@ const checkTempRecord = () => {
   const seconds = elapsedSeconds % 60;
 
   console.log(
-    "[Sleep] 检测到临时记录,已过时长:",
+    "检测到临时记录,已过时长:",
     `${hours}小时${minutes}分${seconds}秒`
   );
 
@@ -620,12 +645,12 @@ const checkTempRecord = () => {
     success: (res) => {
       if (res.confirm) {
         // 用户选择继续
-        console.log("[Sleep] 用户选择继续临时记录");
+        console.log("用户选择继续临时记录");
         // 恢复临时记录
         restoreTempRecord(tempRecord);
       } else {
         // 用户选择重新开始
-        console.log("[Sleep] 用户选择重新开始,清除临时记录");
+        console.log("用户选择重新开始,清除临时记录");
         clearTempRecord();
       }
     },
@@ -639,71 +664,107 @@ const formatRecordTime = (record: SleepRecord) => {
 </script>
 
 <style lang="scss" scoped>
+@import "@/styles/colors.scss";
+
+// 设计系统变量
+$spacing: 20rpx;
+$radius-lg: 16rpx;
+$radius-md: 12rpx;
+
 .sleep-page {
   min-height: 100vh;
-  background: #f5f5f5;
-  padding: 20rpx;
+  background: $color-bg-secondary;
+  padding: $spacing;
+  padding-top: 12rpx;
+  padding-bottom: calc(100rpx + env(safe-area-inset-bottom));
 }
 
+// ============ 当前状态卡片 ============
 .status-card {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  border-radius: 16rpx;
-  padding: 60rpx 30rpx;
-  margin-bottom: 20rpx;
+  background: $color-bg-primary;
+  border: 1rpx solid $color-border-primary;
+  border-radius: $radius-lg;
+  padding: 40rpx $spacing;
+  margin-bottom: 24rpx;
+  box-shadow: $shadow-primary-sm;
+}
+
+.status-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20rpx;
   text-align: center;
-  color: white;
 }
 
 .status-icon {
-  font-size: 100rpx;
-  margin-bottom: 20rpx;
+  font-size: 80rpx;
+  line-height: 1;
+}
+
+.status-info {
+  display: flex;
+  flex-direction: column;
+  gap: 12rpx;
+  align-items: center;
 }
 
 .status-text {
   font-size: 36rpx;
-  font-weight: bold;
-  margin-bottom: 30rpx;
+  font-weight: 600;
+  color: $color-text-primary;
+}
+
+.status-subtitle {
+  font-size: 24rpx;
+  color: $color-text-secondary;
 }
 
 .sleep-duration {
   display: flex;
   flex-direction: column;
-  gap: 12rpx;
+  gap: 8rpx;
+  align-items: center;
+  margin-top: 12rpx;
 }
 
 .duration {
-  font-size: 72rpx;
+  font-size: 64rpx;
   font-weight: bold;
+  color: $color-primary;
   font-family: "Courier New", monospace;
+  line-height: 1;
 }
 
-.label {
-  font-size: 28rpx;
-  opacity: 0.9;
+.duration-label {
+  font-size: 24rpx;
+  color: $color-text-secondary;
+  font-weight: 500;
 }
 
-.sleep-type {
-  background: white;
-  border-radius: 16rpx;
-  padding: 30rpx;
-  margin-bottom: 20rpx;
-}
-
-.section-title {
-  font-size: 32rpx;
-  font-weight: bold;
+// ============ 睡眠类型卡片 ============
+.sleep-type-card {
+  background: $color-bg-primary;
+  border: 1rpx solid $color-border-primary;
+  border-radius: $radius-lg;
+  padding: $spacing;
   margin-bottom: 24rpx;
+  box-shadow: $shadow-primary-sm;
 }
 
+.card-header {
+  margin-bottom: 20rpx;
+}
+
+.card-title {
+  font-size: 28rpx;
+  font-weight: 600;
+  color: $color-text-primary;
+}
+
+// ============ 操作按钮 ============
 .action-buttons {
-  margin-bottom: 20rpx;
-}
-
-.quick-record-section {
-  background: white;
-  border-radius: 16rpx;
-  padding: 30rpx;
-  margin-bottom: 20rpx;
+  margin-bottom: 24rpx;
 }
 
 .button-content {
@@ -713,21 +774,68 @@ const formatRecordTime = (record: SleepRecord) => {
   gap: 12rpx;
 
   .icon {
-    font-size: 36rpx;
+    font-size: 32rpx;
   }
 }
 
-.last-record {
-  background: white;
-  border-radius: 16rpx;
-  padding: 30rpx;
+// ============ 快速补记卡片 ============
+.quick-record-card {
+  background: $color-bg-primary;
+  border: 1rpx solid $color-border-primary;
+  border-radius: $radius-lg;
+  padding: $spacing;
+  margin-bottom: 24rpx;
+  box-shadow: $shadow-primary-sm;
+}
+
+// ============ 上次睡眠卡片 ============
+.last-record-card {
+  background: $color-bg-primary;
+  border: 1rpx solid $color-border-primary;
+  border-radius: $radius-lg;
+  padding: $spacing;
+  box-shadow: $shadow-primary-sm;
+}
+
+.record-item {
+  background: $color-bg-secondary;
+  border-radius: $radius-md;
+  padding: 16rpx $spacing;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.record-left {
+  display: flex;
+  flex-direction: column;
+  gap: 8rpx;
+}
+
+.record-label {
+  font-size: 24rpx;
+  color: $color-text-secondary;
+  font-weight: 500;
+}
+
+.record-time {
+  font-size: 26rpx;
+  color: $color-text-primary;
+  font-weight: 600;
+}
+
+.record-right {
+  display: flex;
+  align-items: center;
 }
 
 .duration-text {
-  color: #fa2c19;
+  color: $color-primary;
   font-weight: bold;
+  font-size: 28rpx;
 }
 
+// ============ 模态框样式 ============
 .quick-record-modal {
   background: white;
   border-radius: 16rpx 16rpx 0 0;
@@ -773,16 +881,6 @@ const formatRecordTime = (record: SleepRecord) => {
   font-weight: 500;
   margin-bottom: 12rpx;
   color: #333;
-}
-
-.time-input {
-  padding: 20rpx;
-  border: 1rpx solid #eee;
-  border-radius: 8rpx;
-  text-align: center;
-  font-size: 28rpx;
-  color: #333;
-  background: #f8f8f8;
 }
 
 .modal-actions {

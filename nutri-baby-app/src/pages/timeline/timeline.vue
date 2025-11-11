@@ -1,58 +1,42 @@
 <template>
   <view class="timeline-page">
-    <!-- 记录类型筛选 (新增) -->
-    <view class="record-type-filter">
-      <wd-tabs v-model="recordTypeFilter">
+    <!-- 固定顶部筛选条 -->
+    <view class="filter-fixed-top">
+      <!-- 记录类型筛选 -->
+      <wd-tabs v-model="recordTypeFilter" swipeable class="type-tabs">
         <wd-tab title="全部" name="all" />
         <wd-tab title="喂养" name="feeding" />
         <wd-tab title="换尿布" name="diaper" />
         <wd-tab title="睡眠" name="sleep" />
         <wd-tab title="成长" name="growth" />
       </wd-tabs>
-    </view>
 
-    <!-- 日期筛选 -->
-    <view class="date-filter">
-      <view class="quick-filters">
-        <wd-button
-          size="small"
-          :type="filterType === 'today' ? 'primary' : 'default'"
-          :plain="filterType !== 'today'"
-          @click="filterDate('today')"
-        >
-          今天
-        </wd-button>
-        <wd-button
-          size="small"
-          :type="filterType === 'week' ? 'primary' : 'default'"
-          :plain="filterType !== 'week'"
-          @click="filterDate('week')"
-        >
-          本周
-        </wd-button>
-        <wd-button
-          size="small"
-          :type="filterType === 'month' ? 'primary' : 'default'"
-          :plain="filterType !== 'month'"
-          @click="filterDate('month')"
-        >
-          本月
-        </wd-button>
-      </view>
-
-      <!-- 使用 Wot UI 日期选择器 -->
+      <!-- 日期筛选 -->
+      <!-- <view class="date-filter"> -->
+      <wd-radio-group
+        v-model="filterType"
+        inline
+        shape="button"
+        @change="handleDateFilterChange"
+      >
+        <wd-radio value="today">今天</wd-radio>
+        <wd-radio value="week">本周</wd-radio>
+        <wd-radio value="month">本月</wd-radio>
+        <wd-radio value="custom">自定义</wd-radio>
+      </wd-radio-group>
       <wd-datetime-picker
+        id="custom-date-picker"
+        ref="dateTimePickerRef"
+        style="display: none"
         v-model="selectedDateTimestamp"
         @confirm="onDateConfirm"
       >
-        <wd-button size="small" plain custom-class="custom-date-btn">
-          <text>自定义</text>
-        </wd-button>
       </wd-datetime-picker>
+      <!-- </view> -->
     </view>
 
-    <!-- 记录列表 -->
-    <view class="timeline-list">
+    <!-- 可滚动的内容区域 -->
+    <view class="timeline-list" @scroll="handleScroll" scroll-y="true">
       <view v-if="isLoggedIn">
         <view v-if="groupedRecords.length === 0" class="empty-state">
           <wd-status-tip
@@ -66,8 +50,9 @@
             v-for="group in groupedRecords"
             :key="group.date"
             class="date-group"
+            :data-date="group.date"
           >
-            <!-- 日期标题 -->
+            <!-- 日期标题（浮动） -->
             <view class="date-header">{{ group.dateText }}</view>
 
             <!-- 记录列表 -->
@@ -78,15 +63,15 @@
               :class="`record-${record.type}`"
             >
               <!-- 时间轴圆点 -->
-              <view class="timeline-dot" :class="`dot-${record.type}`"></view>
-              <view class="timeline-line"></view>
+              <view class="timeline-dot" :class="`dot-${record.type}`" />
+              <view class="timeline-line" />
 
-              <!-- 记录内容 使用 WotUI Card -->
+              <!-- 记录内容 -->
               <wd-card custom-class="record-card">
                 <template #title>
                   <view class="record-header">
                     <view class="record-type">
-                      <text class="type-icon">{{ record.icon }}</text>
+                      <image :src="record.iconUrl" mode="aspectFill" class="type-icon" />
                       <text class="type-name">{{ record.typeName }}</text>
                     </view>
                     <text class="record-time">{{ record.timeText }}</text>
@@ -117,7 +102,7 @@
                     </wd-button>
                     <wd-button
                       size="small"
-                      type="error"
+                      type="info"
                       @click="deleteRecord(record)"
                     >
                       删除
@@ -127,17 +112,32 @@
               </wd-card>
             </view>
           </view>
+
+          <!-- 加载更多组件 -->
+          <wd-loadmore
+            :state="loadMoreState"
+            @reload="loadMore"
+            loading-text="加载中..."
+            finished-text="没有更多了"
+            error-text="加载失败，点击重试"
+          />
         </view>
       </view>
       <view v-else>
         <wd-status-tip description="请先登录" tip="登录后查看数据..." />
       </view>
     </view>
+
+    <!-- 浮动日期显示 -->
+    <view v-if="currentScrollDate" class="floating-date-badge">
+      {{ currentScrollDate }}
+    </view>
   </view>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from "vue";
+import { onReachBottom } from "@dcloudio/uni-app";
 import { isLoggedIn } from "@/store/user";
 import { currentBaby } from "@/store/baby";
 import {
@@ -162,7 +162,9 @@ const customStartDate = ref(getTodayStart());
 const customEndDate = ref(Date.now());
 
 // 记录类型筛选
-const recordTypeFilter = ref<"all" | "feeding" | "diaper" | "sleep" | "growth">("all");
+const recordTypeFilter = ref<"all" | "feeding" | "diaper" | "sleep" | "growth">(
+  "all"
+);
 
 // Wot UI 日期选择器相关
 const selectedDateTimestamp = ref<number[]>([]);
@@ -170,13 +172,33 @@ const selectedDateTimestamp = ref<number[]>([]);
 // 时间线数据(从聚合 API 获取)
 const timelineItems = ref<TimelineItem[]>([]);
 const totalRecords = ref(0);
+// 滚动时动态更新的当前日期
+const currentScrollDate = ref<string>("");
+const dateTimePickerRef = ref<any>(null);
+
+// 分页相关
+const currentPage = ref(1);
+const pageSize = ref(5);
+const isLoadingMore = ref(false);
+const hasMore = ref(true);
+const handleDateFilterChange = ({ value }: { value: "today" | "week" | "month" | "custom" }) => {
+  console.log("Date filter changed to:", value);
+  if (value === "custom") {
+    console.log("Opening custom date picker");
+    dateTimePickerRef.value?.open();
+  }
+  // 重置分页，重新加载数据
+  currentPage.value = 1;
+  hasMore.value = true;
+  loadRecords(true)
+};
 
 // 展示用的记录接口
 interface TimelineRecord {
   id: string;
   type: "feeding" | "diaper" | "sleep" | "growth";
   time: number;
-  icon: string;
+  iconUrl: string;
   typeName: string;
   timeText: string;
   detail: string;
@@ -190,13 +212,13 @@ const allRecords = computed<TimelineRecord[]>(() => {
   const records: TimelineRecord[] = [];
 
   timelineItems.value.forEach((item) => {
-    let icon = "";
+    let iconUrl = "";
     let typeName = "";
     let detail = "";
 
     if (item.recordType === "feeding") {
       const record = item.detail as feedingApi.FeedingRecordResponse;
-      icon = "🍼";
+      iconUrl = "/static/breastfeeding.svg";
       typeName = "喂养";
 
       if (record.feedingType === "breast") {
@@ -227,7 +249,7 @@ const allRecords = computed<TimelineRecord[]>(() => {
       }
     } else if (item.recordType === "diaper") {
       const record = item.detail as diaperApi.DiaperRecordResponse;
-      icon = "🧷";
+      iconUrl = "/static/baby_changing_station.svg";
       typeName = "换尿布";
 
       if (record.diaperType === "pee") detail = "小便";
@@ -237,7 +259,7 @@ const allRecords = computed<TimelineRecord[]>(() => {
       if (record.pooColor) detail += ` (${record.pooColor})`;
     } else if (item.recordType === "sleep") {
       const record = item.detail as sleepApi.SleepRecordResponse;
-      icon = "💤";
+      iconUrl = "/static/moon_stars.svg";
       typeName = "睡眠";
 
       const duration = record.duration || 0;
@@ -245,7 +267,7 @@ const allRecords = computed<TimelineRecord[]>(() => {
         record.sleepType === "nap" ? "小睡" : "夜间睡眠"
       } ${formatDuration(duration)}`;
     } else if (item.recordType === "growth") {
-      icon = "📏";
+      iconUrl = "/static/monitoring.svg";
       typeName = "成长";
       const record = item.detail as any;
       const parts: string[] = [];
@@ -260,7 +282,7 @@ const allRecords = computed<TimelineRecord[]>(() => {
       id: item.recordId,
       type: item.recordType,
       time: item.eventTime,
-      icon,
+      iconUrl,
       typeName,
       timeText: formatDate(item.eventTime, "HH:mm"),
       detail,
@@ -329,10 +351,30 @@ const emptyDescription = computed(() => {
 });
 
 // 加载时间线记录 (使用新的聚合 API)
-const loadRecords = async () => {
+const loadRecords = async (isRefresh: boolean = false) => {
   if (!currentBaby.value) return;
 
+  // 防止重复加载
+  if (isLoadingMore.value) {
+    console.log("[Timeline] 正在加载中，跳过重复请求");
+    return;
+  }
+
+  // 如果不是刷新且没有更多数据，直接返回
+  if (!isRefresh && !hasMore.value) {
+    console.log("[Timeline] 没有更多数据，跳过加载");
+    return;
+  }
+
+  // 如果是刷新，重置分页
+  if (isRefresh) {
+    currentPage.value = 1;
+    timelineItems.value = [];
+    hasMore.value = true;
+  }
+
   const babyId = currentBaby.value.babyId;
+  const pageToLoad = currentPage.value;
 
   // 计算时间范围
   let startTime = 0;
@@ -350,36 +392,71 @@ const loadRecords = async () => {
   }
 
   try {
+    isLoadingMore.value = true;
     const response = await timelineApi.apiFetchTimeline({
       babyId,
       startTime,
       endTime,
-      pageSize: 200,
+      page: pageToLoad,
+      pageSize: pageSize.value,
     });
 
-    timelineItems.value = response.data.items;
+    // 如果是刷新，替换数据；否则追加数据
+    if (isRefresh) {
+      timelineItems.value = response.data.items;
+      // 刷新后，如果有数据，下次加载第2页
+      if (response.data.items.length > 0) {
+        currentPage.value = 2;
+      }
+    } else {
+      timelineItems.value.push(...response.data.items);
+      // 加载更多后，如果有数据，页码递增
+      if (response.data.items.length > 0) {
+        currentPage.value++;
+      }
+    }
+
     totalRecords.value = response.data.total;
+
+    // 判断是否还有更多数据
+    const loadedCount = timelineItems.value.length;
+    hasMore.value = loadedCount < response.data.total;
+
+    console.log("[Timeline] 加载数据完成", {
+      loadedPage: pageToLoad,
+      nextPage: currentPage.value,
+      loadedCount,
+      total: response.data.total,
+      hasMore: hasMore.value,
+    });
   } catch (error) {
     console.error("加载时间线失败:", error);
     uni.showToast({
       title: "加载数据失败",
       icon: "none",
     });
+  } finally {
+    isLoadingMore.value = false;
   }
 };
 
 // 页面加载
 onMounted(() => {
   if (isLoggedIn.value) {
-    loadRecords();
+    loadRecords(true);
   }
 });
 
-// 筛选日期
-const filterDate = (type: "today" | "week" | "month") => {
-  filterType.value = type;
-  loadRecords(); // 重新加载数据
-};
+// 页面滚动到底部时触发
+onReachBottom(() => {
+  console.log("[Timeline] onReachBottom 触发", {
+    hasMore: hasMore.value,
+    isLoadingMore: isLoadingMore.value,
+  });
+
+  // loadRecords 内部已经有防重复加载的逻辑
+  loadRecords(false);
+});
 
 // Wot UI 日期选择器的 confirm 事件处理
 const onDateConfirm = ({ value }: { value: number[] }) => {
@@ -398,8 +475,8 @@ const onDateConfirm = ({ value }: { value: number[] }) => {
   customEndDate.value = new Date(endTimestamp).setHours(23, 59, 59, 999);
   filterType.value = "custom";
 
-  // 重新加载数据
-  loadRecords();
+  // 重新加载数据（从第一页开始）
+  loadRecords(true);
 };
 
 // 编辑记录 - 跳转到对应的添加页面
@@ -459,23 +536,75 @@ const deleteRecord = async (record: TimelineRecord) => {
     },
   });
 };
+
+// 加载更多状态计算
+const loadMoreState = computed<string>(() => {
+  // 如果没有登录或没有选中宝宝，不显示加载状态
+  if (!isLoggedIn.value || !currentBaby.value) return "finished";
+
+  // 如果记录为空，显示完成状态
+  if (timelineItems.value.length === 0) return "finished";
+
+  // 根据是否还有更多数据和是否正在加载来返回状态
+  if (isLoadingMore.value) return "loading";
+  if (!hasMore.value) return "finished";
+
+  // 默认状态
+  return "loading";
+});
+
+// 加载更多函数
+const loadMore = () => {
+  console.log("[Timeline] 点击重试加载");
+  loadRecords(false);
+};
+
+// 滚动事件处理 - 动态更新显示的日期
+const handleScroll = () => {
+  // 根据滚动位置找到当前可见的日期
+  const dateHeaders = document.querySelectorAll(".date-header");
+  let currentDate = "";
+
+  dateHeaders.forEach((header: any) => {
+    const rect = header.getBoundingClientRect();
+    // 如果日期标题在视口顶部附近，更新当前显示的日期
+    if (rect.top <= 120) {
+      currentDate = header.textContent || "";
+    }
+  });
+
+  if (currentDate) {
+    currentScrollDate.value = currentDate;
+  }
+
+  // 注意：自动加载更多由 onReachBottom 生命周期钩子处理
+};
+
 </script>
 
 <style lang="scss" scoped>
 .timeline-page {
   min-height: 100vh;
-  background: #f5f5f5;
-  padding-bottom: 40rpx;
+  background: #f6f8f7;
+  display: flex;
+  flex-direction: column;
 }
 
-// ========== 强化 Tabs 视觉权重 ==========
-.record-type-filter {
-  background: white;
-  position: sticky;
+// ========== 固定顶部筛选条 ==========
+.filter-fixed-top {
+  position: fixed;
   top: 0;
-  z-index: 11;
-  box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.08);
-  border-bottom: 4rpx solid #f7f7f7;
+  left: 0;
+  right: 0;
+  z-index: 100;
+  background: white;
+  box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.08);
+  overflow-x: hidden;
+}
+
+.type-tabs {
+  background: white;
+  border-bottom: 1rpx solid #e8eef5;
 }
 
 :deep(.wd-tabs) {
@@ -488,35 +617,32 @@ const deleteRecord = async (record: TimelineRecord) => {
 
   .wd-tab__item--active {
     font-weight: 600;
-    color: #fa2c19;
+    color: #7dd3a2;
     transform: scale(1.05);
   }
 
   .wd-tabs__line {
     height: 6rpx;
     border-radius: 3rpx;
-    background: linear-gradient(90deg, #fa2c19, #ff6b4a);
+    background: linear-gradient(90deg, #7dd3a2, #52c41a);
   }
 }
 
-// ========== 降低日期筛选的视觉压力 ==========
 .date-filter {
-  background: #fafafa;
-  padding: 16rpx 20rpx;
+  background: #f6f8f7;
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 12rpx;
-  position: sticky;
-  top: 100rpx;
-  z-index: 9;
   border-bottom: 1rpx solid #ebebeb;
+  min-height: 60rpx;
 }
 
 .quick-filters {
   display: flex;
   gap: 12rpx;
   flex: 1;
+  align-items: center;
+  justify-content: flex-end;
 }
 
 // 按钮样式优化
@@ -538,11 +664,11 @@ const deleteRecord = async (record: TimelineRecord) => {
 }
 
 :deep(.wd-button--default:active) {
-  background: #f5f5f5;
+  background: #f6f8f7;
 }
 
 :deep(.wd-button--primary:not(.wd-button--plain)) {
-  box-shadow: 0 4rpx 12rpx rgba(250, 44, 25, 0.25);
+  box-shadow: 0 4rpx 12rpx rgba(125, 211, 162, 0.25);
   transform: translateY(-2rpx);
 }
 
@@ -550,24 +676,14 @@ const deleteRecord = async (record: TimelineRecord) => {
   background: white;
 }
 
-// 自定义日期按钮
-:deep(.custom-date-btn) {
-  display: flex;
-  align-items: center;
-  gap: 8rpx;
-  color: #666 !important;
-  border-color: #e0e0e0 !important;
-  min-width: 140rpx;
-
-  .icon {
-    font-size: 28rpx;
-  }
-}
-
-// ========== 优化内容区 ==========
+// ========== 可滚动内容区域 ==========
 .timeline-list {
+  flex: 1;
   padding: 20rpx;
-  padding-top: 32rpx;
+  padding-top: 180rpx; // 为固定的顶部预留空间
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
 }
 
 .empty-state {
@@ -591,25 +707,24 @@ const deleteRecord = async (record: TimelineRecord) => {
 }
 
 .date-header {
+  width: 100%;
   font-size: 28rpx;
   font-weight: 600;
   color: #333;
   padding: 20rpx 0;
   padding-left: 16rpx;
-  position: sticky;
-  top: 158rpx;
-  background: linear-gradient(to bottom, #f5f5f5 85%, transparent);
+  background: linear-gradient(to bottom, #f6f8f7 85%, transparent);
   z-index: 5;
 
   &::before {
-    content: '';
+    content: "";
     position: absolute;
     left: 0;
     top: 50%;
     transform: translateY(-50%);
     width: 6rpx;
     height: 28rpx;
-    background: linear-gradient(180deg, #fa2c19, #ff6b4a);
+    background: linear-gradient(180deg, #7dd3a2, #52c41a);
     border-radius: 3rpx;
   }
 }
@@ -649,7 +764,7 @@ const deleteRecord = async (record: TimelineRecord) => {
   box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.1);
 
   &.dot-feeding {
-    border-color: #fa2c19;
+    border-color: #7dd3a2;
   }
 
   &.dot-diaper {
@@ -701,7 +816,8 @@ const deleteRecord = async (record: TimelineRecord) => {
 }
 
 .type-icon {
-  font-size: 32rpx;
+  width: 32rpx;
+  height: 32rpx;
 }
 
 .type-name {
@@ -726,7 +842,7 @@ const deleteRecord = async (record: TimelineRecord) => {
   margin-bottom: 8rpx;
 
   &.note {
-    background: #f7f7f7;
+    background: #f6f8f7;
     padding: 12rpx 16rpx;
     border-radius: 8rpx;
     margin-top: 12rpx;
@@ -747,5 +863,52 @@ const deleteRecord = async (record: TimelineRecord) => {
   justify-content: flex-end;
   gap: 12rpx;
   margin-top: 16rpx;
+}
+
+// ========== 浮动日期徽章 ==========
+.floating-date-badge {
+  position: fixed;
+  bottom: 100rpx;
+  right: 30rpx;
+  background: linear-gradient(135deg, #7dd3a2, #52c41a);
+  color: white;
+  padding: 16rpx 24rpx;
+  border-radius: 40rpx;
+  font-size: 28rpx;
+  font-weight: 600;
+  box-shadow: 0 4rpx 16rpx rgba(125, 211, 162, 0.35);
+  z-index: 50;
+  animation: slideInRight 0.3s ease;
+}
+
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(60rpx);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+:deep(.wd-tabs) {
+  width: 100% !important;
+  height: 80rpx !important;
+}
+:deep(.wd-datetime-picker .wd-cell) {
+  display: none !important;
+}
+:deep(.wd-radio-group) {
+  border-top: 1rpx solid #e8eef5 !important;
+  padding: 18rpx 20rpx !important;
+}
+:deep(.wd-radio.is-button .wd-radio__label) {
+  font-size: 22rpx !important;
+  min-width: 0 !important;
+  padding: 0 12rpx !important;
+  width: 100rpx !important;
+  height: 42rpx !important;
+  line-height: 42rpx;
 }
 </style>

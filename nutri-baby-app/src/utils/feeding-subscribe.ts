@@ -59,43 +59,6 @@ function saveFeedingSubscribeRecord(record: FeedingSubscribeRecord) {
   setStorage(StorageKeys.FEEDING_SUBSCRIBE_RECORD, record)
 }
 
-/**
- * 检查是否应该显示喂养订阅申请
- *
- * 规则:
- * 1. 如果已永久关闭,不显示
- * 2. 如果距离上次申请时间未超过间隔,不显示
- * 3. 如果所有消息都已被Ban,不显示
- * 4. 否则显示
- *
- * @returns { shouldShow: boolean, bannedCount: number }
- */
-export function shouldShowFeedingSubscribeRequest(): { shouldShow: boolean; bannedCount: number } {
-  const record = getFeedingSubscribeRecord()
-
-  // 已永久关闭
-  if (record.isDismissedForever) {
-    console.log('[FeedingSubscribe] 已永久关闭申请弹窗')
-    return { shouldShow: false, bannedCount: 0 }
-  }
-
-  // 检查是否所有消息都已被Ban
-  let bannedCount = 0
-  for (const type of FEEDING_MESSAGE_TYPES) {
-    const authStatus = getAuthStatus(type)
-    if (authStatus === 'ban') {
-      bannedCount++
-    }
-  }
-
-  if (bannedCount === FEEDING_MESSAGE_TYPES.length) {
-    console.log('[FeedingSubscribe] 所有消息都已被Ban,不再显示')
-    return { shouldShow: false, bannedCount }
-  }
-
-  console.log('[FeedingSubscribe] 应该显示申请弹窗')
-  return { shouldShow: true, bannedCount }
-}
 
 /**
  * 一次性申请所有喂养订阅消息

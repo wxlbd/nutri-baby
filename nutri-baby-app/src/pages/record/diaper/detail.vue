@@ -297,13 +297,6 @@ function handleBackHome() {
   background-color: #f5f5f5;
 }
 
-.loading {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  min-height: 60vh;
-}
-
 .content {
   padding: 20rpx;
 }
