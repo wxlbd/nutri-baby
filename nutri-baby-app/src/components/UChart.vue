@@ -23,8 +23,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch, nextTick, onBeforeUnmount } from 'vue'
-import type { PropType } from 'vue'
+import { ref, onMounted, watch, nextTick, onBeforeUnmount } from 'vue'
 import uCharts from '@qiun/ucharts'
 import type { ChartType, ChartData, ChartOptions } from '@/composables/useUChart'
 
@@ -179,10 +178,10 @@ const initChart = async () => {
 
     // #ifndef H5
     // 小程序环境使用 SelectorQuery
-    const selectQuery = uni.createSelectorQuery()
-    selectQuery.select(`.ucharts-canvas-${props.canvasId}`)
+    const selectQuery = uni.createSelectorQuery() as any
+    selectQuery.select(`.ucharts-canvas-${props.canvasId}` as any)
       .fields({ node: true, size: true })
-      .exec((res) => {
+      .exec((res: any) => {
         console.log('[UChart] 小程序 Canvas 查询结果:', res)
 
         if (!res || !res[0]) {
@@ -231,7 +230,7 @@ const initChart = async () => {
           animation: true,
           pixelRatio: pixelRatio,
           ...props.chartOptions
-        })
+        } as any)
 
         isInitialized.value = true
         error.value = ''
