@@ -1,5 +1,5 @@
 <template>
-  <view>
+  <view class="page">
     <wd-message-box />
     <wd-toast />
 
@@ -8,24 +8,22 @@
       <wd-cell-group custom-class="group" title="基础信息" border>
         <!-- 宝宝头像 -->
         <wd-cell title="宝宝头像" title-width="200rpx">
-          <view style="text-align: left">
-            <view style="margin-bottom: 24rpx">
+          <view class="avatar-section">
+            <view class="avatar-preview">
               <!-- 用户上传的头像 -->
               <image
                 v-if="formData.avatarUrl"
                 :src="formData.avatarUrl"
                 mode="aspectFill"
-                style="width: 160rpx; height: 160rpx; border-radius: 50%; object-fit: cover"
               />
               <!-- 默认头像 -->
               <image
                 v-else
                 src="@/static/default.png"
                 mode="aspectFill"
-                style="width: 160rpx; height: 160rpx; border-radius: 50%; object-fit: cover"
               />
             </view>
-            <wd-button size="small" @click="chooseAvatar">
+            <wd-button size="small" class="avatar-btn" @click="chooseAvatar">
               <wd-icon name="photograph" size="16" />
               {{ formData.avatarUrl ? '更换头像' : '选择头像' }}
             </wd-button>
@@ -83,11 +81,11 @@
     </wd-form>
 
     <!-- 底部按钮 -->
-    <view style="padding: 24rpx;display: flex;flex-direction: column; justify-content: center;gap: 10rpx;" >
+    <view class="button-container">
       <wd-button type="primary" size="large" @click="handleSubmit" block :loading="isSubmitting">
         {{ isEdit ? '保存更改' : '添加宝宝' }}
       </wd-button>
-      <wd-button v-if="isEdit" plain size="large" @click="handleCancel" block style="margin-top: 24rpx">
+      <wd-button v-if="isEdit" plain size="large" @click="handleCancel" block>
         取消
       </wd-button>
     </view>
@@ -102,6 +100,9 @@ import { uploadFile } from '@/utils/request'
 // 直接调用 API 层
 import * as babyApi from '@/api/baby'
 import * as vaccineApi from '@/api/vaccine'
+
+// 导入 store 以更新宝宝列表
+import { fetchBabyDetail } from '@/store/baby'
 
 // 表单数据
 const formData = ref({
@@ -254,6 +255,15 @@ const handleSubmit = async () => {
         avatarUrl: formData.value.avatarUrl,
       })
 
+      // 同步 store 中的宝宝数据，确保列表页面能看到最新信息
+      try {
+        await fetchBabyDetail(editId.value)
+        console.log('[BabyEdit] 宝宝信息已同步到 store')
+      } catch (error) {
+        console.warn('[BabyEdit] 同步宝宝信息失败:', error)
+        // 同步失败不影响用户体验，继续返回
+      }
+
       uni.showToast({
         title: '更新成功',
         icon: 'success'
@@ -323,4 +333,227 @@ const handleCancel = () => {
 }
 </script>
 
-<style scoped></style>
+<style lang="scss" scoped>
+@import '@/styles/colors.scss';
+
+// ===== 页面布局 =====
+.page {
+  min-height: 100vh;
+  background: $gradient-bg-light;
+  padding-top: 20rpx;
+  padding-bottom: 120rpx; // 为底部按钮预留空间
+}
+
+:deep(.wd-form) {
+  padding: 0;
+}
+
+// ===== 表单分组 =====
+:deep(.wd-cell-group) {
+  background: $color-bg-primary;
+  border: 1rpx solid $color-border-primary;
+  border-radius: $radius-lg;
+  margin: 0 16rpx 24rpx;
+  overflow: hidden;
+  box-shadow: $shadow-sm;
+
+  &:first-of-type {
+    margin-top: 12rpx;
+  }
+}
+
+// ===== 分组标题 =====
+:deep(.wd-cell-group__title) {
+  padding: 16rpx 24rpx 12rpx !important;
+  font-size: 24rpx;
+  font-weight: $font-weight-bold;
+  color: $color-text-primary;
+  background: linear-gradient(135deg, rgba(50, 220, 110, 0.05) 0%, $color-bg-primary 20%);
+}
+
+// ===== Cell 单元格 =====
+:deep(.wd-cell) {
+  padding: 16rpx 24rpx;
+  background: $color-bg-primary;
+  // border-bottom: 1rpx solid $color-border-primary;
+  transition: background $transition-base;
+
+  &:last-child {
+    border-bottom: none;
+  }
+
+  &:active {
+    background: $color-bg-secondary;
+  }
+}
+
+:deep(.wd-cell__title) {
+  font-size: 24rpx;
+  color: $color-text-primary;
+  font-weight: $font-weight-medium;
+}
+
+:deep(.wd-cell__value) {
+  font-size: 24rpx;
+  color: $color-text-secondary;
+}
+
+// ===== 输入框 =====
+:deep(.wd-input) {
+  padding: 16rpx 24rpx;
+  background: $color-bg-primary;
+  // border-bottom: 1rpx solid $color-border-primary;
+
+  &:last-child {
+    // border-bottom: none;
+  }
+}
+
+:deep(.wd-input__label) {
+  font-size: 24rpx;
+  color: $color-text-primary;
+  font-weight: $font-weight-medium;
+}
+
+:deep(.wd-input__control) {
+  font-size: 26rpx;
+  color: $color-text-secondary;
+
+  &::placeholder {
+    color: $color-text-tertiary;
+  }
+}
+
+// ===== 按钮 =====
+:deep(.wd-button) {
+  font-size: 28rpx;
+  font-weight: $font-weight-medium;
+  border-radius: $radius-md;
+  height: 88rpx;
+  transition: all $transition-base;
+
+  &.is-primary {
+    background: $color-primary;
+    color: white;
+    box-shadow: $shadow-primary-md;
+
+    &:active {
+      background: darken($color-primary, 10%);
+      transform: scale(0.98);
+    }
+  }
+
+  &.is-plain {
+    border: 2rpx solid $color-border-primary;
+    background: $color-bg-primary;
+    color: $color-text-primary;
+
+    &:active {
+      background: $color-bg-secondary;
+      transform: scale(0.98);
+    }
+  }
+}
+
+// ===== 按钮容器 =====
+.button-container {
+  display: flex;
+  flex-direction: column;
+  gap: 12rpx;
+  padding: 24rpx;
+  background: $color-bg-primary;
+  border-top: 1rpx solid $color-border-primary;
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 100;
+  box-shadow: 0 -2rpx 8rpx rgba(0, 0, 0, 0.05);
+
+  :deep(.wd-button) {
+    width: 100%;
+  }
+}
+
+// ===== 头像上传区域 =====
+.avatar-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16rpx;
+  padding: 24rpx 0;
+}
+
+.avatar-preview {
+  width: 160rpx;
+  height: 160rpx;
+  border-radius: $radius-full;
+  overflow: hidden;
+  box-shadow: $shadow-md;
+  background: $color-bg-secondary;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2rpx solid $color-border-primary;
+
+  image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+}
+
+:deep(.wd-button) {
+  &.avatar-btn {
+    width: 200rpx;
+    height: 64rpx;
+    font-size: 24rpx;
+    border-radius: $radius-md;
+    background: $color-primary;
+    color: white;
+    box-shadow: $shadow-primary-sm;
+
+    &:active {
+      transform: scale(0.96);
+      background: darken($color-primary, 10%);
+    }
+  }
+}
+
+// ===== 广播框和单选框 =====
+:deep(.wd-radio-group) {
+  display: flex;
+  gap: 24rpx;
+  flex-wrap: wrap;
+}
+
+:deep(.wd-radio) {
+  font-size: 24rpx;
+  color: $color-text-primary;
+
+  &.is-checked {
+    color: $color-primary;
+  }
+}
+
+// ===== 日期选择器 =====
+:deep(.wd-datetime-picker) {
+  padding: 16rpx 24rpx;
+  background: $color-bg-primary;
+  border-bottom: 1rpx solid $color-border-primary;
+
+  &:last-child {
+    border-bottom: none;
+  }
+}
+
+:deep(.wd-datetime-picker__label) {
+  font-size: 24rpx;
+  color: $color-text-primary;
+  font-weight: $font-weight-medium;
+}
+
+:deep(.wd-datetime-picker__placeholder) {
+  color: $color-text-tertiary;
+}
+</style>
