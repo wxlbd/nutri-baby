@@ -146,7 +146,7 @@
 
     <!-- 版本信息 -->
     <view class="version">
-      <text>宝宝喂养时刻 v3.2.0</text>
+      <text>宝宝喂养时刻 v3.1.2</text>
     </view>
   </view>
 </template>

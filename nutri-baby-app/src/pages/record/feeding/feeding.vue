@@ -1,207 +1,233 @@
 <template>
-  <view class="feeding-page">
-    <!-- 喂养记录主表单 -->
-    <view class="form-wrapper">
-      <wd-cell-group title="喂养记录" border>
-        <!-- 喂养类型选择 -->
-        <wd-cell title="喂养类型" title-width="100px" prop="count" center>
-          <view style="text-align: left">
-            <wd-radio-group v-model="feedingType" cell inline shape="button">
-              <wd-radio value="breast">母乳</wd-radio>
-              <wd-radio value="bottle">奶瓶</wd-radio>
-              <wd-radio value="food">辅食</wd-radio>
-            </wd-radio-group>
-          </view>
-        </wd-cell>
-        <!-- 母乳喂养 -->
-        <view v-if="feedingType === 'breast'">
-          <wd-cell title="喂养侧" title-width="100px" prop="count" center>
-            <wd-radio-group
-              v-model="breastForm.side"
-              cell
-              inline
-              shape="button"
-            >
-              <wd-radio value="left">左侧</wd-radio>
-              <wd-radio value="right">右侧</wd-radio>
-              <wd-radio value="both">两侧</wd-radio>
-            </wd-radio-group>
-          </wd-cell>
-          <!-- 手动输入时长 -->
-          <wd-cell v-if="breastForm.side === 'left' || breastForm.side === 'both'" title="左侧时长(秒)" title-width="100px" prop="count">
+  <view>
+    <wd-navbar title="喂养记录" left-text="返回" left-arrow safeAreaInsetTop placeholder fixed>
+      <template #capsule>
+        <wd-navbar-capsule @back="goBack" @back-home="goBackHome" />
+      </template>
+    </wd-navbar>
+    <view class="feeding-page">
+      <!-- 喂养记录主表单 -->
+      <view class="form-wrapper">
+        <wd-cell-group title="喂养记录" border>
+          <!-- 喂养类型选择 -->
+          <wd-cell title="喂养类型" title-width="100px" prop="count" center>
             <view style="text-align: left">
-              <wd-input-number
-                input-width="100rpx"
-                v-model="breastForm.leftDuration"
-                type="number"
-                min="0"
-              />
+              <wd-radio-group v-model="feedingType" cell inline shape="button">
+                <wd-radio value="breast">母乳</wd-radio>
+                <wd-radio value="bottle">奶瓶</wd-radio>
+                <wd-radio value="food">辅食</wd-radio>
+              </wd-radio-group>
             </view>
           </wd-cell>
-          <wd-cell v-if="breastForm.side === 'right' || breastForm.side === 'both'" title="右侧时长(秒)" title-width="100px" prop="count">
-            <view style="text-align: left">
-              <wd-input-number
-                input-width="100rpx"
-                v-model="breastForm.rightDuration"
-                type="number"
-                min="0"
-              />
-            </view>
-          </wd-cell>
-        </view>
-        <!-- 奶瓶喂养 -->
-        <view v-if="feedingType === 'bottle'">
-          <view style="text-align: left">
-            <wd-cell title="奶类型" title-width="100px" prop="count" center>
+          <!-- 母乳喂养 -->
+          <view v-if="feedingType === 'breast'">
+            <wd-cell title="喂养侧" title-width="100px" prop="count" center>
               <wd-radio-group
-                v-model="bottleForm.bottleType"
+                v-model="breastForm.side"
+                cell
+                inline
+                shape="button"
+              >
+                <wd-radio value="left">左侧</wd-radio>
+                <wd-radio value="right">右侧</wd-radio>
+                <wd-radio value="both">两侧</wd-radio>
+              </wd-radio-group>
+            </wd-cell>
+            <!-- 手动输入时长 -->
+            <wd-cell
+              v-if="breastForm.side === 'left' || breastForm.side === 'both'"
+              title="左侧时长(秒)"
+              title-width="100px"
+              prop="count"
+            >
+              <view style="text-align: left">
+                <wd-input-number
+                  input-width="100rpx"
+                  v-model="breastForm.leftDuration"
+                  type="number"
+                  min="0"
+                />
+              </view>
+            </wd-cell>
+            <wd-cell
+              v-if="breastForm.side === 'right' || breastForm.side === 'both'"
+              title="右侧时长(秒)"
+              title-width="100px"
+              prop="count"
+            >
+              <view style="text-align: left">
+                <wd-input-number
+                  input-width="100rpx"
+                  v-model="breastForm.rightDuration"
+                  type="number"
+                  min="0"
+                />
+              </view>
+            </wd-cell>
+          </view>
+          <!-- 奶瓶喂养 -->
+          <view v-if="feedingType === 'bottle'">
+            <view style="text-align: left">
+              <wd-cell title="奶类型" title-width="100px" prop="count" center>
+                <wd-radio-group
+                  v-model="bottleForm.bottleType"
+                  cell
+                  inline
+                  shape="button"
+                >
+                  <wd-radio
+                    v-for="type in bottleTypes"
+                    :key="type.value"
+                    :value="type.value"
+                    >{{ type.label }}</wd-radio
+                  >
+                </wd-radio-group>
+              </wd-cell>
+            </view>
+            <wd-cell title="单位" title-width="100px" prop="count" center>
+              <wd-radio-group
+                v-model="bottleForm.unit"
                 cell
                 inline
                 shape="button"
               >
                 <wd-radio
-                  v-for="type in bottleTypes"
-                  :key="type.value"
-                  :value="type.value"
-                  >{{ type.label }}</wd-radio
+                  v-for="unit in units"
+                  :key="unit.value"
+                  :value="unit.value"
+                  >{{ unit.label }}</wd-radio
                 >
               </wd-radio-group>
             </wd-cell>
+            <wd-cell title="喂养量" title-width="100px" prop="count">
+              <view style="text-align: left">
+                <wd-input-number
+                  input-width="100rpx"
+                  label="喂养量"
+                  v-model="bottleForm.amount"
+                  type="number"
+                  :min="30"
+                  step="10"
+                />
+              </view>
+            </wd-cell>
+            <wd-cell title="剩余量" title-width="100px" prop="count">
+              <view style="text-align: left">
+                <wd-input-number
+                  input-width="100rpx"
+                  label="剩余量"
+                  v-model="bottleForm.remaining"
+                  type="number"
+                  :min="0"
+                  step="10"
+                />
+              </view>
+            </wd-cell>
           </view>
-          <wd-cell title="单位" title-width="100px" prop="count" center>
-            <wd-radio-group
-              v-model="bottleForm.unit"
-              cell
-              inline
-              shape="button"
-            >
-              <wd-radio
-                v-for="unit in units"
-                :key="unit.value"
-                :value="unit.value"
-                >{{ unit.label }}</wd-radio
-              >
-            </wd-radio-group>
-          </wd-cell>
-          <wd-cell title="喂养量" title-width="100px" prop="count">
-            <view style="text-align: left">
-              <wd-input-number
-                input-width="100rpx"
-                label="喂养量"
-                v-model="bottleForm.amount"
-                type="number"
-                :min="30"
-                step="10"
-              />
-            </view>
-          </wd-cell>
-          <wd-cell title="剩余量" title-width="100px" prop="count">
-            <view style="text-align: left">
-              <wd-input-number
-                input-width="100rpx"
-                label="剩余量"
-                v-model="bottleForm.remaining"
-                type="number"
-                :min="0"
-                step="10"
-              />
-            </view>
-          </wd-cell>
+          <!-- 辅食 -->
+          <view v-if="feedingType === 'food'">
+            <wd-input
+              label="辅食名称"
+              v-model="foodForm.foodName"
+              placeholder="如：米粉、苹果泥等"
+            ></wd-input>
+            <wd-textarea
+              label="备注（可选）"
+              v-model="foodForm.note"
+              placeholder="记录宝宝的接受程度、有无过敏反应等"
+            ></wd-textarea>
+          </view>
+        </wd-cell-group>
+      </view>
+      <!-- 计时器 - 独立高亮块 -->
+      <view class="timer-card" v-if="feedingType === 'breast'">
+        <view class="timer-display">
+          <text class="timer-time">{{ formattedTime }}</text>
+          <text class="timer-status">{{
+            timerRunning ? "进行中" : "未开始"
+          }}</text>
         </view>
-        <!-- 辅食 -->
-         <view v-if="feedingType === 'food'">
-                 <wd-input label="辅食名称" v-model="foodForm.foodName" placeholder="如：米粉、苹果泥等"></wd-input>
-                 <wd-textarea label="备注（可选）" v-model="foodForm.note" placeholder="记录宝宝的接受程度、有无过敏反应等"></wd-textarea>
-  
-    
-      </view>
-      </wd-cell-group>
-    </view>
-    <!-- 计时器 - 独立高亮块 -->
-    <view class="timer-card" v-if="feedingType === 'breast'">
-      <view class="timer-display">
-        <text class="timer-time">{{ formattedTime }}</text>
-        <text class="timer-status">{{
-          timerRunning ? "进行中" : "未开始"
-        }}</text>
-      </view>
-      <wd-button
-        v-if="!timerRunning"
-        type="primary"
-        size="large"
-        block
-        @click="startTimer"
-      >
-        开始计时
-      </wd-button>
-      <wd-button v-else type="success" size="large" block @click="stopTimer">
-        停止计时
-      </wd-button>
-      <view class="timer-tips">
-        <text class="tips-text">💡 提示：补录时可直接在下方"喂养侧"后输入时长，不需要使用计时器</text>
-      </view>
-    </view>
-    <!-- 时间和提醒 -->
-    <view class="form-wrapper" style="margin-top: 16rpx">
-      <wd-cell-group title="时间" border>
-        <wd-datetime-picker
-          v-model="recordDateTime"
-          :label="isEditing ? '更新时间' : '记录时间'"
-          type="datetime"
-          :min-date="minDateTime"
-          :max-date="maxDateTime"
-          @confirm="onDateTimeConfirm"
-          @cancel="onDateTimeCancel"
-        />
-        <wd-cell title="下次提醒" title-width="100px" prop="count" center>
-          <view style="text-align: left">
-            <wd-switch v-model="reminderEnabled" />
-          </view>
-        </wd-cell>
-        <wd-datetime-picker
-          v-model="nextReminderTime"
-          label="预计提醒时间"
-          type="datetime"
-        />
-        <wd-cell title="提醒间隔" title-width="100rpx" prop="count" center>
-          <view style="text-align: left">
-            <wd-radio-group
-              v-model="reminderInterval"
-              cell
-              inline
-              shape="button"
-            >
-              <wd-radio :value="60">1h</wd-radio>
-              <wd-radio :value="120">2h</wd-radio>
-              <wd-radio :value="180">3h</wd-radio>
-              <wd-radio :value="240">4h</wd-radio>
-            </wd-radio-group>
-          </view>
-        </wd-cell>
-        <wd-cell
-          title="自定义(分钟)"
-          title-width="100px"
-          prop="reminderInterval"
+        <wd-button
+          v-if="!timerRunning"
+          type="primary"
+          size="large"
+          block
+          @click="startTimer"
         >
-          <view style="text-align: left">
-            <wd-input-number
-              v-model="reminderInterval"
-              input-width="100rpx"
-              type="number"
-              step="15"
-              min="1"
-              max="2880"
-            />
-          </view>
-        </wd-cell>
-      </wd-cell-group>
-    </view>
+          开始计时
+        </wd-button>
+        <wd-button v-else type="success" size="large" block @click="stopTimer">
+          停止计时
+        </wd-button>
+        <view class="timer-tips">
+          <text class="tips-text"
+            >💡
+            提示：补录时可直接在下方"喂养侧"后输入时长，不需要使用计时器</text
+          >
+        </view>
+      </view>
+      <!-- 时间和提醒 -->
+      <view class="form-wrapper" style="margin-top: 16rpx">
+        <wd-cell-group title="时间" border>
+          <wd-datetime-picker
+            v-model="recordDateTime"
+            :label="isEditing ? '更新时间' : '记录时间'"
+            type="datetime"
+            :min-date="minDateTime"
+            :max-date="maxDateTime"
+            @confirm="onDateTimeConfirm"
+            @cancel="onDateTimeCancel"
+          />
+          <wd-cell title="下次提醒" title-width="100px" prop="count" center>
+            <view style="text-align: left">
+              <wd-switch v-model="reminderEnabled" />
+            </view>
+          </wd-cell>
+          <wd-datetime-picker
+            v-model="nextReminderTime"
+            label="预计提醒时间"
+            type="datetime"
+          />
+          <wd-cell title="提醒间隔" title-width="100rpx" prop="count" center>
+            <view style="text-align: left">
+              <wd-radio-group
+                v-model="reminderInterval"
+                cell
+                inline
+                shape="button"
+              >
+                <wd-radio :value="60">1h</wd-radio>
+                <wd-radio :value="120">2h</wd-radio>
+                <wd-radio :value="180">3h</wd-radio>
+                <wd-radio :value="240">4h</wd-radio>
+              </wd-radio-group>
+            </view>
+          </wd-cell>
+          <wd-cell
+            title="自定义(分钟)"
+            title-width="100px"
+            prop="reminderInterval"
+          >
+            <view style="text-align: left">
+              <wd-input-number
+                v-model="reminderInterval"
+                input-width="100rpx"
+                type="number"
+                step="15"
+                min="1"
+                max="2880"
+              />
+            </view>
+          </wd-cell>
+        </wd-cell-group>
+      </view>
 
-    <!-- 提交按钮 -->
-    <view class="submit-section">
-      <wd-button type="primary" size="large" block @click="handleSubmit">
-        {{ isEditing ? "更新记录" : "保存记录" }}
-      </wd-button>
+      <!-- 提交按钮 -->
+      <view class="submit-section">
+        <wd-button type="primary" size="large" block @click="handleSubmit">
+          {{ isEditing ? "更新记录" : "保存记录" }}
+        </wd-button>
+      </view>
     </view>
   </view>
 </template>
@@ -221,6 +247,7 @@ import type { FeedingDetail } from "@/types";
 
 // 直接调用 API 层
 import * as feedingApi from "@/api/feeding";
+import { goBack, goBackHome } from "@/utils/common";
 
 // 编辑模式相关
 const editId = ref<string>("");
@@ -500,8 +527,12 @@ const nextReminderTime = ref(new Date().getTime());
 // 计算下次提醒时间
 const updateNextReminderTime = () => {
   // 总是计算提醒时间，不管是否启用
-  nextReminderTime.value = recordDateTime.value + reminderInterval.value * 60 * 1000;
-  console.log("[Feeding] 预计提醒时间已更新:", formatRecordTime(nextReminderTime.value));
+  nextReminderTime.value =
+    recordDateTime.value + reminderInterval.value * 60 * 1000;
+  console.log(
+    "[Feeding] 预计提醒时间已更新:",
+    formatRecordTime(nextReminderTime.value)
+  );
 };
 
 // 确认日期时间选择
