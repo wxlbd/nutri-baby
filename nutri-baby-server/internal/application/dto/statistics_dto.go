@@ -20,8 +20,8 @@ type TodaySleepStats struct {
 // TodayDiaperStats 今日换尿布统计
 type TodayDiaperStats struct {
 	TotalCount int `json:"totalCount"` // 总换尿布次数
-	WetCount   int `json:"wetCount"`   // 尿湿次数
-	DirtyCount int `json:"dirtyCount"` // 排便次数
+	PeeCount   int `json:"peeCount"`   // 小便次数
+	PoopCount  int `json:"poopCount"`  // 大便次数
 }
 
 // TodayGrowthStats 今日成长统计
