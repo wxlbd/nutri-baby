@@ -45,10 +45,10 @@ function handleQRCodeScan(options: any) {
     const sceneParam = options.query?.scene || options.scene;
 
     console.log("[App] Scene parameter:", sceneParam);
-    if (sceneParam && typeof sceneParam === 'string') {
+    if (sceneParam && typeof sceneParam === "string") {
       // 解析 scene 参数
       const shortCode = parseSceneParameter(sceneParam);
-
+      console.log("[App] Parsed short code:", shortCode);
       if (shortCode) {
         console.log("[App] Parsed short code:", shortCode);
 
@@ -57,10 +57,13 @@ function handleQRCodeScan(options: any) {
           url: `/pages/baby/join/join?code=${shortCode}`,
         });
       } else {
-        console.error("[App] Failed to parse short code from scene:", sceneParam);
+        console.error(
+          "[App] Failed to parse short code from scene:",
+          sceneParam
+        );
         uni.showToast({
-          title: '二维码格式错误',
-          icon: 'none',
+          title: "二维码格式错误",
+          icon: "none",
         });
       }
     } else {
@@ -78,15 +81,15 @@ function parseSceneParameter(scene: string): string | null {
   try {
     // 先尝试 URL 解码
     const params = decodeURIComponent(scene);
-    if (params.startsWith('c=')) {
+    if (params.startsWith("c=")) {
       return params.substring(2);
     }
 
     // scene 格式: c=ABC123
-    if (scene.startsWith('c=')) {
+    if (scene.startsWith("c=")) {
       return scene.substring(2); // 提取 "=" 后面的部分
     }
-    if (params.startsWith('c=')) {
+    if (params.startsWith("c=")) {
       return params.substring(2);
     }
 
@@ -100,7 +103,7 @@ function parseSceneParameter(scene: string): string | null {
 </script>
 <style lang="scss">
 /* 引入 Wot Design Uni 主题配置 */
-@import '@/theme.scss';
+@import "@/theme.scss";
 
 /* 组件样式通过按需引入插件自动加载,无需手动导入 */
 </style>
