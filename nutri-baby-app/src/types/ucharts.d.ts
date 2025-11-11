@@ -1,10 +1,36 @@
 declare module '@qiun/ucharts' {
+  interface UChartsConstructorOptions {
+    type?: string
+    context?: CanvasRenderingContext2D
+    canvasId?: string
+    width?: number
+    height?: number
+    categories?: string[]
+    series?: Array<{
+      name: string
+      data: any[]
+    }>
+    animation?: boolean
+    pixelRatio?: number
+    color?: string[]
+    padding?: [number, number, number, number]
+    legend?: any
+    xAxis?: any
+    yAxis?: any
+    extra?: any
+    opts?: any
+    [key: string]: any
+  }
+
   interface UChartsInstance {
     setOption(options: any): void
+    updateData(options: any): void
     show(): void
     hide(): void
     removeOption(index?: number): void
     dispose(): void
+    touchLegend?(touch: any): void
+    [key: string]: any
   }
 
   interface ChartOptions {
@@ -15,13 +41,18 @@ declare module '@qiun/ucharts' {
     [key: string]: any
   }
 
-  function uCharts(options: {
-    $canvas?: any
-    canvasId?: string
-    type?: string
-    chartData: ChartData
-    opts?: ChartOptions
-  }): UChartsInstance
+  class uCharts {
+    constructor(options: UChartsConstructorOptions)
+    setOption(options: any): void
+    updateData(options: any): void
+    show(): void
+    hide(): void
+    removeOption(index?: number): void
+    dispose(): void
+    touchLegend?(touch: any): void
+    [key: string]: any
+  }
 
   export default uCharts
 }
+
