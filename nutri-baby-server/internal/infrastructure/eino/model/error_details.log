@@ -1,0 +1,9 @@
+github.com/wxlbd/nutri-baby-server/internal/infrastructure/eino/model
+# github.com/wxlbd/nutri-baby-server/internal/infrastructure/eino/model
+./chat_model.go:113:26: config.OpenAIConfig is not a type
+./chat_model.go:137:26: config.OpenAIConfig is not a type
+./chat_model.go:199:30: not enough arguments in call to streamWriter.Send
+	have (*schema.Message)
+	want (*schema.Message, error)
+./chat_model.go:203:15: invalid operation: err != nil (mismatched types bool and untyped nil)
+./chat_model.go:204:59: cannot use err (variable of type bool) as error value in argument to zap.Error: bool does not implement error (missing method Error)

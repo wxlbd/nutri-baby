@@ -54,3 +54,38 @@ wechat:
     food_feeding_reminder: "ssttSBSWM_IXh5zVOu9GBeuabX8NFcwM2IG-VK-RXNY"     # 辅食喂养提醒
     # 疫苗提醒模板
     vaccine_reminder: "YOUR_VACCINE_REMINDER_TEMPLATE_ID"
+
+# AI配置
+ai:
+  provider: "openai" # 支持的提供商: openai, claude, ernie, mock
+  openai:
+    api_key: "your-openai-api-key"
+    base_url: "https://api.openai.com/v1"
+    model: "gpt-4"
+    max_tokens: 2000
+    temperature: 0.7
+  claude:
+    api_key: "your-claude-api-key"
+    base_url: "https://api.anthropic.com"
+    model: "claude-3-sonnet-20240229"
+    max_tokens: 2000
+    temperature: 0.7
+  ernie:
+    api_key: "your-ernie-api-key"
+    secret_key: "your-ernie-secret-key"
+    base_url: "https://aip.baidubce.com"
+    model: "ernie-3.5"
+  # 分析配置
+  analysis:
+    timeout: 30 # 秒
+    retry_count: 3
+    batch_size: 10
+    # 缓存配置
+    cache_ttl: 3600 # 秒 (1小时)
+    # 提示词配置
+    prompts:
+      feeding: "分析以下宝宝的喂养数据，提供专业的营养建议："
+      sleep: "分析以下宝宝的睡眠数据，提供改善建议："
+      growth: "分析以下宝宝的成长数据，评估发育状况："
+      health: "综合分析以下宝宝的健康数据："
+      behavior: "分析以下宝宝的行为模式："
