@@ -7,6 +7,8 @@ import (
 	"github.com/google/wire"
 	"github.com/wxlbd/nutri-baby-server/internal/application/service"
 	"github.com/wxlbd/nutri-baby-server/internal/infrastructure/config"
+	"github.com/wxlbd/nutri-baby-server/internal/infrastructure/eino/chain"
+	"github.com/wxlbd/nutri-baby-server/internal/infrastructure/eino/model"
 	"github.com/wxlbd/nutri-baby-server/internal/infrastructure/logger"
 	"github.com/wxlbd/nutri-baby-server/internal/infrastructure/persistence"
 	"github.com/wxlbd/nutri-baby-server/internal/infrastructure/wechat"
@@ -23,6 +25,10 @@ func InitApp(cfg *config.Config) (*App, error) {
 		persistence.NewRedis, // Redis 客户端
 		wechat.NewClient,     // 微信 SDK 客户端
 
+		// Eino AI框架
+		model.NewChatModel,        // AI模型客户端
+		chain.NewAnalysisChainBuilder, // AI分析链构建器
+
 		// 仓储层
 		persistence.NewSubscriptionCacheRepository, // 订阅权限缓存管理器
 		persistence.NewUserRepository,
@@ -36,6 +42,8 @@ func InitApp(cfg *config.Config) (*App, error) {
 		persistence.NewBabyVaccineScheduleRepository, // 新增：疫苗接种日程仓储
 		persistence.NewVaccinePlanTemplateRepository, // 疫苗计划模板仓储
 		persistence.NewSubscribeRepository,           // 订阅消息仓储
+		persistence.NewAIAnalysisRepository,          // AI分析结果仓储
+		persistence.NewDailyTipsRepository,           // 每日建议仓储
 
 		// 应用服务层
 		service.NewWechatService,    // 微信服务
@@ -51,6 +59,7 @@ func InitApp(cfg *config.Config) (*App, error) {
 		service.NewStatisticsService,      // 新增：统计服务
 		service.NewSchedulerService,       // 定时任务服务
 		service.NewUploadService,          // 文件上传服务
+		service.NewAIAnalysisService,      // AI分析服务
 		// service.NewSyncService, // TODO: WebSocket同步未实现，暂时注释
 
 		// HTTP处理器
@@ -60,6 +69,7 @@ func InitApp(cfg *config.Config) (*App, error) {
 		handler.NewVaccineScheduleHandler, // 新增：疫苗接种日程处理器
 		handler.NewStatisticsHandler,      // 新增：统计处理器
 		handler.NewSubscribeHandler,       // 订阅消息处理器
+		handler.NewAIAnalysisHandler,      // AI分析处理器
 		handler.NewSyncHandler,
 		handler.NewUploadHandler,          // 文件上传处理器
 

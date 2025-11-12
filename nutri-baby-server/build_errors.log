@@ -1,0 +1,28 @@
+# github.com/wxlbd/nutri-baby-server/internal/infrastructure/eino/model
+internal/infrastructure/eino/model/chat_model.go:113:25: config.OpenAIConfig is not a type
+internal/infrastructure/eino/model/chat_model.go:137:25: config.OpenAIConfig is not a type
+internal/infrastructure/eino/model/chat_model.go:199:30: not enough arguments in call to streamWriter.Send
+	have (*schema.Message)
+	want (*schema.Message, error)
+internal/infrastructure/eino/model/chat_model.go:203:15: invalid operation: err != nil (mismatched types bool and untyped nil)
+internal/infrastructure/eino/model/chat_model.go:204:59: cannot use err (variable of type bool) as error value in argument to zap.Error: bool does not implement error (missing method Error)
+# github.com/wxlbd/nutri-baby-server/internal/application/service
+internal/application/service/ai_analysis_service.go:377:14: cannot use babyID (variable of type string) as int64 value in struct literal
+internal/application/service/ai_analysis_service.go:379:14: cannot use string(tipsJSON) (value of type string) as []entity.DailyTip value in struct literal
+internal/application/service/ai_analysis_service.go:384:32: not enough arguments in call to errors.Wrap
+	have (error, string)
+	want ("github.com/wxlbd/nutri-baby-server/pkg/errors".ErrorCode, string, error)
+internal/application/service/ai_analysis_service.go:396:55: cannot use babyID (variable of type string) as int64 value in argument to s.dailyTipsRepo.GetByBabyIDAndDate
+internal/application/service/ai_analysis_service.go:404:34: cannot convert tips.Tips (variable of type []entity.DailyTip) to type []byte
+internal/application/service/ai_analysis_service.go:417:55: cannot use babyID (variable of type string) as int64 value in argument to s.aiAnalysisRepo.GetAnalysisStats
+internal/application/service/ai_analysis_service.go:419:32: not enough arguments in call to errors.Wrap
+	have (error, string)
+	want ("github.com/wxlbd/nutri-baby-server/pkg/errors".ErrorCode, string, error)
+internal/application/service/ai_analysis_service.go:426:16: cannot use analysis.ID (variable of type int64) as string value in struct literal
+internal/application/service/ai_analysis_service.go:455:27: not enough arguments in call to errors.Wrap
+	have (error, string)
+	want ("github.com/wxlbd/nutri-baby-server/pkg/errors".ErrorCode, string, error)
+internal/application/service/ai_analysis_service.go:476:27: not enough arguments in call to errors.Wrap
+	have (error, string)
+	want ("github.com/wxlbd/nutri-baby-server/pkg/errors".ErrorCode, string, error)
+internal/application/service/ai_analysis_service.go:476:27: too many errors

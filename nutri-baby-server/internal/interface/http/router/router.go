@@ -19,6 +19,7 @@ func NewRouter(
 	subscribeHandler *handler.SubscribeHandler,
 	syncHandler *handler.SyncHandler,
 	uploadHandler *handler.UploadHandler,
+	aiAnalysisHandler *handler.AIAnalysisHandler, // AI分析处理器
 ) *gin.Engine {
 	// 设置Gin运行模式
 	gin.SetMode(cfg.Server.Mode)
@@ -145,6 +146,18 @@ func NewRouter(
 				subscribe.GET("/status", subscribeHandler.GetStatus)
 				subscribe.DELETE("/cancel", subscribeHandler.Cancel)
 				subscribe.GET("/logs", subscribeHandler.GetLogs)
+			}
+
+			// AI分析
+			aiAnalysis := authRequired.Group("/ai-analysis")
+			{
+				aiAnalysis.POST("", aiAnalysisHandler.CreateAnalysis)
+				aiAnalysis.GET("/:id", aiAnalysisHandler.GetAnalysisResult)
+				aiAnalysis.GET("/baby/:babyId/latest", aiAnalysisHandler.GetLatestAnalysis)
+				aiAnalysis.GET("/baby/:babyId/history", aiAnalysisHandler.GetAnalysisStats)
+				aiAnalysis.POST("/batch", aiAnalysisHandler.BatchAnalyze)
+				aiAnalysis.GET("/daily-tips/:babyId", aiAnalysisHandler.GetDailyTips)
+				aiAnalysis.POST("/daily-tips/:babyId/generate", aiAnalysisHandler.GenerateDailyTips)
 			}
 
 			// WebSocket同步
