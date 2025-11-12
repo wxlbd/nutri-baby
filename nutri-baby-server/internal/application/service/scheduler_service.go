@@ -21,6 +21,7 @@ type SchedulerService struct {
 	feedingRecordRepo   repository.FeedingRecordRepository
 	userRepo            repository.UserRepository
 	subscribeService    *SubscribeService
+	aiAnalysisService   AIAnalysisService // 新增: AI分析服务
 	strategyFactory     *FeedingReminderStrategyFactory
 	logger              *zap.Logger
 }
@@ -31,6 +32,7 @@ func NewSchedulerService(
 	feedingRecordRepo repository.FeedingRecordRepository,
 	userRepo repository.UserRepository,
 	subscribeService *SubscribeService,
+	aiAnalysisService AIAnalysisService, // 新增: AI分析服务
 	cfg *config.Config,
 	logger *zap.Logger,
 ) *SchedulerService {
@@ -43,6 +45,7 @@ func NewSchedulerService(
 		feedingRecordRepo:   feedingRecordRepo,
 		userRepo:            userRepo,
 		subscribeService:    subscribeService,
+		aiAnalysisService:   aiAnalysisService, // 新增
 		strategyFactory:     NewFeedingReminderStrategyFactory(cfg),
 		logger:              logger,
 	}
@@ -52,13 +55,36 @@ func NewSchedulerService(
 func (s *SchedulerService) Start() {
 	// 启动调度器(用于一次性定时任务)
 	s.scheduler.StartAsync()
-	s.logger.Info("Scheduler service started (one-time task mode)")
+
+	// 新增: 每5分钟自动处理一次待分析的AI任务
+	_, err := s.scheduler.Every(5).Minutes().Do(s.processAIAnalysisTasks)
+	if err != nil {
+		s.logger.Error("添加AI分析定时任务失败", zap.Error(err))
+	} else {
+		s.logger.Info("AI分析自动处理任务已启用 (每5分钟一次)")
+	}
+
+	s.logger.Info("Scheduler service started with auto-processing enabled")
 }
 
 // Stop 停止定时任务
 func (s *SchedulerService) Stop() {
 	s.scheduler.Stop()
 	s.logger.Info("Scheduler service stopped")
+}
+
+// processAIAnalysisTasks 处理待分析的AI任务（定时任务回调）
+// 每5分钟自动调用一次，批量处理待处理的分析任务
+func (s *SchedulerService) processAIAnalysisTasks() {
+	ctx, cancel := context.WithTimeout(context.Background(), 4*time.Minute)
+	defer cancel()
+
+	if err := s.aiAnalysisService.ProcessPendingAnalyses(ctx); err != nil {
+		s.logger.Error("自动处理待分析AI任务失败", zap.Error(err))
+		return
+	}
+
+	s.logger.Info("自动处理待分析AI任务成功")
 }
 
 // CheckVaccineReminders 检查疫苗提醒(使用新的 BabyVaccineSchedule 架构)
