@@ -5,13 +5,13 @@ import (
 	"strings"
 	"time"
 
+	"github.com/cloudwego/eino-ext/components/model/deepseek"
 	"github.com/cloudwego/eino-ext/components/model/openai"
 	"github.com/cloudwego/eino/components/model"
 	"github.com/cloudwego/eino/schema"
-	"go.uber.org/zap"
-
 	"github.com/wxlbd/nutri-baby-server/internal/infrastructure/config"
 	"github.com/wxlbd/nutri-baby-server/pkg/errors"
+	"go.uber.org/zap"
 )
 
 // ChatModelConfig 聊天模型配置
@@ -43,12 +43,26 @@ func NewChatModel(cfg *config.Config, logger *zap.Logger) (model.ChatModel, erro
 		return NewOpenAIChatModel(aiConfig.OpenAI, logger)
 	case "claude":
 		return NewClaudeChatModel(aiConfig.Claude, logger)
-	case "ernie":
-		return NewERNIEChatModel(aiConfig.ERNIE, logger)
+	case "deepseek":
+		return NewDeepSeekChatModel(aiConfig.DeepSeek, logger)
 	default:
 		logger.Warn("未知的AI模型提供商，使用模拟模型", zap.String("provider", aiConfig.Provider))
 		return NewMockChatModel(logger), nil
 	}
+}
+
+// 创建 DeepSeek 模型
+func NewDeepSeekChatModel(cfg config.DeepSeekConfig, logger *zap.Logger) (model.ChatModel, error) {
+	cm, err := deepseek.NewChatModel(context.Background(), &deepseek.ChatModelConfig{
+		APIKey:  cfg.APIKey,
+		Model:   cfg.Model,
+		BaseURL: cfg.BaseURL,
+	})
+	if err != nil {
+		logger.Error("创建 DeepSeek 模型失败", zap.Error(err))
+		return nil, err
+	}
+	return cm, nil
 }
 
 // NewOpenAIChatModel 创建OpenAI聊天模型
@@ -221,130 +235,24 @@ func (m *MockChatModel) BindTools(tools []*schema.ToolInfo) error {
 func (m *MockChatModel) generateMockResponse(userInput string) string {
 	// 分析用户输入，返回相应的模拟数据
 	if strings.Contains(userInput, "喂养") || strings.Contains(userInput, "feeding") {
-		return `{
-			"score": 85,
-			"insights": [
-				{
-					"type": "feeding",
-					"title": "喂养规律良好",
-					"description": "宝宝的喂养时间较为规律，建议继续保持",
-					"priority": "medium",
-					"category": "规律性"
-				}
-			],
-			"alerts": [],
-			"patterns": [
-				{
-					"pattern_type": "regular_feeding",
-					"description": "每3-4小时喂养一次",
-					"confidence": 0.9,
-					"frequency": "daily"
-				}
-			],
-			"predictions": []
-		}`
+		return `{"score":85,"insights":[{"type":"feeding","title":"喂养规律良好","description":"宝宝的喂养时间较为规律，建议继续保持","priority":"medium","category":"规律性"}],"alerts":[],"patterns":[{"pattern_type":"regular_feeding","description":"每3-4小时喂养一次","confidence":0.9,"frequency":"daily"}],"predictions":[]}`
 	}
 
 	if strings.Contains(userInput, "睡眠") || strings.Contains(userInput, "sleep") {
-		return `{
-			"score": 78,
-			"insights": [
-				{
-					"type": "sleep",
-					"title": "睡眠时长充足",
-					"description": "宝宝每日睡眠时长符合月龄标准",
-					"priority": "high",
-					"category": "睡眠质量"
-				}
-			],
-			"alerts": [
-				{
-					"level": "warning",
-					"type": "sleep_interruption",
-					"title": "夜间易醒",
-					"description": "夜间睡眠中断次数较多",
-					"suggestion": "建议检查睡眠环境，保持安静舒适"
-				}
-			],
-			"patterns": [],
-			"predictions": []
-		}`
+		return `{"score":78,"insights":[{"type":"sleep","title":"睡眠时长充足","description":"宝宝每日睡眠时长符合月龄标准","priority":"high","category":"睡眠质量"}],"alerts":[{"level":"warning","type":"sleep_interruption","title":"夜间易醒","description":"夜间睡眠中断次数较多","suggestion":"建议检查睡眠环境，保持安静舒适"}],"patterns":[],"predictions":[]}`
 	}
 
 	if strings.Contains(userInput, "成长") || strings.Contains(userInput, "growth") {
-		return `{
-			"score": 92,
-			"insights": [
-				{
-					"type": "growth",
-					"title": "生长发育良好",
-					"description": "身高体重增长曲线正常，符合WHO标准",
-					"priority": "high",
-					"category": "发育评估"
-				}
-			],
-			"alerts": [],
-			"patterns": [],
-			"predictions": [
-				{
-					"prediction_type": "height",
-					"value": "75cm",
-					"confidence": 0.85,
-					"time_frame": "3个月后",
-					"reason": "基于当前生长速度预测"
-				}
-			]
-		}`
+		return `{"score":92,"insights":[{"type":"growth","title":"生长发育良好","description":"身高体重增长曲线正常，符合WHO标准","priority":"high","category":"发育评估"}],"alerts":[],"patterns":[],"predictions":[{"prediction_type":"height","value":"75cm","confidence":0.85,"time_frame":"3个月后","reason":"基于当前生长速度预测"}]}`
 	}
 
 	// 默认响应
-	return `{
-		"score": 80,
-		"insights": [
-			{
-				"type": "general",
-				"title": "整体状况良好",
-				"description": "宝宝各项指标基本正常",
-				"priority": "medium",
-				"category": "综合评估"
-			}
-		],
-		"alerts": [],
-		"patterns": [],
-		"predictions": []
-	}`
+	return `{"score":80,"insights":[{"type":"general","title":"整体状况良好","description":"宝宝各项指标基本正常","priority":"medium","category":"综合评估"}],"alerts":[],"patterns":[],"predictions":[]}`
 }
 
 // generateMockDailyTips 生成模拟每日建议
 func (m *MockChatModel) generateMockDailyTips(babyInfo string, dataSummary string) string {
-	return `[
-		{
-			"id": "tip_1",
-			"icon": "🍼",
-			"title": "喂养时间建议",
-			"description": "建议在上午9-10点之间进行喂养，此时宝宝消化吸收效果最佳",
-			"type": "feeding",
-			"priority": "high",
-			"action_url": "/pages/record/feeding/index"
-		},
-		{
-			"id": "tip_2",
-			"icon": "😴",
-			"title": "午睡时间安排",
-			"description": "建议午睡时间控制在1-2小时，避免影响夜间睡眠",
-			"type": "sleep",
-			"priority": "medium",
-			"action_url": "/pages/record/sleep/index"
-		},
-		{
-			"id": "tip_3",
-			"icon": "🌡️",
-			"title": "体温监测提醒",
-			"description": "建议每天固定时间测量体温，关注宝宝健康状况",
-			"type": "health",
-			"priority": "low"
-		}
-	]`
+	return `[{"id":"tip_1","icon":"🍼","title":"喂养时间建议","description":"建议在上午9-10点之间进行喂养，此时宝宝消化吸收效果最佳","type":"feeding","priority":"high","action_url":"/pages/record/feeding/index"},{"id":"tip_2","icon":"😴","title":"午睡时间安排","description":"建议午睡时间控制在1-2小时，避免影响夜间睡眠","type":"sleep","priority":"medium","action_url":"/pages/record/sleep/index"},{"id":"tip_3","icon":"🌡️","title":"体温监测提醒","description":"建议每天固定时间测量体温，关注宝宝健康状况","type":"health","priority":"low"}]`
 }
 
 // float32Ptr converts float64 to *float32
