@@ -4,15 +4,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## 项目概述
 
-**宝宝喂养日志 (BabyLog+)** - 一个全栈育儿记录系统，帮助新手父母记录和追踪婴幼儿的成长数据。
+**宝宝喂养记录 (BabyLog+)** - 一个全栈育儿记录系统，帮助新手父母记录和追踪婴幼儿的成长数据。
 
 ### 核心特性
 
 - 👶 **去家庭化架构**: 数据以"宝宝"为中心，支持多协作者共同管理单个或多个宝宝
-- 🔄 **数据同步**: 本地存储 + 云端同步，支持离线操作
 - 📊 **记录管理**: 喂养、睡眠、排泄、成长、疫苗等多维度记录
 - 🔔 **智能提醒**: 喂养提醒、疫苗提醒（微信订阅消息）
-- 👥 **协作管理**: 通过邀请码邀请协作者，支持角色权限控制
+- 👥 **协作管理**: 通过小程序码邀请协作者，支持角色权限控制
 
 ### 技术栈
 
@@ -102,6 +101,9 @@ make wire
 # 或
 cd wire && wire
 
+# 生成 Swagger API 文档 (修改接口注释后执行)
+make swag
+
 # 运行服务 (默认端口 8080)
 make run
 
@@ -120,7 +122,7 @@ make migrate-up         # 执行迁移
 make migrate-down       # 回滚迁移
 
 # 清理
-make clean              # 清理生成文件
+make clean              # 清理生成文件 (包括 docs/)
 
 # 查看所有命令
 make help
@@ -355,7 +357,7 @@ func (h *BabyHandler) GetBabyDetail(c *gin.Context) {
 func (r *babyRepositoryImpl) FindByID(ctx context.Context, babyID string) (*entity.Baby, error) {
     var baby entity.Baby
     err := r.db.WithContext(ctx).
-        Where("baby_id = ? AND deleted_at IS NULL", babyID).
+        Where("baby_id = ?", babyID).
         First(&baby).Error
 
     if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -755,7 +757,10 @@ make migrate-up
 
 ## 重要文档
 
-- **API 文档**: [nutri-baby-app/API.md](nutri-baby-app/API.md) (1241行，50+接口)
+- **API 文档**: Swagger 格式文档，自动生成在 `nutri-baby-server/docs/` 目录
+  - `docs/swagger.json` - JSON 格式 API 文档
+  - `docs/swagger.yaml` - YAML 格式 API 文档
+  - 生成命令: `make swag`
 - **产品需求**: [prd.md](prd.md)
 - **后端 README**: [nutri-baby-server/README.md](nutri-baby-server/README.md)
 

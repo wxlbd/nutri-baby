@@ -54,7 +54,8 @@ export async function inviteCollaborator(
   inviteType: 'share' | 'qrcode',
   role: 'admin' | 'editor' | 'viewer',
   accessType: 'permanent' | 'temporary',
-  expiresAt?: number
+  expiresAt?: number,
+  relationship?: string
 ): Promise<any> {
   try {
     const requestData: any = {
@@ -65,6 +66,10 @@ export async function inviteCollaborator(
 
     if (accessType === 'temporary' && expiresAt) {
       requestData.expiresAt = expiresAt
+    }
+
+    if (relationship) {
+      requestData.relationship = relationship
     }
 
     const response = await post<any>(

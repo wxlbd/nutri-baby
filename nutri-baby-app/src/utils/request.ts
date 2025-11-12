@@ -38,14 +38,33 @@ function getHeaders(): Record<string, string> {
 }
 
 /**
+ * 构建 URL 查询字符串
+ */
+function buildQueryString(params?: any): string {
+  if (!params || Object.keys(params).length === 0) {
+    return ''
+  }
+  const queryParams = Object.entries(params)
+    .filter(([_, value]) => value !== undefined && value !== null)
+    .map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(String(value))}`)
+    .join('&')
+  return queryParams ? `?${queryParams}` : ''
+}
+
+/**
  * 封装的请求方法
  */
 export function request<T = any>(config: RequestConfig): Promise<ApiResponse<T>> {
   return new Promise((resolve, reject) => {
+    // 为 GET 请求构建查询字符串
+    const finalUrl = config.method === 'GET'
+      ? `${BASE_URL}${config.url}${buildQueryString(config.data)}`
+      : `${BASE_URL}${config.url}`
+
     uni.request({
-      url: `${BASE_URL}${config.url}`,
+      url: finalUrl,
       method: config.method || 'GET',
-      data: config.data,
+      data: config.method === 'GET' ? undefined : config.data, // GET 请求不发送 body
       header: {
         ...getHeaders(),
         ...config.header,
@@ -150,12 +169,19 @@ export function del<T = any>(url: string, data?: any): Promise<ApiResponse<T>> {
 /**
  * 文件上传
  */
-export function uploadFile(filePath: string, name: string = 'file'): Promise<any> {
+interface UploadConfig {
+  filePath: string
+  name?: string
+  formData?: Record<string, string>
+}
+
+export function uploadFile(config: UploadConfig): Promise<any> {
   return new Promise((resolve, reject) => {
     uni.uploadFile({
       url: `${BASE_URL}/upload`,
-      filePath,
-      name,
+      filePath: config.filePath,
+      name: config.name || 'file',
+      formData: config.formData || {},
       header: getHeaders(),
       success: (res) => {
         if (res.statusCode === 200) {

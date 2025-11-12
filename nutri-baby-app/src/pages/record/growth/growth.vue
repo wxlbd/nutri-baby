@@ -14,7 +14,7 @@
           <view v-if="latestRecord.weight" class="data-item">
             <view class="data-icon">⚖️</view>
             <view class="data-value">{{ latestRecord.weight }}</view>
-            <view class="data-label">体重(kg)</view>
+            <view class="data-label">体重(g)</view>
           </view>
           <view v-if="latestRecord.headCircumference" class="data-item">
             <view class="data-icon">📐</view>
@@ -60,7 +60,7 @@
               </view>
               <wd-button
                 size="small"
-                type="default"
+                type="info"
                 @click="handleDelete(record.recordId)"
               >
                 删除
@@ -74,7 +74,7 @@
               </view>
               <view v-if="record.weight" class="data-row">
                 <text class="data-label">体重:</text>
-                <text class="data-value">{{ record.weight }} kg</text>
+                <text class="data-value">{{ record.weight }} g</text>
               </view>
               <view v-if="record.headCircumference" class="data-row">
                 <text class="data-label">头围:</text>
@@ -113,7 +113,7 @@
               required
               type="number"
               inputmode="numeric"
-            ></wd-input>
+            ><template #suffix>厘米</template></wd-input>
             <wd-input
               v-model="formData.weight"
               placeholder="请输入体重..."
@@ -121,7 +121,7 @@
               required
               type="number"
               inputmode="numeric"
-            ></wd-input>
+            ><template #suffix>克</template></wd-input>
             <wd-input
               v-model="formData.headCircumference"
               placeholder="请输入头围..."
@@ -129,7 +129,7 @@
               required
               type="number"
               inputmode="numeric"
-            ></wd-input>
+            ><template #suffix>厘米</template></wd-input>
             <!-- 备注 -->
             <wd-textarea
               v-model="formData.note"
@@ -140,7 +140,7 @@
           </wd-cell-group>
           <view class="dialog-footer">
             <wd-button
-              type="default"
+              type="info"
               size="large"
               block
               @click="showAddDialog = false"
@@ -300,7 +300,7 @@ const handleSubmit = async () => {
     return;
   }
 
-  if (formData.value.weight && (isNaN(weight) || weight <= 0 || weight > 100)) {
+  if (formData.value.weight && (isNaN(weight) || weight <= 0 || weight > 200000)) {
     uni.showToast({
       title: "体重数据不合理",
       icon: "none",
@@ -419,12 +419,12 @@ const handleDelete = async (id: string) => {
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  background: #f5f5f5;
+  background: #f6f8f7;
   padding: 20rpx;
 }
 
 .latest-card {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #7dd3a2 0%, #52c41a 100%);
   border-radius: 16rpx;
   padding: 30rpx;
   margin-bottom: 20rpx;
@@ -478,10 +478,12 @@ const handleDelete = async (id: string) => {
 
 .records-section {
   background: white;
+  border: 1rpx solid #CAE3D4;
   border-radius: 16rpx;
   padding: 30rpx;
   flex: 1;
   overflow-y: auto;
+  box-shadow: 0 2rpx 8rpx rgba(125, 211, 162, 0.08);
 }
 
 .section-title {
@@ -501,9 +503,11 @@ const handleDelete = async (id: string) => {
 }
 
 .record-item {
-  background: #f5f5f5;
+  background: white;
+  border: 1rpx solid #CAE3D4;
   border-radius: 12rpx;
   padding: 24rpx;
+  box-shadow: 0 2rpx 8rpx rgba(125, 211, 162, 0.08);
 }
 
 .record-header {

@@ -24,6 +24,7 @@ type TimelineService struct {
 func NewTimelineService(
 	babyRepo repository.BabyRepository,
 	collaboratorRepo repository.BabyCollaboratorRepository,
+	userRepo repository.UserRepository,
 	feedingService *FeedingRecordService,
 	sleepService *SleepRecordService,
 	diaperService *DiaperRecordService,
@@ -31,7 +32,7 @@ func NewTimelineService(
 	logger *zap.Logger,
 ) *TimelineService {
 	return &TimelineService{
-		BaseRecordService: NewBaseRecordService(babyRepo, collaboratorRepo, logger),
+		BaseRecordService: NewBaseRecordService(babyRepo, collaboratorRepo, userRepo, logger),
 		feedingService:    feedingService,
 		sleepService:      sleepService,
 		diaperService:     diaperService,
@@ -46,27 +47,21 @@ func (s *TimelineService) GetTimeline(ctx context.Context, openID string, query 
 		return nil, err
 	}
 
-	// 设置默认分页参数
-	page := query.Page
-	if page < 1 {
-		page = 1
-	}
-	pageSize := query.PageSize
-	if pageSize < 1 {
-		pageSize = 50
-	}
-	if pageSize > 200 {
-		pageSize = 200 // 限制最大页面大小
-	}
+	// 设置分页参数（使用统一的默认值：pageSize 默认 10，最大 100）
+	page := query.GetPageWithDefault()
+	pageSize := query.GetPageSizeWithDefault()
 
 	// 构建查询参数 (不分页,先获取所有数据)
 	recordQuery := &dto.RecordListQuery{
 		BabyID:    query.BabyID,
 		StartTime: query.StartTime,
 		EndTime:   query.EndTime,
-		Page:      1,
-		PageSize:  1000, // 单次查询最多 1000 条
 	}
+	// 设置记录查询的分页参数为最大值，确保获取所有数据
+	pageVal := 1
+	pageSizeVal := 1000
+	recordQuery.Page = &pageVal
+	recordQuery.PageSize = &pageSizeVal
 
 	// 并发查询所有类型的记录
 	var (

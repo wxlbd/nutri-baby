@@ -1,25 +1,29 @@
 package entity
 
-import "time"
+import (
+	"time"
+
+	"gorm.io/plugin/soft_delete"
+)
 
 // Baby 宝宝实体 (去家庭化架构)
 type Baby struct {
-	BabyID      string     `gorm:"primaryKey;column:baby_id;type:varchar(64)" json:"babyId"`
-	Name        string     `gorm:"column:name;type:varchar(64)" json:"name"`
-	Nickname    string     `gorm:"column:nickname;type:varchar(64)" json:"nickname"`
-	BirthDate   string     `gorm:"column:birth_date;type:varchar(10)" json:"birthDate"` // YYYY-MM-DD
-	Gender      string     `gorm:"column:gender;type:varchar(16)" json:"gender"`        // male, female
-	AvatarURL   string     `gorm:"column:avatar_url;type:varchar(512)" json:"avatarUrl"`
-	Height      float64    `gorm:"column:height;type:decimal(10,2)" json:"height"`
-	Weight      float64    `gorm:"column:weight;type:decimal(10,2)" json:"weight"`
-	CreatorID   string     `gorm:"column:creator_id;type:varchar(64);index" json:"creatorId"`     // 创建者 openid
-	FamilyGroup string     `gorm:"column:family_group;type:varchar(64);index" json:"familyGroup"` // 可选的家庭分组名称
-	CreateTime  int64      `gorm:"column:create_time;autoCreateTime:milli" json:"createTime"`
-	UpdateTime  int64      `gorm:"column:update_time;autoUpdateTime:milli" json:"updateTime"`
-	DeletedAt   *time.Time `gorm:"column:deleted_at;index" json:"-"`
+	ID          int64                 `gorm:"primaryKey;column:id" json:"id"`                                // 雪花ID主键
+	Name        string                `gorm:"column:name;type:varchar(64)" json:"name"`                      // 姓名
+	Nickname    string                `gorm:"column:nickname;type:varchar(64)" json:"nickname"`              // 昵称
+	BirthDate   string                `gorm:"column:birth_date;type:varchar(10)" json:"birthDate"`           // 出生日期 YYYY-MM-DD
+	Gender      string                `gorm:"column:gender;type:varchar(16)" json:"gender"`                  // 性别 male, female
+	AvatarURL   string                `gorm:"column:avatar_url;type:varchar(512)" json:"avatarUrl"`          // 头像URL
+	Height      float64               `gorm:"column:height;type:decimal(10,2)" json:"height"`                // 身高 cm
+	Weight      float64               `gorm:"column:weight;type:decimal(10,2)" json:"weight"`                // 体重 kg
+	UserID      int64                 `gorm:"column:user_id;index" json:"userId"`                            // 创建者用户ID (引用User.ID)
+	FamilyGroup string                `gorm:"column:family_group;type:varchar(64);index" json:"familyGroup"` // 可选的家庭分组名称
+	CreatedAt   int64                 `gorm:"column:created_at;autoCreateTime:milli" json:"createdAt"`       // 创建时间(毫秒时间戳)
+	UpdatedAt   int64                 `gorm:"column:updated_at;autoUpdateTime:milli" json:"updatedAt"`       // 更新时间(毫秒时间戳)
+	DeletedAt   soft_delete.DeletedAt `gorm:"column:deleted_at;softDelete:milli;index;default:0" json:"-"`   // 软删除(毫秒时间戳)
 
 	// 关联
-	Collaborators []*BabyCollaborator `gorm:"foreignKey:BabyID;references:BabyID" json:"collaborators,omitempty"`
+	Collaborators []*BabyCollaborator `gorm:"foreignKey:BabyID;references:ID" json:"collaborators,omitempty"`
 }
 
 // TableName 指定表名
@@ -29,19 +33,19 @@ func (Baby) TableName() string {
 
 // BabyCollaborator 宝宝协作者实体 (替代 FamilyMember)
 type BabyCollaborator struct {
-	ID         int64      `gorm:"primaryKey;autoIncrement" json:"id"`
-	BabyID     string     `gorm:"column:baby_id;type:varchar(64);index;uniqueIndex:idx_baby_user" json:"babyId"`
-	OpenID     string     `gorm:"column:openid;type:varchar(64);index;uniqueIndex:idx_baby_user" json:"openid"`
-	Role       string     `gorm:"column:role;type:varchar(16)" json:"role"`                                  // admin, editor, viewer
-	AccessType string     `gorm:"column:access_type;type:varchar(16);default:'permanent'" json:"accessType"` // permanent, temporary
-	ExpiresAt  *int64     `gorm:"column:expires_at" json:"expiresAt"`                                        // 临时权限过期时间(毫秒时间戳)
-	JoinTime   int64      `gorm:"column:join_time;autoCreateTime:milli" json:"joinTime"`
-	UpdateTime int64      `gorm:"column:update_time;autoUpdateTime:milli" json:"updateTime"`
-	DeletedAt  *time.Time `gorm:"column:deleted_at;index" json:"-"`
+	ID         int64                 `gorm:"primaryKey;column:id" json:"id"`                                            // 雪花ID主键
+	BabyID     int64                 `gorm:"column:baby_id;index;uniqueIndex:idx_baby_user" json:"babyId"`              // 宝宝ID (引用Baby.ID)
+	UserID     int64                 `gorm:"column:user_id;index;uniqueIndex:idx_baby_user" json:"userId"`              // 用户ID (引用User.ID)
+	Role       string                `gorm:"column:role;type:varchar(16)" json:"role"`                                  // 角色 admin, editor, viewer
+	AccessType string                `gorm:"column:access_type;type:varchar(16);default:'permanent'" json:"accessType"` // 访问类型 permanent, temporary
+	ExpiresAt  *int64                `gorm:"column:expires_at" json:"expiresAt"`                                        // 临时权限过期时间(毫秒时间戳)
+	CreatedAt  int64                 `gorm:"column:created_at;autoCreateTime:milli" json:"createdAt"`                   // 创建时间(毫秒时间戳)
+	UpdatedAt  int64                 `gorm:"column:updated_at;autoUpdateTime:milli" json:"updatedAt"`                   // 更新时间(毫秒时间戳)
+	DeletedAt  soft_delete.DeletedAt `gorm:"column:deleted_at;softDelete:milli;index;default:0" json:"-"`               // 软删除(毫秒时间戳)
 
 	// 关联
-	User *User `gorm:"foreignKey:OpenID;references:OpenID" json:"user,omitempty"`
-	Baby *Baby `gorm:"foreignKey:BabyID;references:BabyID" json:"baby,omitempty"`
+	User *User `gorm:"foreignKey:UserID;references:ID" json:"user,omitempty"`
+	Baby *Baby `gorm:"foreignKey:BabyID;references:ID" json:"baby,omitempty"`
 }
 
 // TableName 指定表名

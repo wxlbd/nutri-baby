@@ -207,3 +207,13 @@ export function formatDurationShort(seconds: number): string {
   }
   return `${padZero(minutes)}:${padZero(secs)}`
 }
+
+export function goBack() {
+  uni.navigateBack();
+}
+
+export function goBackHome() {
+  uni.switchTab({
+    url: "/pages/index/index",
+  });
+}

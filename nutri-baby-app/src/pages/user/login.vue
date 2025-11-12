@@ -1,11 +1,16 @@
 <template>
   <view class="login-container">
+    <!-- 背景图片 -->
+    <image class="login-bg-image" src="/static/login-background.png" mode="aspectFill" />
+
     <view class="login-content">
-      <!-- Logo -->
+      <!-- Logo 和标题 -->
       <view class="logo-section">
-        <image class="logo" src="/static/logo.png" mode="aspectFit" />
-        <text class="app-name">宝宝喂养日志</text>
-        <text class="app-desc">科学记录 · 智能分析 · 健康成长</text>
+        <view class="logo-wrapper">
+          <image class="logo" src="/static/logo.png" mode="aspectFit" />
+        </view>
+        <text class="app-name">宝宝喂养时刻</text>
+        <text class="app-desc">记录宝宝的每一刻</text>
       </view>
 
       <!-- 登录按钮 -->
@@ -16,6 +21,7 @@
           block
           :loading="loading"
           @click="handleLogin"
+          class="login-btn"
         >
           <text v-if="!loading">微信一键登录</text>
           <text v-else>登录中...</text>
@@ -114,62 +120,112 @@ const handleLogin = async () => {
 
 <style lang="scss" scoped>
 .login-container {
+  position: relative;
   min-height: 100vh;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 40rpx;
+  padding: 40rpx 20rpx;
+  overflow: hidden;
+}
+
+.login-bg-image {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
 }
 
 .login-content {
+  position: relative;
+  z-index: 10;
   width: 100%;
+  max-width: 420rpx;
   display: flex;
   flex-direction: column;
   align-items: center;
 }
 
+// Logo 部分
 .logo-section {
   display: flex;
   flex-direction: column;
   align-items: center;
   margin-bottom: 120rpx;
+  text-align: center;
+}
+
+.logo-wrapper {
+  position: relative;
+  width: 200rpx;
+  height: 200rpx;
+  margin-bottom: 40rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .logo {
   width: 200rpx;
   height: 200rpx;
-  margin-bottom: 40rpx;
-  border-radius: 40rpx;
+  border-radius: 100%;
   background: white;
+  object-fit: contain;
+  box-shadow: 0 8rpx 24rpx rgba(0, 0, 0, 0.15);
 }
 
 .app-name {
   font-size: 48rpx;
   font-weight: bold;
   color: white;
-  margin-bottom: 20rpx;
+  margin-bottom: 16rpx;
+  letter-spacing: 2rpx;
 }
 
 .app-desc {
   font-size: 28rpx;
-  color: rgba(255, 255, 255, 0.8);
+  color: rgba(255, 255, 255, 0.9);
+  font-weight: 500;
 }
 
+// 登录操作区域
 .login-actions {
   width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 20rpx;
+}
+
+.login-btn {
+  :deep(.wd-button) {
+    background: white !important;
+    color: #1a9e4b !important;
+    font-weight: 600;
+    font-size: 32rpx;
+    border-radius: 16rpx;
+    height: 88rpx;
+    box-shadow: 0 8rpx 24rpx rgba(0, 0, 0, 0.15);
+
+    &:active {
+      background: rgba(255, 255, 255, 0.9) !important;
+    }
+  }
 }
 
 .privacy-tips {
-  margin-top: 40rpx;
+  margin-top: 24rpx;
   font-size: 24rpx;
-  color: rgba(255, 255, 255, 0.7);
+  color: rgba(255, 255, 255, 0.8);
   text-align: center;
-  line-height: 40rpx;
-}
+  line-height: 36rpx;
+  padding: 0 20rpx;
 
-.link {
-  color: white;
-  text-decoration: underline;
+  .link {
+    color: white;
+    text-decoration: underline;
+    font-weight: 500;
+  }
 }
 </style>

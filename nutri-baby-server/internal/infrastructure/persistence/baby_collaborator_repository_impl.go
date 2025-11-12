@@ -30,11 +30,12 @@ func (r *babyCollaboratorRepositoryImpl) Create(ctx context.Context, collaborato
 }
 
 // FindByBabyID 获取宝宝的所有协作者
-func (r *babyCollaboratorRepositoryImpl) FindByBabyID(ctx context.Context, babyID string) ([]*entity.BabyCollaborator, error) {
+func (r *babyCollaboratorRepositoryImpl) FindByBabyID(ctx context.Context, babyID int64) ([]*entity.BabyCollaborator, error) {
 	var collaborators []*entity.BabyCollaborator
 	err := r.db.WithContext(ctx).
-		Where("baby_id = ? AND deleted_at IS NULL", babyID).
-		Order("join_time ASC").
+		Preload("User").
+		Where("baby_id = ?", babyID).
+		Order("created_at ASC").
 		Find(&collaborators).Error
 
 	if err != nil {
@@ -45,11 +46,11 @@ func (r *babyCollaboratorRepositoryImpl) FindByBabyID(ctx context.Context, babyI
 }
 
 // FindByUserID 获取用户的所有协作宝宝
-func (r *babyCollaboratorRepositoryImpl) FindByUserID(ctx context.Context, openid string) ([]*entity.BabyCollaborator, error) {
+func (r *babyCollaboratorRepositoryImpl) FindByUserID(ctx context.Context, userID int64) ([]*entity.BabyCollaborator, error) {
 	var collaborators []*entity.BabyCollaborator
 	err := r.db.WithContext(ctx).
-		Where("openid = ? AND deleted_at IS NULL", openid).
-		Order("join_time DESC").
+		Where("user_id = ?", userID).
+		Order("created_at DESC").
 		Find(&collaborators).Error
 
 	if err != nil {
@@ -60,10 +61,10 @@ func (r *babyCollaboratorRepositoryImpl) FindByUserID(ctx context.Context, openi
 }
 
 // FindByBabyAndUser 查找特定宝宝的特定协作者
-func (r *babyCollaboratorRepositoryImpl) FindByBabyAndUser(ctx context.Context, babyID, openid string) (*entity.BabyCollaborator, error) {
+func (r *babyCollaboratorRepositoryImpl) FindByBabyAndUser(ctx context.Context, babyID, userID int64) (*entity.BabyCollaborator, error) {
 	var collaborator entity.BabyCollaborator
 	err := r.db.WithContext(ctx).
-		Where("baby_id = ? AND openid = ? AND deleted_at IS NULL", babyID, openid).
+		Where("baby_id = ? AND user_id = ?", babyID, userID).
 		First(&collaborator).Error
 
 	if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -77,8 +78,8 @@ func (r *babyCollaboratorRepositoryImpl) FindByBabyAndUser(ctx context.Context, 
 }
 
 // CheckPermission 检查用户对宝宝的访问权限
-func (r *babyCollaboratorRepositoryImpl) CheckPermission(ctx context.Context, babyID, openid string) (*entity.BabyCollaborator, error) {
-	collaborator, err := r.FindByBabyAndUser(ctx, babyID, openid)
+func (r *babyCollaboratorRepositoryImpl) CheckPermission(ctx context.Context, babyID, userID int64) (*entity.BabyCollaborator, error) {
+	collaborator, err := r.FindByBabyAndUser(ctx, babyID, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -95,7 +96,7 @@ func (r *babyCollaboratorRepositoryImpl) CheckPermission(ctx context.Context, ba
 func (r *babyCollaboratorRepositoryImpl) Update(ctx context.Context, collaborator *entity.BabyCollaborator) error {
 	err := r.db.WithContext(ctx).
 		Model(&entity.BabyCollaborator{}).
-		Where("baby_id = ? AND openid = ? AND deleted_at IS NULL", collaborator.BabyID, collaborator.OpenID).
+		Where("baby_id = ? AND user_id = ?", collaborator.BabyID, collaborator.UserID).
 		Updates(collaborator).Error
 
 	if err != nil {
@@ -106,11 +107,11 @@ func (r *babyCollaboratorRepositoryImpl) Update(ctx context.Context, collaborato
 }
 
 // Delete 移除协作者(软删除)
-func (r *babyCollaboratorRepositoryImpl) Delete(ctx context.Context, babyID, openid string) error {
+func (r *babyCollaboratorRepositoryImpl) Delete(ctx context.Context, babyID, userID int64) error {
 	err := r.db.WithContext(ctx).
 		Model(&entity.BabyCollaborator{}).
-		Where("baby_id = ? AND openid = ?", babyID, openid).
-		Update("deleted_at", time.Now()).Error
+		Where("baby_id = ? AND user_id = ?", babyID, userID).
+		Delete(&entity.BabyCollaborator{}).Error
 
 	if err != nil {
 		return errors.Wrap(errors.DatabaseError, "failed to delete collaborator", err)
@@ -138,8 +139,8 @@ func (r *babyCollaboratorRepositoryImpl) CleanExpired(ctx context.Context) error
 
 	err := r.db.WithContext(ctx).
 		Model(&entity.BabyCollaborator{}).
-		Where("access_type = ? AND expires_at IS NOT NULL AND expires_at < ? AND deleted_at IS NULL", "temporary", now).
-		Update("deleted_at", time.Now()).Error
+		Where("access_type = ? AND expires_at IS NOT NULL AND expires_at < ?", "temporary", now).
+		Delete(&entity.BabyCollaborator{}).Error
 
 	if err != nil {
 		return errors.Wrap(errors.DatabaseError, "failed to clean expired collaborators", err)
@@ -149,8 +150,8 @@ func (r *babyCollaboratorRepositoryImpl) CleanExpired(ctx context.Context) error
 }
 
 // IsCollaborator 检查是否是协作者
-func (r *babyCollaboratorRepositoryImpl) IsCollaborator(ctx context.Context, babyID, openid string) (bool, error) {
-	collaborator, err := r.CheckPermission(ctx, babyID, openid)
+func (r *babyCollaboratorRepositoryImpl) IsCollaborator(ctx context.Context, babyID, userID int64) (bool, error) {
+	collaborator, err := r.CheckPermission(ctx, babyID, userID)
 	if err != nil {
 		return false, err
 	}
@@ -158,8 +159,8 @@ func (r *babyCollaboratorRepositoryImpl) IsCollaborator(ctx context.Context, bab
 }
 
 // IsAdmin 检查是否是管理员
-func (r *babyCollaboratorRepositoryImpl) IsAdmin(ctx context.Context, babyID, openid string) (bool, error) {
-	collaborator, err := r.CheckPermission(ctx, babyID, openid)
+func (r *babyCollaboratorRepositoryImpl) IsAdmin(ctx context.Context, babyID, userID int64) (bool, error) {
+	collaborator, err := r.CheckPermission(ctx, babyID, userID)
 	if err != nil {
 		return false, err
 	}
@@ -170,8 +171,8 @@ func (r *babyCollaboratorRepositoryImpl) IsAdmin(ctx context.Context, babyID, op
 }
 
 // CanEdit 检查是否有编辑权限
-func (r *babyCollaboratorRepositoryImpl) CanEdit(ctx context.Context, babyID, openid string) (bool, error) {
-	collaborator, err := r.CheckPermission(ctx, babyID, openid)
+func (r *babyCollaboratorRepositoryImpl) CanEdit(ctx context.Context, babyID, userID int64) (bool, error) {
+	collaborator, err := r.CheckPermission(ctx, babyID, userID)
 	if err != nil {
 		return false, err
 	}

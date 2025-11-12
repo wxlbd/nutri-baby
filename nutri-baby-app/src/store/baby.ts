@@ -6,6 +6,7 @@
  */
 import { ref, computed } from "vue";
 import type { BabyProfile } from "@/types";
+import type { BabyCollaborator, MyPermission } from "@/types/collaborator";
 import { StorageKeys, getStorage, setStorage } from "@/utils/storage";
 import * as babyApi from "@/api/baby";
 import { getUserInfo } from "./user";
@@ -33,11 +34,17 @@ function initializeIfNeeded() {
 // 当前宝宝信息
 const currentBaby = computed(() => {
   initializeIfNeeded(); // 确保数据已加载
-  console.log("babyList.value", babyList.value);
-  return (
-    babyList.value.find((baby) => baby.babyId === currentBabyId.value) || null
-  );
+  const baby = babyList.value.find((baby) => baby.babyId === currentBabyId.value) || null;
+  return baby;
 });
+
+// ============ Collaborator 相关状态 ============
+
+// 宝宝的协作者列表 Map<babyId, collaborators[]>
+const collaboratorsMap = ref<Map<string, BabyCollaborator[]>>(new Map());
+
+// 当前用户对每个宝宝的权限 Map<babyId, MyPermission>
+const myPermissionsMap = ref<Map<string, MyPermission>>(new Map());
 
 // ============ 本地查询函数 ============
 
@@ -196,10 +203,57 @@ export function getBabyById(id: string): BabyProfile | null {
 export function clearBabyData() {
   babyList.value = [];
   currentBabyId.value = "";
+  collaboratorsMap.value.clear();
+  myPermissionsMap.value.clear();
   setStorage(StorageKeys.BABY_LIST, []);
   setStorage(StorageKeys.CURRENT_BABY_ID, "");
 }
 
+// ============ Collaborator 相关方法 ============
+
+/**
+ * 设置宝宝的协作者列表
+ */
+export function setCollaborators(
+  babyId: string,
+  collaborators: BabyCollaborator[]
+): void {
+  collaboratorsMap.value.set(babyId, collaborators);
+}
+
+/**
+ * 获取宝宝的协作者列表
+ */
+export function getCollaborators(babyId: string): BabyCollaborator[] | undefined {
+  return collaboratorsMap.value.get(babyId);
+}
+
+/**
+ * 设置当前用户对宝宝的权限
+ */
+export function setMyPermission(
+  babyId: string,
+  permission: MyPermission
+): void {
+  myPermissionsMap.value.set(babyId, permission);
+}
+
+/**
+ * 获取当前用户对宝宝的权限
+ */
+export function getMyPermission(babyId: string): MyPermission | undefined {
+  return myPermissionsMap.value.get(babyId);
+}
+
+/**
+ * 清除宝宝的协作者数据（当宝宝被删除或权限过期时）
+ */
+export function clearCollaboratorData(babyId: string): void {
+  collaboratorsMap.value.delete(babyId);
+  myPermissionsMap.value.delete(babyId);
+}
+
 // ============ 导出 ============
 
-export { babyList, currentBabyId, currentBaby };
+// 直接导出 computed 对象，支持响应式
+export { babyList, currentBabyId, currentBaby, collaboratorsMap, myPermissionsMap };

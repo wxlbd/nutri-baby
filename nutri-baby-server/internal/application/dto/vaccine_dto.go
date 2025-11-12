@@ -1,5 +1,31 @@
 package dto
 
+// PaginationRequest 通用分页请求参数
+type PaginationRequest struct {
+	Page     *int `json:"page" form:"page"`
+	PageSize *int `json:"pageSize" form:"pageSize"`
+}
+
+// GetPageWithDefault 获取页码，使用默认值 1
+func (p *PaginationRequest) GetPageWithDefault() int {
+	if p == nil || p.Page == nil || *p.Page < 1 {
+		return 1
+	}
+	return *p.Page
+}
+
+// GetPageSizeWithDefault 获取分页大小，使用默认值 10，最大 100
+func (p *PaginationRequest) GetPageSizeWithDefault() int {
+	if p == nil || p.PageSize == nil || *p.PageSize < 1 {
+		return 10
+	}
+	if *p.PageSize > 100 {
+		return 100
+	}
+	return *p.PageSize
+}
+
+
 // VaccineRecordDTO 疫苗接种记录DTO
 type VaccineRecordDTO struct {
 	RecordID    string  `json:"recordId"`
@@ -132,28 +158,19 @@ type UpdateScheduleInfoRequest struct {
 	ReminderDays *int    `json:"reminderDays"` // 提醒天数
 }
 
-// VaccineScheduleListResponse 疫苗接种日程列表响应
-type VaccineScheduleListResponse struct {
-	Schedules  []VaccineScheduleDTO       `json:"schedules"`
-	Statistics VaccineScheduleStatistics `json:"statistics"`
-}
-
-// VaccineScheduleStatistics 疫苗接种日程统计信息
-type VaccineScheduleStatistics struct {
-	Total          int64 `json:"total"`
-	Completed      int64 `json:"completed"`
-	Pending        int64 `json:"pending"`
-	Skipped        int64 `json:"skipped"`
-	CompletionRate int   `json:"completionRate"` // 完成率 (0-100)
-}
-
-// VaccineScheduleStatisticsDTO 疫苗接种日程统计DTO
+// VaccineScheduleStatisticsDTO 疫苗接种日程统计DTO（纯统计数据）
 type VaccineScheduleStatisticsDTO struct {
-	Total           int64                `json:"total"`
-	Completed       int64                `json:"completed"`
-	Pending         int64                `json:"pending"`
-	Skipped         int64                `json:"skipped"`
-	Percentage      int                  `json:"percentage"`
-	NextVaccine     *NextVaccineDTO      `json:"nextVaccine,omitempty"`
-	RecentSchedules []VaccineScheduleDTO `json:"recentSchedules"`
+	Total            int64 `json:"total"`
+	Completed        int64 `json:"completed"`
+	Pending          int64 `json:"pending"`
+	Skipped          int64 `json:"skipped"`
+	CompletionRate   int   `json:"completionRate"`
 }
+
+type GetVaccineScheduleListRequest struct {
+	BabyID string `json:"babyId" uri:"babyId"`
+	OpenID string `json:"openId"`
+	Status string `json:"status" form:"status"`
+	PaginationRequest
+}
+

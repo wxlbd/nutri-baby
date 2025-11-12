@@ -222,8 +222,6 @@ func (h *RecordHandler) parseRecordQuery(c *gin.Context) *dto.RecordListQuery {
 		BabyID:    c.Query("babyId"),
 		StartTime: parseInt64(c.Query("startTime")),
 		EndTime:   parseInt64(c.Query("endTime")),
-		Page:      parseInt(c.Query("page"), 1),
-		PageSize:  parseInt(c.Query("pageSize"), 20),
 	}
 
 	return query

@@ -61,13 +61,25 @@ nutri-baby-server/
 go mod download
 ```
 
-### 2. 安装 Wire
+### 2. 安装开发工具
 
 ```bash
-go install github.com/google/wire/cmd/wire@latest
+make install-tools
 ```
 
+安装的工具包括：
+- `wire` - 依赖注入代码生成
+- `goimports` - Go 代码导入管理
+- `golangci-lint` - 代码检查
+- `swag` - Swagger API 文档生成
+
 ### 3. 生成依赖注入代码
+
+```bash
+make wire
+```
+
+或者：
 
 ```bash
 cd wire && wire
@@ -75,7 +87,7 @@ cd wire && wire
 
 ### 4. 配置数据库
 
-编辑 `config/config.yaml`:
+编辑 `config/config.yaml`：
 
 ```yaml
 database:
@@ -98,11 +110,28 @@ make migrate-up
 make run
 ```
 
+服务启动后，访问 http://localhost:8080/swagger/index.html 查看 API 文档（如果已配置 Swagger UI）
+
+### 7. 生成 Swagger API 文档
+
+修改接口注释后，执行：
+
+```bash
+make swag
+```
+
+文档会生成到 `docs/` 目录：
+- `docs/swagger.json` - JSON 格式
+- `docs/swagger.yaml` - YAML 格式
+
 ## 开发命令
 
 ```bash
 # 生成Wire代码
 make wire
+
+# 生成Swagger API文档
+make swag
 
 # 运行服务
 make run
@@ -119,6 +148,12 @@ make fmt
 
 # 代码检查
 make lint
+
+# 清理生成文件（包括 docs/）
+make clean
+
+# 查看所有命令
+make help
 ```
 
 ## 错误处理最佳实践

@@ -17,13 +17,13 @@ type SubscribeRepository interface {
 	GetPendingMessages(ctx context.Context, limit int) ([]*entity.MessageSendQueue, error)
 
 	// UpdateQueueStatus 更新队列消息状态
-	UpdateQueueStatus(ctx context.Context, id uint, status string, errorMsg string) error
+	UpdateQueueStatus(ctx context.Context, id int64, status string, errorMsg string) error
 
 	// IncrementRetryCount 增加重试次数
-	IncrementRetryCount(ctx context.Context, id uint) error
+	IncrementRetryCount(ctx context.Context, id int64) error
 
 	// DeleteQueueMessage 删除队列消息
-	DeleteQueueMessage(ctx context.Context, id uint) error
+	DeleteQueueMessage(ctx context.Context, id int64) error
 
 	// ==================== 消息发送日志 ====================
 
@@ -31,7 +31,7 @@ type SubscribeRepository interface {
 	CreateSendLog(ctx context.Context, log *entity.MessageSendLog) error
 
 	// GetSendLogs 获取发送日志(分页)
-	GetSendLogs(ctx context.Context, openid string, offset, limit int) ([]*entity.MessageSendLog, int64, error)
+	GetSendLogs(ctx context.Context, userID int64, offset, limit int) ([]*entity.MessageSendLog, int64, error)
 
 	// GetSendLogsByTemplateType 根据模板类型获取发送日志
 	GetSendLogsByTemplateType(ctx context.Context, templateType string, offset, limit int) ([]*entity.MessageSendLog, int64, error)

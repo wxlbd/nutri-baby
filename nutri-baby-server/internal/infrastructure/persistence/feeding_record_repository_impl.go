@@ -15,6 +15,24 @@ type feedingRecordRepositoryImpl struct {
 	db *gorm.DB
 }
 
+// FindLatestRecord 查询宝宝最新的一条喂养记录
+func (r *feedingRecordRepositoryImpl) FindLatestRecord(ctx context.Context, babyID int64) (*entity.FeedingRecord, error) {
+	var record entity.FeedingRecord
+	err := r.db.WithContext(ctx).
+		Where("baby_id = ?", babyID).
+		Order("time DESC").
+		First(&record).Error
+
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, errors.ErrRecordNotFound
+		}
+		return nil, errors.Wrap(errors.DatabaseError, "failed to get last record", err)
+	}
+
+	return &record, nil
+}
+
 // NewFeedingRecordRepository 创建喂养记录仓储
 func NewFeedingRecordRepository(db *gorm.DB) repository.FeedingRecordRepository {
 	return &feedingRecordRepositoryImpl{db: db}
@@ -27,10 +45,10 @@ func (r *feedingRecordRepositoryImpl) Create(ctx context.Context, record *entity
 	return nil
 }
 
-func (r *feedingRecordRepositoryImpl) FindByID(ctx context.Context, recordID string) (*entity.FeedingRecord, error) {
+func (r *feedingRecordRepositoryImpl) FindByID(ctx context.Context, recordID int64) (*entity.FeedingRecord, error) {
 	var record entity.FeedingRecord
 	err := r.db.WithContext(ctx).
-		Where("record_id = ? AND deleted_at IS NULL", recordID).
+		Where("id = ?", recordID).
 		First(&record).Error
 
 	if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -45,7 +63,7 @@ func (r *feedingRecordRepositoryImpl) FindByID(ctx context.Context, recordID str
 
 func (r *feedingRecordRepositoryImpl) FindByBabyID(
 	ctx context.Context,
-	babyID string,
+	babyID int64,
 	startTime, endTime int64,
 	page, pageSize int,
 ) ([]*entity.FeedingRecord, int64, error) {
@@ -54,7 +72,7 @@ func (r *feedingRecordRepositoryImpl) FindByBabyID(
 
 	query := r.db.WithContext(ctx).
 		Model(&entity.FeedingRecord{}).
-		Where("baby_id = ? AND deleted_at IS NULL", babyID)
+		Where("baby_id = ?", babyID)
 
 	// 如果是查询最近一条记录(page=1, pageSize=1),且没有时间范围限制,则只查询未提醒的记录
 	// 这是为了支持定时任务查询未提醒的最近喂养记录
@@ -90,7 +108,7 @@ func (r *feedingRecordRepositoryImpl) FindByBabyID(
 // FindByBabyIDAndType 根据宝宝ID和喂养类型查找记录(分页)
 func (r *feedingRecordRepositoryImpl) FindByBabyIDAndType(
 	ctx context.Context,
-	babyID string,
+	babyID int64,
 	feedingType string,
 	startTime, endTime int64,
 	page, pageSize int,
@@ -100,7 +118,7 @@ func (r *feedingRecordRepositoryImpl) FindByBabyIDAndType(
 
 	query := r.db.WithContext(ctx).
 		Model(&entity.FeedingRecord{}).
-		Where("baby_id = ? AND feeding_type = ? AND deleted_at IS NULL", babyID, feedingType)
+		Where("baby_id = ? AND feeding_type = ?", babyID, feedingType)
 
 	if startTime > 0 {
 		query = query.Where("time >= ?", startTime)
@@ -130,7 +148,7 @@ func (r *feedingRecordRepositoryImpl) FindByBabyIDAndType(
 func (r *feedingRecordRepositoryImpl) Update(ctx context.Context, record *entity.FeedingRecord) error {
 	err := r.db.WithContext(ctx).
 		Model(&entity.FeedingRecord{}).
-		Where("record_id = ? AND deleted_at IS NULL", record.RecordID).
+		Where("id = ?", record.ID).
 		Updates(record).Error
 
 	if err != nil {
@@ -140,9 +158,9 @@ func (r *feedingRecordRepositoryImpl) Update(ctx context.Context, record *entity
 	return nil
 }
 
-func (r *feedingRecordRepositoryImpl) Delete(ctx context.Context, recordID string) error {
+func (r *feedingRecordRepositoryImpl) Delete(ctx context.Context, recordID int64) error {
 	err := r.db.WithContext(ctx).
-		Where("record_id = ?", recordID).
+		Where("id = ?", recordID).
 		Delete(&entity.FeedingRecord{}).Error
 
 	if err != nil {
@@ -154,14 +172,13 @@ func (r *feedingRecordRepositoryImpl) Delete(ctx context.Context, recordID strin
 
 func (r *feedingRecordRepositoryImpl) FindUpdatedAfter(
 	ctx context.Context,
-	familyID string,
+	babyID int64,
 	timestamp int64,
 ) ([]*entity.FeedingRecord, error) {
 	var records []*entity.FeedingRecord
 
 	err := r.db.WithContext(ctx).
-		Joins("JOIN babies ON babies.baby_id = feeding_records.baby_id").
-		Where("babies.family_id = ? AND feeding_records.update_time > ?", familyID, timestamp).
+		Where("baby_id = ? AND updated_at > ?", babyID, timestamp).
 		Find(&records).Error
 
 	if err != nil {
@@ -174,13 +191,13 @@ func (r *feedingRecordRepositoryImpl) FindUpdatedAfter(
 // UpdateReminderStatus 更新提醒状态
 func (r *feedingRecordRepositoryImpl) UpdateReminderStatus(
 	ctx context.Context,
-	recordID string,
+	recordID int64,
 	sent bool,
 	reminderTime int64,
 ) error {
 	err := r.db.WithContext(ctx).
 		Model(&entity.FeedingRecord{}).
-		Where("record_id = ? AND deleted_at IS NULL", recordID).
+		Where("id = ?", recordID).
 		Updates(map[string]interface{}{
 			"reminder_sent": sent,
 			"reminder_time": reminderTime,
@@ -196,7 +213,7 @@ func (r *feedingRecordRepositoryImpl) UpdateReminderStatus(
 // GetTodayStatsByType 获取今日按类型的统计数据
 func (r *feedingRecordRepositoryImpl) GetTodayStatsByType(
 	ctx context.Context,
-	babyID string,
+	babyID int64,
 	feedingType string,
 	todayStart, todayEnd int64,
 ) (count int64, totalAmount float64, totalDuration int, err error) {
@@ -210,7 +227,7 @@ func (r *feedingRecordRepositoryImpl) GetTodayStatsByType(
 	err = r.db.WithContext(ctx).
 		Model(&entity.FeedingRecord{}).
 		Select("COUNT(*) as count, COALESCE(SUM(amount), 0) as total_amount, COALESCE(SUM(duration), 0) as total_duration").
-		Where("baby_id = ? AND feeding_type = ? AND time >= ? AND time <= ? AND deleted_at IS NULL",
+		Where("baby_id = ? AND feeding_type = ? AND time >= ? AND time <= ?",
 			babyID, feedingType, todayStart, todayEnd).
 		Scan(&result).Error
 

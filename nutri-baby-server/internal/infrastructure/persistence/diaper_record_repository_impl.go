@@ -27,10 +27,10 @@ func (r *diaperRecordRepositoryImpl) Create(ctx context.Context, record *entity.
 	return nil
 }
 
-func (r *diaperRecordRepositoryImpl) FindByID(ctx context.Context, recordID string) (*entity.DiaperRecord, error) {
+func (r *diaperRecordRepositoryImpl) FindByID(ctx context.Context, recordID int64) (*entity.DiaperRecord, error) {
 	var record entity.DiaperRecord
 	err := r.db.WithContext(ctx).
-		Where("record_id = ? AND deleted_at IS NULL", recordID).
+		Where("id = ?", recordID).
 		First(&record).Error
 
 	if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -45,7 +45,7 @@ func (r *diaperRecordRepositoryImpl) FindByID(ctx context.Context, recordID stri
 
 func (r *diaperRecordRepositoryImpl) FindByBabyID(
 	ctx context.Context,
-	babyID string,
+	babyID int64,
 	startTime, endTime int64,
 	page, pageSize int,
 ) ([]*entity.DiaperRecord, int64, error) {
@@ -54,7 +54,7 @@ func (r *diaperRecordRepositoryImpl) FindByBabyID(
 
 	query := r.db.WithContext(ctx).
 		Model(&entity.DiaperRecord{}).
-		Where("baby_id = ? AND deleted_at IS NULL", babyID)
+		Where("baby_id = ?", babyID)
 
 	if startTime > 0 {
 		query = query.Where("time >= ?", startTime)
@@ -84,7 +84,7 @@ func (r *diaperRecordRepositoryImpl) FindByBabyID(
 func (r *diaperRecordRepositoryImpl) Update(ctx context.Context, record *entity.DiaperRecord) error {
 	err := r.db.WithContext(ctx).
 		Model(&entity.DiaperRecord{}).
-		Where("record_id = ? AND deleted_at IS NULL", record.RecordID).
+		Where("id = ?", record.ID).
 		Updates(record).Error
 
 	if err != nil {
@@ -94,9 +94,9 @@ func (r *diaperRecordRepositoryImpl) Update(ctx context.Context, record *entity.
 	return nil
 }
 
-func (r *diaperRecordRepositoryImpl) Delete(ctx context.Context, recordID string) error {
+func (r *diaperRecordRepositoryImpl) Delete(ctx context.Context, recordID int64) error {
 	err := r.db.WithContext(ctx).
-		Where("record_id = ?", recordID).
+		Where("id = ?", recordID).
 		Delete(&entity.DiaperRecord{}).Error
 
 	if err != nil {
@@ -108,14 +108,13 @@ func (r *diaperRecordRepositoryImpl) Delete(ctx context.Context, recordID string
 
 func (r *diaperRecordRepositoryImpl) FindUpdatedAfter(
 	ctx context.Context,
-	familyID string,
+	babyID int64,
 	timestamp int64,
 ) ([]*entity.DiaperRecord, error) {
 	var records []*entity.DiaperRecord
 
 	err := r.db.WithContext(ctx).
-		Joins("JOIN babies ON babies.baby_id = diaper_records.baby_id").
-		Where("babies.family_id = ? AND diaper_records.update_time > ?", familyID, timestamp).
+		Where("baby_id = ? AND updated_at > ?", babyID, timestamp).
 		Find(&records).Error
 
 	if err != nil {

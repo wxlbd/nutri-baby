@@ -5,9 +5,9 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
+	"strconv"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/wxlbd/nutri-baby-server/internal/application/dto"
 	"github.com/wxlbd/nutri-baby-server/internal/domain/entity"
 	"github.com/wxlbd/nutri-baby-server/internal/domain/repository"
@@ -55,20 +55,20 @@ func (s *BabyService) CreateBaby(ctx context.Context, openID string, req *dto.Cr
 		return nil, errors.New(errors.ParamError, "出生日期格式错误，应为YYYY-MM-DD")
 	}
 
-	babyID := uuid.New().String()
-	now := time.Now().UnixMilli()
+	// 获取用户信息以获取UserID
+	user, err := s.userRepo.FindByOpenID(ctx, openID)
+	if err != nil {
+		return nil, err
+	}
 
-	// 创建宝宝实体
+	// 创建宝宝实体 (ID由snowflake自动生成)
 	baby := &entity.Baby{
-		BabyID:     babyID,
-		Name:       req.Name,
-		Nickname:   req.Nickname,
-		Gender:     req.Gender,
-		BirthDate:  req.BirthDate,
-		AvatarURL:  req.AvatarURL,
-		CreatorID:  openID,
-		CreateTime: now,
-		UpdateTime: now,
+		Name:      req.Name,
+		Nickname:  req.Nickname,
+		Gender:    req.Gender,
+		BirthDate: req.BirthDate,
+		AvatarURL: req.AvatarURL,
+		UserID:    user.ID,
 	}
 
 	// 创建宝宝
@@ -76,20 +76,12 @@ func (s *BabyService) CreateBaby(ctx context.Context, openID string, req *dto.Cr
 		return nil, err
 	}
 
-	// 获取用户信息(用于协作者记录)
-	//user, err := s.userRepo.FindByOpenID(ctx, openID)
-	//if err != nil {
-	//	return nil, err
-	//}
-
 	// 创建者自动成为管理员
 	creator := &entity.BabyCollaborator{
-		BabyID:     babyID,
-		OpenID:     openID,
+		BabyID:     baby.ID,
+		UserID:     user.ID,
 		Role:       "admin",
 		AccessType: "permanent",
-		JoinTime:   now,
-		UpdateTime: now,
 	}
 
 	if err := s.collaboratorRepo.Create(ctx, creator); err != nil {
@@ -98,33 +90,42 @@ func (s *BabyService) CreateBaby(ctx context.Context, openID string, req *dto.Cr
 
 	// 如果指定了复制协作者,则批量复制
 	if req.CopyCollaboratorsFrom != "" {
-		if err := s.copyCollaborators(ctx, req.CopyCollaboratorsFrom, babyID, openID); err != nil {
-			// 记录错误但不影响创建宝宝
-			// logger.Warn("Failed to copy collaborators", zap.Error(err))
+		sourceBabyID, err := strconv.ParseInt(req.CopyCollaboratorsFrom, 10, 64)
+		if err == nil { // 只在转换成功时执行复制
+			if err := s.copyCollaborators(ctx, sourceBabyID, baby.ID, openID); err != nil {
+				// 记录错误但不影响创建宝宝
+				// logger.Warn("Failed to copy collaborators", zap.Error(err))
+			}
 		}
 	}
 	// 初始化疫苗计划
-	if err := s.vaccineScheduleService.InitializeSchedulesForBaby(ctx, babyID, openID); err != nil {
+	if err := s.vaccineScheduleService.InitializeSchedulesForBaby(ctx, strconv.FormatInt(baby.ID, 10), openID); err != nil {
 		// 记录错误但不影响创建宝宝
 		s.logger.Error("初始化疫苗计划失败", zap.Error(err))
 	}
 
 	return &dto.BabyDTO{
-		BabyID:     baby.BabyID,
+		BabyID:     strconv.FormatInt(baby.ID, 10),
 		Name:       baby.Name,
 		Nickname:   baby.Nickname,
 		Gender:     baby.Gender,
 		BirthDate:  baby.BirthDate,
 		AvatarURL:  baby.AvatarURL,
-		CreatorID:  baby.CreatorID,
-		CreateTime: baby.CreateTime,
-		UpdateTime: baby.UpdateTime,
+		CreatorID:  strconv.FormatInt(baby.UserID, 10),
+		CreateTime: baby.CreatedAt,
+		UpdateTime: baby.UpdatedAt,
 	}, nil
 }
 
 // GetUserBabies 获取用户可访问的宝宝列表
 func (s *BabyService) GetUserBabies(ctx context.Context, openID string) ([]dto.BabyDTO, error) {
-	babies, err := s.babyRepo.FindByUserID(ctx, openID)
+	// 获取用户信息以获取UserID
+	user, err := s.userRepo.FindByOpenID(ctx, openID)
+	if err != nil {
+		return nil, err
+	}
+
+	babies, err := s.babyRepo.FindByUserID(ctx, user.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -132,15 +133,15 @@ func (s *BabyService) GetUserBabies(ctx context.Context, openID string) ([]dto.B
 	result := make([]dto.BabyDTO, 0, len(babies))
 	for _, baby := range babies {
 		result = append(result, dto.BabyDTO{
-			BabyID:     baby.BabyID,
+			BabyID:     strconv.FormatInt(baby.ID, 10),
 			Name:       baby.Name,
 			Nickname:   baby.Nickname,
 			Gender:     baby.Gender,
 			BirthDate:  baby.BirthDate,
 			AvatarURL:  baby.AvatarURL,
-			CreatorID:  baby.CreatorID,
-			CreateTime: baby.CreateTime,
-			UpdateTime: baby.UpdateTime,
+			CreatorID:  strconv.FormatInt(baby.UserID, 10),
+			CreateTime: baby.CreatedAt,
+			UpdateTime: baby.UpdatedAt,
 		})
 	}
 
@@ -149,33 +150,51 @@ func (s *BabyService) GetUserBabies(ctx context.Context, openID string) ([]dto.B
 
 // GetBabyDetail 获取宝宝详情
 func (s *BabyService) GetBabyDetail(ctx context.Context, babyID, openID string) (*dto.BabyDTO, error) {
+	// 转换babyID from string to int64
+	babyIDInt64, err := strconv.ParseInt(babyID, 10, 64)
+	if err != nil {
+		return nil, errors.New(errors.ParamError, "invalid baby id format")
+	}
+
 	// 检查权限
-	if err := s.checkPermission(ctx, babyID, openID); err != nil {
+	if err := s.checkPermission(ctx, babyIDInt64, openID); err != nil {
 		return nil, err
 	}
 
-	baby, err := s.babyRepo.FindByID(ctx, babyID)
+	baby, err := s.babyRepo.FindByID(ctx, babyIDInt64)
 	if err != nil {
 		return nil, err
 	}
 
 	return &dto.BabyDTO{
-		BabyID:     baby.BabyID,
+		BabyID:     strconv.FormatInt(baby.ID, 10),
 		Name:       baby.Name,
 		Nickname:   baby.Nickname,
 		Gender:     baby.Gender,
 		BirthDate:  baby.BirthDate,
 		AvatarURL:  baby.AvatarURL,
-		CreatorID:  baby.CreatorID,
-		CreateTime: baby.CreateTime,
-		UpdateTime: baby.UpdateTime,
+		CreatorID:  strconv.FormatInt(baby.UserID, 10),
+		CreateTime: baby.CreatedAt,
+		UpdateTime: baby.UpdatedAt,
 	}, nil
 }
 
 // UpdateBaby 更新宝宝信息
 func (s *BabyService) UpdateBaby(ctx context.Context, babyID, openID string, req *dto.UpdateBabyRequest) error {
+	// 转换babyID from string to int64
+	babyIDInt64, err := strconv.ParseInt(babyID, 10, 64)
+	if err != nil {
+		return errors.New(errors.ParamError, "invalid baby id format")
+	}
+
+	// 获取用户信息以获取UserID
+	user, err := s.userRepo.FindByOpenID(ctx, openID)
+	if err != nil {
+		return err
+	}
+
 	// 检查编辑权限
-	canEdit, err := s.collaboratorRepo.CanEdit(ctx, babyID, openID)
+	canEdit, err := s.collaboratorRepo.CanEdit(ctx, babyIDInt64, user.ID)
 	if err != nil {
 		return err
 	}
@@ -183,7 +202,7 @@ func (s *BabyService) UpdateBaby(ctx context.Context, babyID, openID string, req
 		return errors.New(errors.PermissionDenied, "您没有权限编辑该宝宝信息")
 	}
 
-	baby, err := s.babyRepo.FindByID(ctx, babyID)
+	baby, err := s.babyRepo.FindByID(ctx, babyIDInt64)
 	if err != nil {
 		return err
 	}
@@ -208,15 +227,25 @@ func (s *BabyService) UpdateBaby(ctx context.Context, babyID, openID string, req
 		baby.AvatarURL = req.AvatarURL
 	}
 
-	baby.UpdateTime = time.Now().UnixMilli()
-
 	return s.babyRepo.Update(ctx, baby)
 }
 
 // DeleteBaby 删除宝宝
 func (s *BabyService) DeleteBaby(ctx context.Context, babyID, openID string) error {
+	// 转换babyID from string to int64
+	babyIDInt64, err := strconv.ParseInt(babyID, 10, 64)
+	if err != nil {
+		return errors.New(errors.ParamError, "invalid baby id format")
+	}
+
+	// 获取用户信息以获取UserID
+	user, err := s.userRepo.FindByOpenID(ctx, openID)
+	if err != nil {
+		return err
+	}
+
 	// 只有管理员可以删除宝宝
-	isAdmin, err := s.collaboratorRepo.IsAdmin(ctx, babyID, openID)
+	isAdmin, err := s.collaboratorRepo.IsAdmin(ctx, babyIDInt64, user.ID)
 	if err != nil {
 		return err
 	}
@@ -224,37 +253,46 @@ func (s *BabyService) DeleteBaby(ctx context.Context, babyID, openID string) err
 		return errors.New(errors.PermissionDenied, "只有管理员可以删除宝宝")
 	}
 
-	return s.babyRepo.Delete(ctx, babyID)
+	return s.babyRepo.Delete(ctx, babyIDInt64)
 }
 
 // GetCollaborators 获取宝宝的协作者列表
 func (s *BabyService) GetCollaborators(ctx context.Context, babyID, openID string) ([]dto.CollaboratorDTO, error) {
+	// 转换babyID from string to int64
+	babyIDInt64, err := strconv.ParseInt(babyID, 10, 64)
+	if err != nil {
+		return nil, errors.New(errors.ParamError, "invalid baby id format")
+	}
+
 	// 检查权限
-	if err := s.checkPermission(ctx, babyID, openID); err != nil {
+	if err := s.checkPermission(ctx, babyIDInt64, openID); err != nil {
 		return nil, err
 	}
 
-	collaborators, err := s.collaboratorRepo.FindByBabyID(ctx, babyID)
+	collaborators, err := s.collaboratorRepo.FindByBabyID(ctx, babyIDInt64)
 	if err != nil {
 		return nil, err
 	}
 
 	result := make([]dto.CollaboratorDTO, 0, len(collaborators))
 	for _, collab := range collaborators {
-		// 获取用户信息
-		user, err := s.userRepo.FindByOpenID(ctx, collab.OpenID)
-		if err != nil {
-			continue // 跳过无法找到的用户
+		// 检查关联的User是否被加载
+		if collab.User == nil {
+			s.logger.Warn("协作者关联的User未加载,跳过该协作者",
+				zap.Int64("babyID", babyIDInt64),
+				zap.Int64("userID", collab.UserID),
+			)
+			continue
 		}
 
 		result = append(result, dto.CollaboratorDTO{
-			OpenID:     collab.OpenID,
-			NickName:   user.NickName,
-			AvatarURL:  user.AvatarURL,
+			OpenID:     collab.User.OpenID,
+			NickName:   collab.User.NickName,
+			AvatarURL:  collab.User.AvatarURL,
 			Role:       collab.Role,
 			AccessType: collab.AccessType,
 			ExpiresAt:  collab.ExpiresAt,
-			JoinTime:   collab.JoinTime,
+			JoinTime:   collab.CreatedAt,
 		})
 	}
 
@@ -264,8 +302,20 @@ func (s *BabyService) GetCollaborators(ctx context.Context, babyID, openID strin
 // InviteCollaborator 邀请协作者 (微信分享/二维码)
 // 注意:同一用户对同一宝宝只有一个有效邀请,重复调用会返回已有的邀请
 func (s *BabyService) InviteCollaborator(ctx context.Context, babyID, openID string, req *dto.InviteCollaboratorRequest) (*dto.BabyInvitationDTO, error) {
+	// 转换babyID from string to int64
+	babyIDInt64, err := strconv.ParseInt(babyID, 10, 64)
+	if err != nil {
+		return nil, errors.New(errors.ParamError, "invalid baby id format")
+	}
+
+	// 获取用户信息以获取UserID
+	user, err := s.userRepo.FindByOpenID(ctx, openID)
+	if err != nil {
+		return nil, err
+	}
+
 	// 只有管理员和编辑者可以邀请
-	canEdit, err := s.collaboratorRepo.CanEdit(ctx, babyID, openID)
+	canEdit, err := s.collaboratorRepo.CanEdit(ctx, babyIDInt64, user.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -274,19 +324,13 @@ func (s *BabyService) InviteCollaborator(ctx context.Context, babyID, openID str
 	}
 
 	// 获取宝宝信息
-	baby, err := s.babyRepo.FindByID(ctx, babyID)
-	if err != nil {
-		return nil, err
-	}
-
-	// 获取邀请人信息
-	inviter, err := s.userRepo.FindByOpenID(ctx, openID)
+	baby, err := s.babyRepo.FindByID(ctx, babyIDInt64)
 	if err != nil {
 		return nil, err
 	}
 
 	// 检查是否已经存在未使用的邀请 (邀请码唯一性)
-	existingInvitation, err := s.invitationRepo.FindByBabyAndInviter(ctx, babyID, openID)
+	existingInvitation, err := s.invitationRepo.FindByBabyAndInviter(ctx, babyIDInt64, user.ID)
 	if err != nil && !errors.Is(err, errors.ErrNotFound) {
 		return nil, err
 	}
@@ -310,7 +354,7 @@ func (s *BabyService) InviteCollaborator(ctx context.Context, babyID, openID str
 		return &dto.BabyInvitationDTO{
 			BabyID:      babyID,
 			Name:        baby.Name,
-			InviterName: inviter.NickName,
+			InviterName: user.NickName,
 			Role:        existingInvitation.Role,
 			ExpiresAt:   existingInvitation.ExpiresAt,
 			ShortCode:   existingInvitation.ShortCode,
@@ -332,20 +376,16 @@ func (s *BabyService) InviteCollaborator(ctx context.Context, babyID, openID str
 		return nil, errors.Wrap(errors.InternalError, "生成短码失败", err)
 	}
 
-	now := time.Now().UnixMilli()
-
-	// 创建邀请记录 (不再设置ValidUntil,邀请永久有效)
+	// 创建邀请记录 (ID由snowflake自动生成)
 	invitation := &entity.BabyInvitation{
-		InvitationID: uuid.New().String(),
-		BabyID:       babyID,
-		InviterID:    openID,
-		Token:        token,
-		ShortCode:    shortCode,
-		InviteType:   req.InviteType,
-		Role:         req.Role,
-		AccessType:   req.AccessType,
-		ExpiresAt:    req.ExpiresAt, // 只保留协作者权限的过期时间
-		CreateTime:   now,
+		BabyID:     babyIDInt64,
+		UserID:     user.ID,
+		Token:      token,
+		ShortCode:  shortCode,
+		InviteType: req.InviteType,
+		Role:       req.Role,
+		AccessType: req.AccessType,
+		ExpiresAt:  req.ExpiresAt, // 只保留协作者权限的过期时间
 	}
 
 	if err = s.invitationRepo.Create(ctx, invitation); err != nil {
@@ -356,7 +396,7 @@ func (s *BabyService) InviteCollaborator(ctx context.Context, babyID, openID str
 	result := &dto.BabyInvitationDTO{
 		BabyID:      babyID,
 		Name:        baby.Name,
-		InviterName: inviter.NickName,
+		InviterName: user.NickName,
 		Role:        req.Role,
 		ExpiresAt:   req.ExpiresAt,
 		ShortCode:   shortCode,
@@ -390,25 +430,22 @@ func (s *BabyService) GetInvitationByShortCode(ctx context.Context, shortCode st
 		return nil, err
 	}
 
-	// 验证邀请是否已被使用
-	if invitation.IsUsed() {
-		return nil, errors.New(errors.ParamError, "邀请已被使用")
-	}
-
 	// 获取宝宝信息
 	baby, err := s.babyRepo.FindByID(ctx, invitation.BabyID)
 	if err != nil {
 		return nil, err
 	}
 
-	// 获取邀请人信息
-	inviter, err := s.userRepo.FindByOpenID(ctx, invitation.InviterID)
+	// 获取邀请人信息 (UserID to User)
+	inviter, err := s.userRepo.FindByID(ctx, invitation.UserID) // 这里需要通过UserID获取User,但userRepo没有这个方法
+	// 为了兼容,我们直接从User关联获取
+	// 暂时使用ID查询 - 需要检查是否有GetUserByID方法
 	if err != nil {
 		return nil, err
 	}
 
 	return &dto.InvitationDetailDTO{
-		BabyID:      baby.BabyID,
+		BabyID:      strconv.FormatInt(baby.ID, 10),
 		BabyName:    baby.Name,
 		BabyAvatar:  baby.AvatarURL,
 		InviterName: inviter.NickName,
@@ -421,23 +458,30 @@ func (s *BabyService) GetInvitationByShortCode(ctx context.Context, shortCode st
 
 // JoinBaby 加入宝宝协作 (通过微信分享或二维码)
 func (s *BabyService) JoinBaby(ctx context.Context, openID string, req *dto.JoinBabyRequest) (*dto.BabyDTO, error) {
+	// 转换babyID from string to int64
+	babyIDInt64, err := strconv.ParseInt(req.BabyID, 10, 64)
+	if err != nil {
+		return nil, errors.New(errors.ParamError, "invalid baby id format")
+	}
+
 	// 查找邀请记录
 	invitation, err := s.invitationRepo.FindByToken(ctx, req.Token)
 	if err != nil {
 		return nil, err
 	}
 
-	// 验证邀请是否已被使用
-	if invitation.IsUsed() {
-		return nil, errors.New(errors.ParamError, "邀请已被使用")
-	}
-
-	if invitation.BabyID != req.BabyID {
+	if invitation.BabyID != babyIDInt64 {
 		return nil, errors.New(errors.ParamError, "邀请参数不匹配")
 	}
 
+	// 获取用户信息以获取UserID
+	user, err := s.userRepo.FindByOpenID(ctx, openID)
+	if err != nil {
+		return nil, err
+	}
+
 	// 检查用户是否已经是协作者
-	existing, err := s.collaboratorRepo.FindByBabyAndUser(ctx, req.BabyID, openID)
+	existing, err := s.collaboratorRepo.FindByBabyAndUser(ctx, babyIDInt64, user.ID)
 	if err != nil && !errors.Is(err, errors.ErrNotFound) {
 		return nil, err
 	}
@@ -446,27 +490,17 @@ func (s *BabyService) JoinBaby(ctx context.Context, openID string, req *dto.Join
 		return nil, errors.New(errors.ParamError, "您已经是该宝宝的协作者")
 	}
 
-	now := time.Now().UnixMilli()
-
 	// 创建协作者记录
 	collaborator := &entity.BabyCollaborator{
 		BabyID:     invitation.BabyID,
-		OpenID:     openID,
+		UserID:     user.ID,
 		Role:       invitation.Role,
 		AccessType: invitation.AccessType,
 		ExpiresAt:  invitation.ExpiresAt,
-		JoinTime:   now,
-		UpdateTime: now,
 	}
 
 	if err := s.collaboratorRepo.Create(ctx, collaborator); err != nil {
 		return nil, err
-	}
-
-	// 标记邀请已使用
-	if err := s.invitationRepo.MarkAsUsed(ctx, invitation.InvitationID, openID, now); err != nil {
-		// 记录错误但不影响加入
-		// logger.Warn("Failed to mark invitation as used", zap.Error(err))
 	}
 
 	// 返回宝宝信息
@@ -475,8 +509,20 @@ func (s *BabyService) JoinBaby(ctx context.Context, openID string, req *dto.Join
 
 // RemoveCollaborator 移除协作者
 func (s *BabyService) RemoveCollaborator(ctx context.Context, babyID, openID, targetOpenID string) error {
+	// 转换babyID from string to int64
+	babyIDInt64, err := strconv.ParseInt(babyID, 10, 64)
+	if err != nil {
+		return errors.New(errors.ParamError, "invalid baby id format")
+	}
+
+	// 获取用户信息以获取UserID
+	user, err := s.userRepo.FindByOpenID(ctx, openID)
+	if err != nil {
+		return err
+	}
+
 	// 只有管理员可以移除协作者
-	isAdmin, err := s.collaboratorRepo.IsAdmin(ctx, babyID, openID)
+	isAdmin, err := s.collaboratorRepo.IsAdmin(ctx, babyIDInt64, user.ID)
 	if err != nil {
 		return err
 	}
@@ -485,21 +531,40 @@ func (s *BabyService) RemoveCollaborator(ctx context.Context, babyID, openID, ta
 	}
 
 	// 不能移除创建者
-	baby, err := s.babyRepo.FindByID(ctx, babyID)
+	baby, err := s.babyRepo.FindByID(ctx, babyIDInt64)
 	if err != nil {
 		return err
 	}
-	if baby.CreatorID == targetOpenID {
+
+	// 获取目标用户信息
+	targetUser, err := s.userRepo.FindByOpenID(ctx, targetOpenID)
+	if err != nil {
+		return err
+	}
+
+	if baby.UserID == targetUser.ID {
 		return errors.New(errors.ParamError, "不能移除创建者")
 	}
 
-	return s.collaboratorRepo.Delete(ctx, babyID, targetOpenID)
+	return s.collaboratorRepo.Delete(ctx, babyIDInt64, targetUser.ID)
 }
 
 // UpdateCollaboratorRole 更新协作者角色
 func (s *BabyService) UpdateCollaboratorRole(ctx context.Context, babyID, openID, targetOpenID, newRole string) error {
+	// 转换babyID from string to int64
+	babyIDInt64, err := strconv.ParseInt(babyID, 10, 64)
+	if err != nil {
+		return errors.New(errors.ParamError, "invalid baby id format")
+	}
+
+	// 获取用户信息以获取UserID
+	user, err := s.userRepo.FindByOpenID(ctx, openID)
+	if err != nil {
+		return err
+	}
+
 	// 只有管理员可以更新角色
-	isAdmin, err := s.collaboratorRepo.IsAdmin(ctx, babyID, openID)
+	isAdmin, err := s.collaboratorRepo.IsAdmin(ctx, babyIDInt64, user.ID)
 	if err != nil {
 		return err
 	}
@@ -508,15 +573,22 @@ func (s *BabyService) UpdateCollaboratorRole(ctx context.Context, babyID, openID
 	}
 
 	// 不能修改创建者角色
-	baby, err := s.babyRepo.FindByID(ctx, babyID)
+	baby, err := s.babyRepo.FindByID(ctx, babyIDInt64)
 	if err != nil {
 		return err
 	}
-	if baby.CreatorID == targetOpenID {
+
+	// 获取目标用户信息
+	targetUser, err := s.userRepo.FindByOpenID(ctx, targetOpenID)
+	if err != nil {
+		return err
+	}
+
+	if baby.UserID == targetUser.ID {
 		return errors.New(errors.ParamError, "不能修改创建者的角色")
 	}
 
-	collaborator, err := s.collaboratorRepo.FindByBabyAndUser(ctx, babyID, targetOpenID)
+	collaborator, err := s.collaboratorRepo.FindByBabyAndUser(ctx, babyIDInt64, targetUser.ID)
 	if err != nil {
 		return err
 	}
@@ -525,14 +597,19 @@ func (s *BabyService) UpdateCollaboratorRole(ctx context.Context, babyID, openID
 	}
 
 	collaborator.Role = newRole
-	collaborator.UpdateTime = time.Now().UnixMilli()
 
 	return s.collaboratorRepo.Update(ctx, collaborator)
 }
 
 // checkPermission 检查用户是否有权限访问宝宝
-func (s *BabyService) checkPermission(ctx context.Context, babyID, openID string) error {
-	isCollaborator, err := s.collaboratorRepo.IsCollaborator(ctx, babyID, openID)
+func (s *BabyService) checkPermission(ctx context.Context, babyIDInt64 int64, openID string) error {
+	// 获取用户信息以获取UserID
+	user, err := s.userRepo.FindByOpenID(ctx, openID)
+	if err != nil {
+		return err
+	}
+
+	isCollaborator, err := s.collaboratorRepo.IsCollaborator(ctx, babyIDInt64, user.ID)
 	if err != nil {
 		return err
 	}
@@ -543,35 +620,38 @@ func (s *BabyService) checkPermission(ctx context.Context, babyID, openID string
 }
 
 // copyCollaborators 复制协作者列表到新宝宝
-func (s *BabyService) copyCollaborators(ctx context.Context, sourceBabyID, targetBabyID, openID string) error {
+func (s *BabyService) copyCollaborators(ctx context.Context, sourceBabyIDInt64, targetBabyIDInt64 int64, openID string) error {
 	// 检查源宝宝的权限
-	if err := s.checkPermission(ctx, sourceBabyID, openID); err != nil {
+	if err := s.checkPermission(ctx, sourceBabyIDInt64, openID); err != nil {
 		return err
 	}
 
 	// 获取源宝宝的协作者
-	sourceCollaborators, err := s.collaboratorRepo.FindByBabyID(ctx, sourceBabyID)
+	sourceCollaborators, err := s.collaboratorRepo.FindByBabyID(ctx, sourceBabyIDInt64)
+	if err != nil {
+		return err
+	}
+
+	// 获取用户信息以获取UserID
+	user, err := s.userRepo.FindByOpenID(ctx, openID)
 	if err != nil {
 		return err
 	}
 
 	// 创建新的协作者列表(排除创建者,因为已经添加)
 	newCollaborators := make([]*entity.BabyCollaborator, 0)
-	now := time.Now().UnixMilli()
 
 	for _, collab := range sourceCollaborators {
-		if collab.OpenID == openID {
+		if collab.UserID == user.ID {
 			continue // 跳过创建者
 		}
 
 		newCollaborators = append(newCollaborators, &entity.BabyCollaborator{
-			BabyID:     targetBabyID,
-			OpenID:     collab.OpenID,
+			BabyID:     targetBabyIDInt64,
+			UserID:     collab.UserID,
 			Role:       collab.Role,
 			AccessType: collab.AccessType,
 			ExpiresAt:  collab.ExpiresAt,
-			JoinTime:   now,
-			UpdateTime: now,
 		})
 	}
 

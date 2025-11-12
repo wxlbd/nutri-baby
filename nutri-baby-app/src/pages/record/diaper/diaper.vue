@@ -1,119 +1,96 @@
 <template>
-  <view class="diaper-page">
-    <!-- 排泄类型快捷按钮 -->
-    <view class="quick-buttons">
-      <view class="button-row">
-        <wd-button
-          type="primary"
-          size="large"
-          class="type-button"
-          @click="quickRecord('pee')"
-        >
-          <view class="button-content">
-            <text class="icon">💧</text>
-            <text>小便</text>
-          </view>
-        </wd-button>
+  <view>
+    <wd-navbar
+      id="diaper-navbar"
+      title="换尿布"
+      left-text="返回"
+      left-arrow
+      safeAreaInsetTop
+      fixed
+      placeholder
+    >
+      <template #capsule>
+        <wd-navbar-capsule @back="goBack" @back-home="goBackHome" />
+      </template>
+    </wd-navbar>
+    <view class="diaper-page">
+      <!-- 详情区域 -->
 
-        <wd-button
-          type="warning"
-          size="large"
-          class="type-button"
-          @click="quickRecord('poop')"
-        >
-          <view class="button-content">
-            <text class="icon">💩</text>
-            <text>大便</text>
-          </view>
-        </wd-button>
-      </view>
-
-      <wd-button type="success" size="large" block @click="quickRecord('both')">
-        <view class="button-content">
-          <text class="icon">💧💩</text>
-          <text>小便+大便</text>
-        </view>
-      </wd-button>
-    </view>
-
-    <!-- 详情区域 -->
-    <wd-popup v-model="showDetails" position="bottom" :safe-area-inset-bottom="true">
       <view class="details-section">
-        <view class="section-title">详细信息</view>
-
-      <!-- 记录时间选择 -->
-      <wd-cell-group>
-        <wd-datetime-picker
-          label="记录时间"
-          v-model="recordDateTime"
-          type="datetime"
-          :min-date="minDateTime"
-          :max-date="maxDateTime"
-          @confirm="onDateTimeConfirm"
-        />
-      </wd-cell-group>
-
-      <!-- 大便详情 (仅大便/两者时显示) -->
-      <view v-if="form.type === 'poop' || form.type === 'both'" class="poop-details">
-        <!-- 大便颜色 -->
-        <view class="detail-item">
-          <view class="detail-label">颜色</view>
-          <view class="color-selector">
-            <view
-              v-for="color in poopColors"
-              :key="color.value"
-              class="color-item"
-              :class="{ active: form.poopColor === color.value }"
-              @click="form.poopColor = color.value"
-            >
-              <view
-                class="color-circle"
-                :style="{ background: color.color }"
-              ></view>
-              <text class="color-label">{{ color.label }}</text>
+        <!-- 记录时间选择 -->
+        <wd-cell-group border title="详细信息">
+          <wd-cell title="类型" title-width="100rpx" center>
+            <view style="text-align: left">
+              <wd-radio-group v-model="form.type" shape="button" inline>
+                <wd-radio value="pee">小便</wd-radio>
+                <wd-radio value="poop">大便</wd-radio>
+                <wd-radio value="both">两者</wd-radio>
+              </wd-radio-group>
             </view>
-          </view>
-        </view>
-
-        <!-- 大便性状 -->
-        <view class="detail-item">
-          <view class="detail-label">性状</view>
-          <wd-radio-group v-model="form.poopTexture" shape="check" inline>
-            <wd-radio
-              v-for="texture in poopTextures"
-              :key="texture.value"
-              :value="texture.value"
-            >
-              {{ texture.label }}
-            </wd-radio>
-          </wd-radio-group>
-        </view>
-      </view>
-
-      <!-- 备注 -->
-      <wd-cell-group>
-
-        <!-- 备注 -->
-        <wd-cell title="备注">
-          <wd-textarea
-            v-model="form.note"
-            placeholder="有什么需要记录的吗?"
-            :max-length="200"
-            :rows="2"
+          </wd-cell>
+          <wd-datetime-picker
+            label="记录时间"
+            v-model="recordDateTime"
+            type="datetime"
+            @confirm="onDateTimeConfirm"
           />
-        </wd-cell>
-      </wd-cell-group>
+          <!-- 大便详情 (仅大便/两者时显示) -->
+          <view
+            v-if="form.type === 'poop' || form.type === 'both'"
+            class="poop-details"
+          >
+            <!-- 大便颜色 -->
+            <wd-cell title="颜色" title-width="100rpx" center>
+              <view class="color-selector">
+                <view
+                  v-for="color in poopColors"
+                  :key="color.value"
+                  class="color-item"
+                  :class="{ active: form.poopColor === color.value }"
+                  @click="form.poopColor = color.value"
+                >
+                  <view
+                    class="color-circle"
+                    :style="{ background: color.color }"
+                  ></view>
+                  <text class="color-label">{{ color.label }}</text>
+                </view>
+              </view>
+            </wd-cell>
 
-      <!-- 提交按钮 -->
-      <view class="submit-button">
-        <wd-button type="primary" size="large" block @click="handleSubmit">
-          {{ isEditing ? '更新记录' : '保存记录' }}
-        </wd-button>
+            <!-- 大便性状 -->
+            <wd-cell title="性状" title-width="100rpx" center>
+              <wd-radio-group v-model="form.poopTexture" shape="button" inline>
+                <wd-radio
+                  v-for="texture in poopTextures"
+                  :key="texture.value"
+                  :value="texture.value"
+                >
+                  {{ texture.label }}
+                </wd-radio>
+              </wd-radio-group>
+            </wd-cell>
+          </view>
+          <!-- 备注 -->
+          <wd-cell title="备注">
+            <wd-textarea
+              v-model="form.note"
+              placeholder="有什么需要记录的吗?"
+              :max-length="200"
+              :rows="2"
+            />
+          </wd-cell>
+        </wd-cell-group>
+        <!-- 提交按钮 -->
+        <view class="submit-button">
+          <wd-button type="primary" size="large" block @click="handleSubmit">
+            {{ isEditing ? "更新记录" : "保存记录" }}
+          </wd-button>
+        </view>
       </view>
-      </view>
-    </wd-popup>
 
-    <!-- 时间选择器弹窗 (独立于表单外) -->
+      <!-- 时间选择器弹窗 (独立于表单外) -->
+    </view>
   </view>
 </template>
 
@@ -123,7 +100,7 @@ import { onLoad } from "@dcloudio/uni-app";
 import { currentBabyId, getCurrentBaby } from "@/store/baby";
 import { getUserInfo } from "@/store/user";
 import type { DiaperType, PoopColor, PoopTexture } from "@/types";
-
+import { goBack, goBackHome } from "@/utils/common";
 // 直接调用 API 层
 import * as diaperApi from "@/api/diaper";
 
@@ -137,7 +114,7 @@ const form = ref<{
   poopColor: PoopColor | undefined;
   poopTexture: PoopTexture | undefined;
   note: string;
-  }>({
+}>({
   type: "pee",
   poopColor: undefined,
   poopTexture: undefined,
@@ -149,17 +126,12 @@ const showDetails = ref(false);
 
 // 日期时间选择器
 const recordDateTime = ref(new Date().getTime()); // 记录时间,初始为当前时间戳
-const minDateTime = ref(
-  new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).getTime()
-); // 最小: 30天前
-const maxDateTime = ref(new Date().getTime()); // 最大: 当前时间
 
 // 确认日期时间选择
 const onDateTimeConfirm = ({ value }: { value: number }) => {
   recordDateTime.value = value;
   console.log("[Diaper] 记录时间已更改为:", new Date(value));
 };
-
 
 // 格式化记录时间显示
 const formatRecordTime = (timestamp: number): string => {
@@ -210,7 +182,7 @@ const loadDiaperRecord = async (recordId: string) => {
       type: record.diaperType as DiaperType,
       poopColor: record.pooColor as PoopColor | undefined,
       poopTexture: record.pooTexture as PoopTexture | undefined,
-      note: record.note || '',
+      note: record.note || "",
     };
 
     // 设置记录时间
@@ -219,12 +191,12 @@ const loadDiaperRecord = async (recordId: string) => {
     // 打开详情弹窗
     showDetails.value = true;
 
-    console.log('[Diaper] 已加载记录数据:', record);
+    console.log("[Diaper] 已加载记录数据:", record);
   } catch (error: any) {
-    console.error('[Diaper] 加载记录失败:', error);
+    console.error("[Diaper] 加载记录失败:", error);
     uni.showToast({
-      title: error.message || '加载记录失败',
-      icon: 'none',
+      title: error.message || "加载记录失败",
+      icon: "none",
     });
     setTimeout(() => {
       uni.navigateBack();
@@ -321,17 +293,29 @@ const handleSubmit = async () => {
 </script>
 
 <style lang="scss" scoped>
+// ===== 设计系统变量 =====
+$spacing: 20rpx; // 统一间距
+$color-primary: #7dd3a2; // 品牌主色（绿色）
+$color-border: #CAE3D4; // 边框色
+$color-text-primary: #2c3e50; // 主文本
+$color-text-secondary: #7f8c8d; // 次文本
+$color-bg-light: #f6f8f7; // 浅色背景
+$color-bg-default: #ffffff; // 默认背景
+
 .diaper-page {
   min-height: 100vh;
-  background: #f5f5f5;
-  padding: 20rpx;
+  background: $color-bg-light;
+  padding: 16rpx;
+  padding-bottom: 100rpx; // tabBar 空间
 }
 
 .quick-buttons {
-  background: white;
+  background: $color-bg-default;
   border-radius: 16rpx;
   padding: 30rpx;
-  margin-bottom: 20rpx;
+  margin-bottom: 24rpx;
+  border: 1rpx solid $color-border;
+  box-shadow: 0 2rpx 8rpx rgba(125, 211, 162, 0.08);
 }
 
 .button-row {
@@ -358,22 +342,22 @@ const handleSubmit = async () => {
 }
 
 .details-section {
-  background: white;
-  border-radius: 16rpx 16rpx 0 0;
+  background: $color-bg-default;
+  border-radius: 16rpx;
   padding: 30rpx;
-  max-height: 80vh;
-  overflow-y: auto;
+  border: 1rpx solid $color-border;
+  box-shadow: 0 2rpx 8rpx rgba(125, 211, 162, 0.08);
+  margin-bottom: 24rpx;
 
   .wd-cell-group {
-    margin-bottom: 20rpx;
+    margin-bottom: 0;
   }
 }
 
 .poop-details {
-  margin: 20rpx 0;
-  padding: 20rpx;
-  // background: #f8f8f8;
-  border-radius: 12rpx;
+  margin: 20rpx 0 0 0;
+  padding: 0;
+  border-radius: 0;
 }
 
 .detail-item {
@@ -387,7 +371,7 @@ const handleSubmit = async () => {
 .detail-label {
   font-size: 28rpx;
   font-weight: 500;
-  color: #333;
+  color: $color-text-primary;
   margin-bottom: 16rpx;
 }
 
@@ -395,10 +379,11 @@ const handleSubmit = async () => {
   font-size: 32rpx;
   font-weight: bold;
   margin-bottom: 24rpx;
+  color: $color-text-primary;
 }
 
 .time-value {
-  color: #fa2c19;
+  color: $color-primary;
   font-weight: 500;
   font-size: 28rpx;
 }
@@ -407,7 +392,7 @@ const handleSubmit = async () => {
   display: flex;
   align-items: center;
   gap: 10rpx;
-  color: #333;
+  color: $color-text-primary;
   font-size: 28rpx;
 }
 
@@ -428,8 +413,8 @@ const handleSubmit = async () => {
   transition: all 0.3s;
 
   &.active {
-    border-color: #fa2c19;
-    background: rgba(250, 44, 25, 0.05);
+    border-color: $color-primary;
+    background: rgba(125, 211, 162, 0.1);
   }
 }
 
@@ -442,7 +427,7 @@ const handleSubmit = async () => {
 
 .color-label {
   font-size: 20rpx;
-  color: #666;
+  color: $color-text-secondary;
 }
 
 .texture-list {
@@ -452,6 +437,19 @@ const handleSubmit = async () => {
 }
 
 .submit-button {
-  margin-top: 40rpx;
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 20rpx;
+  background: $color-bg-default;
+  box-shadow: 0 -4rpx 16rpx rgba(0, 0, 0, 0.08);
+  z-index: 10;
+
+  :deep(.wd-button) {
+    height: 88rpx;
+    font-size: 28rpx;
+    font-weight: 500;
+  }
 }
 </style>

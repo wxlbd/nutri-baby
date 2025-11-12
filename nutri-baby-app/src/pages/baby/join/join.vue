@@ -1,6 +1,6 @@
 <template>
-
-<wd-navbar title="邀请详情" left-text="返回" right-text="设置" left-arrow safeAreaInsetTop>
+<view>
+<wd-navbar title="邀请详情" left-text="返回" right-text="设置" left-arrow safeAreaInsetTop fixed>
   <template #capsule>
     <wd-navbar-capsule @back="handleBack" @back-home="goToHome" height="auto" />
   </template>
@@ -63,7 +63,7 @@
           <wd-button type="primary" size="large" @click="handleJoin">
             确认加入
           </wd-button>
-          <wd-button type="default" size="large" @click="handleCancel">
+          <wd-button type="info" size="large" @click="handleCancel">
             取消
           </wd-button>
         </view>
@@ -84,6 +84,7 @@
         <wd-button type="primary" @click="handleBack">返回</wd-button>
       </view>
     </view>
+  </view>
   </view>
 </template>
 
@@ -163,9 +164,7 @@ onMounted(() => {
       // 总高度 = 状态栏高度 × 2（px→rpx） + 胶囊顶部距离 × 2（px→rpx） + 导航栏内容高度
       navbarTotalHeight.value =
         Math.round(statusBarHeight.value * 2) +
-        Math.round(menuButton.top * 2) +
-        navbarContentHeight.value
-
+        Math.round(menuButton.top) 
       console.log('[Join Navbar] Capsule aligned:', {
         statusBarHeight: statusBarHeight.value,
         menuButtonTop: menuButtonTop.value,
@@ -180,7 +179,7 @@ onMounted(() => {
     console.warn('[Join Navbar] Failed to get menu button info, using defaults', e)
     // 使用默认值
     navbarContentHeight.value = 88
-    navbarTotalHeight.value = Math.round(statusBarHeight.value * 2) + 88
+    navbarTotalHeight.value = Math.round(statusBarHeight.value * 2)
   }
   // #endif
 })
@@ -411,17 +410,9 @@ function handleBack() {
 <style lang="scss" scoped>
 .join-container {
   min-height: 100vh;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #f6f8f7;
 }
 
-// 导航栏样式
-.navbar-wrapper {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  z-index: 100;
-}
 
 .navbar-content {
   display: flex;
@@ -429,6 +420,7 @@ function handleBack() {
   justify-content: space-between;
   padding: 0 20rpx;
   height: 88rpx; // 会被动态样式覆盖
+  margin-top: 40rpx;
 }
 
 .navbar-left {
@@ -469,13 +461,13 @@ function handleBack() {
   align-items: center;
   justify-content: center;
   min-height: 60vh;
-  color: white;
+  color: #333;
 
   .loading-spinner {
     width: 80rpx;
     height: 80rpx;
-    border: 6rpx solid rgba(255, 255, 255, 0.3);
-    border-top-color: white;
+    border: 6rpx solid rgba(125, 211, 162, 0.3);
+    border-top-color: #7dd3a2;
     border-radius: 50%;
     animation: spin 1s linear infinite;
   }
@@ -499,6 +491,7 @@ function handleBack() {
 }
 
 .content {
+  margin-top: 20rpx ;
   .baby-card {
     background: white;
     border-radius: 24rpx;
@@ -544,7 +537,7 @@ function handleBack() {
         color: #666;
 
         .inviter-name {
-          color: #667eea;
+          color: #7dd3a2;
           font-weight: 500;
           margin-right: 8rpx;
         }
@@ -587,10 +580,11 @@ function handleBack() {
     .permission-desc {
       margin-top: 20rpx;
       padding: 20rpx;
-      background: #f8f9ff;
+      background: #f0f9f6;
       border-radius: 12rpx;
+      border: 1rpx solid #CAE3D4;
       font-size: 26rpx;
-      color: #667eea;
+      color: #7dd3a2;
       line-height: 1.6;
     }
   }
@@ -603,21 +597,23 @@ function handleBack() {
   }
 
   .tips {
-    background: rgba(255, 255, 255, 0.2);
+    background: rgba(125, 211, 162, 0.1);
     border-radius: 16rpx;
     padding: 30rpx;
-    color: white;
+    color: #333;
+    border: 1rpx solid rgba(125, 211, 162, 0.2);
 
     .tip-title {
       font-size: 28rpx;
       font-weight: bold;
       margin-bottom: 16rpx;
+      color: #7dd3a2;
     }
 
     .tip-item {
       font-size: 26rpx;
       line-height: 1.8;
-      opacity: 0.9;
+      color: #666;
     }
   }
 }

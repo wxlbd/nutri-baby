@@ -7,7 +7,9 @@ export {}
 
 declare module 'vue' {
   export interface GlobalComponents {
+    BabyCollaboratorsPreview: typeof import('./src/components/BabyCollaboratorsPreview.vue')['default']
     SubscribeGuide: typeof import('./src/components/SubscribeGuide.vue')['default']
+    UChart: typeof import('./src/components/UChart.vue')['default']
     WdBadge: typeof import('wot-design-uni/components/wd-badge/wd-badge.vue')['default']
     WdButton: typeof import('wot-design-uni/components/wd-button/wd-button.vue')['default']
     WdCard: typeof import('wot-design-uni/components/wd-card/wd-card.vue')['default']
@@ -19,12 +21,15 @@ declare module 'vue' {
     WdInput: typeof import('wot-design-uni/components/wd-input/wd-input.vue')['default']
     WdInputNumber: typeof import('wot-design-uni/components/wd-input-number/wd-input-number.vue')['default']
     WdLoading: typeof import('wot-design-uni/components/wd-loading/wd-loading.vue')['default']
+    WdLoadmore: typeof import('wot-design-uni/components/wd-loadmore/wd-loadmore.vue')['default']
     WdMessageBox: typeof import('wot-design-uni/components/wd-message-box/wd-message-box.vue')['default']
     WdNavbar: typeof import('wot-design-uni/components/wd-navbar/wd-navbar.vue')['default']
     WdNavbarCapsule: typeof import('wot-design-uni/components/wd-navbar-capsule/wd-navbar-capsule.vue')['default']
+    WdNoticeBar: typeof import('wot-design-uni/components/wd-notice-bar/wd-notice-bar.vue')['default']
     WdPopup: typeof import('wot-design-uni/components/wd-popup/wd-popup.vue')['default']
     WdRadio: typeof import('wot-design-uni/components/wd-radio/wd-radio.vue')['default']
     WdRadioGroup: typeof import('wot-design-uni/components/wd-radio-group/wd-radio-group.vue')['default']
+    WdSearch: typeof import('wot-design-uni/components/wd-search/wd-search.vue')['default']
     WdStatusTip: typeof import('wot-design-uni/components/wd-status-tip/wd-status-tip.vue')['default']
     WdSwitch: typeof import('wot-design-uni/components/wd-switch/wd-switch.vue')['default']
     WdTab: typeof import('wot-design-uni/components/wd-tab/wd-tab.vue')['default']

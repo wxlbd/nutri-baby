@@ -1,5 +1,13 @@
 package main
 
+// @title 宝宝喂养记录 API
+// @version 1.0
+// @description 全栈育儿记录系统 API 文档
+// @host localhost:8080
+// @BasePath /
+// @schemes http https
+// @x-logo {"url":"https://example.com/logo.png"}
+
 import (
 	"context"
 	"flag"

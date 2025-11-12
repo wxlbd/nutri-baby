@@ -28,35 +28,35 @@ func NewVaccineScheduleHandler(scheduleService *service.VaccineScheduleService) 
 // @Tags 疫苗管理
 // @Param babyId path string true "宝宝ID"
 // @Param status query string false "状态过滤: pending/completed/skipped"
-// @Success 200 {object} dto.VaccineScheduleListResponse
+// @Param page query int false "页码，默认1"
+// @Param pageSize query int false "每页数量，默认10，最多100"
+// @Success 200 {object} []dto.VaccineScheduleDTO
 // @Router /babies/{babyId}/vaccine-schedules [get]
 func (h *VaccineScheduleHandler) GetVaccineSchedules(c *gin.Context) {
 	babyID := c.Param("babyId")
-	status := c.Query("status")
-	openID, _ := c.Get("openid")
-
-	// 如果指定了状态,则按状态查询
-	if status != "" {
-		schedules, err := h.scheduleService.GetVaccineSchedulesByStatus(c.Request.Context(), babyID, openID.(string), status)
-		if err != nil {
-			response.Error(c, err)
-			return
-		}
-
-		response.Success(c, gin.H{
-			"schedules": schedules,
-		})
+	openID := c.GetString("openid")
+	var req dto.GetVaccineScheduleListRequest
+	if err := c.ShouldBindQuery(&req); err != nil {
+		response.ErrorWithMessage(c, errors.ParamError, fmt.Sprintf("参数错误：%s", err))
 		return
 	}
+	req.BabyID = babyID
+	req.OpenID = openID
 
-	// 查询所有日程(包含统计信息)
-	result, err := h.scheduleService.GetVaccineSchedules(c.Request.Context(), babyID, openID.(string))
+	// 统一调用 GetVaccineSchedules，支持状态过滤和分页
+	total, schedules, err := h.scheduleService.GetVaccineSchedules(c.Request.Context(), &req)
 	if err != nil {
 		response.Error(c, err)
 		return
 	}
 
-	response.Success(c, result)
+	response.Success(c, gin.H{
+		"schedules": schedules,
+		"total":     total,
+		"page":      req.GetPageWithDefault(),
+		"pageSize":  req.GetPageSizeWithDefault(),
+		"hasMore":   int(total)/req.GetPageSizeWithDefault() > req.GetPageWithDefault(),
+	})
 }
 
 // UpdateVaccineSchedule 更新疫苗接种日程(记录接种)
@@ -186,6 +186,7 @@ func (h *VaccineScheduleHandler) DeleteSchedule(c *gin.Context) {
 
 // GetStatistics 获取疫苗接种统计
 // @Summary 获取疫苗接种统计
+// @Description 获取宝宝的疫苗接种统计数据（纯统计，不包含任何记录列表）
 // @Tags 疫苗管理
 // @Param babyId path string true "宝宝ID"
 // @Success 200 {object} dto.VaccineScheduleStatisticsDTO
