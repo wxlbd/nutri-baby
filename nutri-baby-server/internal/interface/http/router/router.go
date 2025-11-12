@@ -2,7 +2,9 @@ package router
 
 import (
 	"github.com/gin-gonic/gin"
+	"go.uber.org/zap"
 
+	"github.com/wxlbd/nutri-baby-server/internal/application/service"
 	"github.com/wxlbd/nutri-baby-server/internal/infrastructure/config"
 	"github.com/wxlbd/nutri-baby-server/internal/interface/http/handler"
 	"github.com/wxlbd/nutri-baby-server/internal/interface/middleware"
@@ -20,6 +22,8 @@ func NewRouter(
 	syncHandler *handler.SyncHandler,
 	uploadHandler *handler.UploadHandler,
 	aiAnalysisHandler *handler.AIAnalysisHandler, // AI分析处理器
+	aiAnalysisService service.AIAnalysisService, // 添加AI分析服务依赖
+	logger *zap.Logger, // 添加logger依赖
 ) *gin.Engine {
 	// 设置Gin运行模式
 	gin.SetMode(cfg.Server.Mode)
@@ -162,6 +166,9 @@ func NewRouter(
 
 			// WebSocket同步
 			authRequired.GET("/sync", syncHandler.HandleSync)
+
+			// 后台任务（需要认证）
+			handler.RegisterBackgroundJobs(authRequired, aiAnalysisService, logger)
 		}
 	}
 
