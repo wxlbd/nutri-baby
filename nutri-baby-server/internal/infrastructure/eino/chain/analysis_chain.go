@@ -6,11 +6,13 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/cloudwego/eino/components/model"
 	"github.com/cloudwego/eino/schema"
 	"github.com/wxlbd/nutri-baby-server/internal/domain/entity"
+	"github.com/wxlbd/nutri-baby-server/internal/infrastructure/eino/cache"
 	"github.com/wxlbd/nutri-baby-server/internal/infrastructure/eino/tools"
 	"github.com/wxlbd/nutri-baby-server/pkg/errors"
 	"go.uber.org/zap"
@@ -20,24 +22,34 @@ import (
 type AnalysisChainBuilder struct {
 	chatModel         model.ToolCallingChatModel
 	dataTools         *tools.DataQueryTools
+	batchDataTools    *tools.BatchDataTools
+	dataCache         *cache.AnalysisDataCache
 	userFriendlyAgent *UserFriendlyAgent
 	logger            *zap.Logger
+	enableParallel    bool // 是否启用并行工具调用
 }
 
 // NewAnalysisChainBuilder 创建分析链构建器
 func NewAnalysisChainBuilder(
 	chatModel model.ToolCallingChatModel,
 	dataTools *tools.DataQueryTools,
+	batchDataTools *tools.BatchDataTools,
 	logger *zap.Logger,
 ) *AnalysisChainBuilder {
 	// 创建用户友好Agent
 	userFriendlyAgent := NewUserFriendlyAgent(chatModel, logger)
 
+	// 创建数据缓存（5分钟TTL，最多缓存100个宝宝的数据）
+	dataCache := cache.NewAnalysisDataCache(5*time.Minute, 100)
+
 	return &AnalysisChainBuilder{
 		chatModel:         chatModel,
 		dataTools:         dataTools,
+		batchDataTools:    batchDataTools,
+		dataCache:         dataCache,
 		userFriendlyAgent: userFriendlyAgent,
 		logger:            logger,
+		enableParallel:    true, // 默认启用并行优化
 	}
 }
 
@@ -87,23 +99,30 @@ func (b *AnalysisChainBuilder) Analyze(ctx context.Context, analysis *entity.AIA
 			return result, nil
 		}
 
-		// 处理工具调用
-		for _, toolCall := range response.ToolCalls {
-			toolResult, err := b.executeToolCall(ctx, toolCall)
-			if err != nil {
-				b.logger.Error("工具调用失败",
-					zap.String("tool_name", toolCall.Function.Name),
-					zap.Error(err),
-				)
-				toolResult = fmt.Sprintf("工具调用失败: %v", err)
-			}
+		// 处理工具调用（支持并行执行）
+		if b.enableParallel && len(response.ToolCalls) > 1 {
+			// 并行执行多个工具调用
+			toolResults := b.executeToolCallsParallel(ctx, response.ToolCalls)
+			messages = append(messages, toolResults...)
+		} else {
+			// 串行执行工具调用
+			for _, toolCall := range response.ToolCalls {
+				toolResult, err := b.executeToolCall(ctx, toolCall)
+				if err != nil {
+					b.logger.Error("工具调用失败",
+						zap.String("tool_name", toolCall.Function.Name),
+						zap.Error(err),
+					)
+					toolResult = fmt.Sprintf("工具调用失败: %v", err)
+				}
 
-			// 添加工具调用结果到消息历史
-			messages = append(messages, &schema.Message{
-				Role:       schema.Tool,
-				Content:    toolResult,
-				ToolCallID: toolCall.ID,
-			})
+				// 添加工具调用结果到消息历史
+				messages = append(messages, &schema.Message{
+					Role:       schema.Tool,
+					Content:    toolResult,
+					ToolCallID: toolCall.ID,
+				})
+			}
 		}
 	}
 
@@ -174,6 +193,42 @@ func (b *AnalysisChainBuilder) executeToolCall(ctx context.Context, toolCall sch
 
 	// 执行工具
 	return b.dataTools.ExecuteTool(ctx, toolCall.Function.Name, params)
+}
+
+// executeToolCallsParallel 并行执行多个工具调用
+func (b *AnalysisChainBuilder) executeToolCallsParallel(ctx context.Context, toolCalls []schema.ToolCall) []*schema.Message {
+	var wg sync.WaitGroup
+	results := make([]*schema.Message, len(toolCalls))
+	
+	for i, toolCall := range toolCalls {
+		wg.Add(1)
+		go func(index int, tc schema.ToolCall) {
+			defer wg.Done()
+			
+			toolResult, err := b.executeToolCall(ctx, tc)
+			if err != nil {
+				b.logger.Error("并行工具调用失败",
+					zap.String("tool_name", tc.Function.Name),
+					zap.Error(err),
+				)
+				toolResult = fmt.Sprintf("工具调用失败: %v", err)
+			}
+			
+			results[index] = &schema.Message{
+				Role:       schema.Tool,
+				Content:    toolResult,
+				ToolCallID: tc.ID,
+			}
+		}(i, toolCall)
+	}
+	
+	wg.Wait()
+	
+	b.logger.Debug("并行工具调用完成",
+		zap.Int("tool_count", len(toolCalls)),
+	)
+	
+	return results
 }
 
 // buildSystemPrompt 构建系统提示
