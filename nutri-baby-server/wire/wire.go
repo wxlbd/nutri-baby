@@ -29,6 +29,7 @@ func InitApp(cfg *config.Config) (*App, error) {
 		// Eino AI框架（工具调用架构）
 		model.NewToolCallingChatModel,        // 支持工具调用的AI模型客户端
 		tools.NewDataQueryTools,              // 数据查询工具集
+		tools.NewBatchDataTools,              // 批量数据查询工具
 		chain.NewAnalysisChainBuilder,        // AI分析链构建器
 
 		// 仓储层
