@@ -331,34 +331,32 @@ func (s *StatisticsService) getWeeklySleepStats(ctx context.Context, babyID int6
 		return nil, errors.Wrap(errors.DatabaseError, "查询上周睡眠记录失败", err)
 	}
 
-	// 计算本周总睡眠小时数
+	// 计算本周总睡眠分钟数
 	thisWeekMinutes := 0
 	for _, record := range thisWeekRecords {
 		if record.Duration != nil {
 			thisWeekMinutes += *record.Duration
 		}
 	}
-	thisWeekHours := float64(thisWeekMinutes) / 60.0
 
-	// 计算上周总睡眠小时数
+	// 计算上周总睡眠分钟数
 	prevWeekMinutes := 0
 	for _, record := range prevWeekRecords {
 		if record.Duration != nil {
 			prevWeekMinutes += *record.Duration
 		}
 	}
-	prevWeekHours := float64(prevWeekMinutes) / 60.0
 
-	trend := thisWeekHours - prevWeekHours
+	trend := float64(thisWeekMinutes - prevWeekMinutes)
 	avgPerDay := 0.0
 	if thisWeekMinutes > 0 {
-		avgPerDay = float64(thisWeekMinutes) / 7.0 / 60.0
+		avgPerDay = float64(thisWeekMinutes) / 7.0
 	}
 
 	return &dto.WeeklySleepStats{
-		TotalHours: roundToOneDecimal(thisWeekHours),
-		Trend:      roundToOneDecimal(trend),
-		AvgPerDay:  roundToOneDecimal(avgPerDay),
+		TotalMinutes: thisWeekMinutes,
+		Trend:        roundToOneDecimal(trend),
+		AvgPerDay:    roundToOneDecimal(avgPerDay),
 	}, nil
 }
 

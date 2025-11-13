@@ -199,13 +199,13 @@
             </view>
             <view class="overview-item">
               <view class="overview-label">总睡眠时长</view>
-              <text class="overview-value">{{ weeklyStats.sleepHours }} 小时</text>
+              <text class="overview-value">{{ Math.round(weeklyStats.sleepMinutes / 60 * 10) / 10 }} 小时</text>
               <text
                 class="overview-trend"
                 :class="weeklyStats.sleepTrend >= 0 ? 'up' : 'down'"
               >
                 {{ weeklyStats.sleepTrend >= 0 ? "↑" : "↓" }}
-                {{ Math.abs(weeklyStats.sleepTrend) }}h
+                {{ Math.abs(weeklyStats.sleepTrend / 60).toFixed(1) }}h
               </text>
             </view>
             <view class="overview-item">
@@ -383,7 +383,7 @@ const weeklyStats = computed(() => {
     return {
       feedingCount: 0,
       feedingTrend: 0,
-      sleepHours: 0,
+      sleepMinutes: 0,
       sleepTrend: 0,
       weightGain: 0,
     };
@@ -393,7 +393,7 @@ const weeklyStats = computed(() => {
   return {
     feedingCount: weekly.feeding.totalCount,
     feedingTrend: weekly.feeding.trend,
-    sleepHours: Math.round(weekly.sleep.totalHours * 10) / 10,
+    sleepMinutes: weekly.sleep.totalMinutes,
     sleepTrend: weekly.sleep.trend,
     weightGain: weekly.growth.weightGain,
   };
