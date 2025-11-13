@@ -57,7 +57,7 @@ wechat:
 
 # AI配置
 ai:
-  provider: "openai" # 支持的提供商: openai, claude, ernie, mock
+  provider: "gemini" # 支持的提供商: openai, claude, ernie, mock, deepseek, gemini
   openai:
     api_key: "your-openai-api-key"
     base_url: "https://api.openai.com/v1"
@@ -75,6 +75,14 @@ ai:
     secret_key: "your-ernie-secret-key"
     base_url: "https://aip.baidubce.com"
     model: "ernie-3.5"
+  deepSeek:
+    api_key: "sk-95ca6be3822b4720a92e081d02d39a71"
+    base_url: "https://api.deepseek.com"
+    model: "deepseek-chat"
+  gemini:
+    api_key: "sk-wxl095"
+    base_url: "http://47.129.124.80:8000"
+    model: "gemini-2.5-pro"
   # 分析配置
   analysis:
     timeout: 30 # 秒

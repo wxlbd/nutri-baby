@@ -49,15 +49,50 @@ func (AIAnalysis) TableName() string {
 
 // AIAnalysisResult AI分析结果详细结构
 type AIAnalysisResult struct {
-	AnalysisID   int64                  `json:"analysis_id"`
-	BabyID       int64                  `json:"baby_id"`
-	AnalysisType AIAnalysisType         `json:"analysis_type"`
-	Score        float64                `json:"score"`
-	Insights     []AIInsight            `json:"insights"`
-	Alerts       []AIAlert              `json:"alerts"`
-	Patterns     []AIPattern            `json:"patterns"`
-	Predictions  []AIPrediction         `json:"predictions"`
-	Metadata     map[string]interface{} `json:"metadata"`
+	AnalysisID     int64                  `json:"analysis_id"`
+	BabyID         int64                  `json:"baby_id"`
+	AnalysisType   AIAnalysisType         `json:"analysis_type"`
+	Score          float64                `json:"score"`
+	Insights       []AIInsight            `json:"insights"`
+	Alerts         []AIAlert              `json:"alerts"`
+	Patterns       []AIPattern            `json:"patterns"`
+	Predictions    []AIPrediction         `json:"predictions"`
+	Metadata       map[string]interface{} `json:"metadata"`
+	UserFriendly   *UserFriendlyResult    `json:"user_friendly,omitempty"` // 用户友好结果
+}
+
+// UserFriendlyResult 用户友好的分析结果
+type UserFriendlyResult struct {
+	OverallSummary    string                    `json:"overall_summary"`    // 总体评价
+	ScoreExplanation  string                    `json:"score_explanation"`  // 评分说明
+	KeyHighlights     []UserFriendlyHighlight   `json:"key_highlights"`     // 关键亮点
+	ImprovementAreas  []UserFriendlyImprovement `json:"improvement_areas"`  // 改进建议
+	NextStepActions   []UserFriendlyAction      `json:"next_step_actions"`  // 下一步行动
+	EncouragingWords  string                    `json:"encouraging_words"`  // 鼓励话语
+}
+
+// UserFriendlyHighlight 用户友好的亮点
+type UserFriendlyHighlight struct {
+	Title       string `json:"title"`       // 标题
+	Description string `json:"description"` // 描述
+	Icon        string `json:"icon"`        // 图标建议
+}
+
+// UserFriendlyImprovement 用户友好的改进建议
+type UserFriendlyImprovement struct {
+	Area        string `json:"area"`        // 改进领域
+	Issue       string `json:"issue"`       // 问题描述
+	Suggestion  string `json:"suggestion"`  // 具体建议
+	Priority    string `json:"priority"`    // 优先级 (high/medium/low)
+	Difficulty  string `json:"difficulty"`  // 实施难度 (easy/medium/hard)
+}
+
+// UserFriendlyAction 用户友好的行动建议
+type UserFriendlyAction struct {
+	Action      string `json:"action"`      // 行动内容
+	Timeline    string `json:"timeline"`    // 时间安排
+	Benefit     string `json:"benefit"`     // 预期收益
+	HowTo       string `json:"how_to"`      // 具体做法
 }
 
 // AIInsight AI洞察建议

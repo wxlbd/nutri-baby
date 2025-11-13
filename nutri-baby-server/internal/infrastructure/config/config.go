@@ -96,28 +96,36 @@ type WechatConfig struct {
 
 // AIConfig AI配置
 type AIConfig struct {
-	Provider  string         `mapstructure:"provider"`
-	OpenAI    OpenAIConfig   `mapstructure:"openai"`
-	Claude    ClaudeConfig   `mapstructure:"claude"`
-	ERNIE     ERNIEConfig    `mapstructure:"ernie"`
-	Analysis  AnalysisConfig `mapstructure:"analysis"`
+	Provider string         `mapstructure:"provider"`
+	OpenAI   OpenAIConfig   `mapstructure:"openai"`
+	Claude   ClaudeConfig   `mapstructure:"claude"`
+	ERNIE    ERNIEConfig    `mapstructure:"ernie"`
+	DeepSeek DeepSeekConfig `mapstructure:"deepSeek"`
+	Analysis AnalysisConfig `mapstructure:"analysis"`
+	Gemini   GeminiConfig   `mapstructure:"gemini"`
+}
+
+type GeminiConfig struct {
+	APIKey  string `mapstructure:"api_key"`
+	BaseURL string `mapstructure:"base_url"`
+	Model   string `mapstructure:"model"`
 }
 
 // OpenAIConfig OpenAI配置
 type OpenAIConfig struct {
-	APIKey     string  `mapstructure:"api_key"`
-	BaseURL    string  `mapstructure:"base_url"`
-	Model      string  `mapstructure:"model"`
-	MaxTokens  int     `mapstructure:"max_tokens"`
+	APIKey      string  `mapstructure:"api_key"`
+	BaseURL     string  `mapstructure:"base_url"`
+	Model       string  `mapstructure:"model"`
+	MaxTokens   int     `mapstructure:"max_tokens"`
 	Temperature float64 `mapstructure:"temperature"`
 }
 
 // ClaudeConfig Claude配置
 type ClaudeConfig struct {
-	APIKey     string  `mapstructure:"api_key"`
-	BaseURL    string  `mapstructure:"base_url"`
-	Model      string  `mapstructure:"model"`
-	MaxTokens  int     `mapstructure:"max_tokens"`
+	APIKey      string  `mapstructure:"api_key"`
+	BaseURL     string  `mapstructure:"base_url"`
+	Model       string  `mapstructure:"model"`
+	MaxTokens   int     `mapstructure:"max_tokens"`
 	Temperature float64 `mapstructure:"temperature"`
 }
 
@@ -129,13 +137,20 @@ type ERNIEConfig struct {
 	Model     string `mapstructure:"model"`
 }
 
+// DeepSeekConfig Gemini配置
+type DeepSeekConfig struct {
+	APIKey  string `mapstructure:"api_key"`
+	BaseURL string `mapstructure:"base_url"`
+	Model   string `mapstructure:"model"`
+}
+
 // AnalysisConfig 分析配置
 type AnalysisConfig struct {
-	Timeout     int                    `mapstructure:"timeout"`
-	RetryCount  int                    `mapstructure:"retry_count"`
-	BatchSize   int                    `mapstructure:"batch_size"`
-	CacheTTL    int                    `mapstructure:"cache_ttl"`
-	Prompts     map[string]string      `mapstructure:"prompts"`
+	Timeout    int               `mapstructure:"timeout"`
+	RetryCount int               `mapstructure:"retry_count"`
+	BatchSize  int               `mapstructure:"batch_size"`
+	CacheTTL   int               `mapstructure:"cache_ttl"`
+	Prompts    map[string]string `mapstructure:"prompts"`
 }
 
 // Load 加载配置
