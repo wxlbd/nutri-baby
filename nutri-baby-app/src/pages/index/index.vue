@@ -199,13 +199,13 @@
             </view>
             <view class="overview-item">
               <view class="overview-label">总睡眠时长</view>
-              <text class="overview-value">{{ Math.round(weeklyStats.sleepMinutes / 60 * 10) / 10 }} 小时</text>
+              <text class="overview-value">{{ formatSleepDuration(weeklyStats.sleepMinutes) }}</text>
               <text
                 class="overview-trend"
                 :class="weeklyStats.sleepTrend >= 0 ? 'up' : 'down'"
               >
                 {{ weeklyStats.sleepTrend >= 0 ? "↑" : "↓" }}
-                {{ Math.abs(weeklyStats.sleepTrend / 60).toFixed(1) }}h
+                {{ formatSleepTrend(weeklyStats.sleepTrend) }}
               </text>
             </view>
             <view class="overview-item">
@@ -374,6 +374,43 @@ const lastFeedingTime = computed(() => {
   }
   return formatRelativeTime(statistics.value.today.feeding.lastFeedingTime);
 });
+
+// 格式化睡眠时间为 X小时Y分钟
+const formatSleepDuration = (minutes: number): string => {
+  if (minutes <= 0) return "0分钟";
+
+  const hours = Math.floor(minutes / 60);
+  const remainingMinutes = minutes % 60;
+
+  if (hours === 0) {
+    return `${remainingMinutes}分钟`;
+  } else if (remainingMinutes === 0) {
+    return `${hours}小时`;
+  } else {
+    return `${hours}小时${remainingMinutes}分钟`;
+  }
+};
+
+// 格式化睡眠趋势为 ±X小时Y分钟
+const formatSleepTrend = (minutes: number): string => {
+  if (minutes === 0) return "0分钟";
+
+  const absMinutes = Math.abs(minutes);
+  const hours = Math.floor(absMinutes / 60);
+  const remainingMinutes = absMinutes % 60;
+
+  let result = minutes > 0 ? "+" : "-";
+
+  if (hours === 0) {
+    result += `${remainingMinutes}分钟`;
+  } else if (remainingMinutes === 0) {
+    result += `${hours}小时`;
+  } else {
+    result += `${hours}小时${remainingMinutes}分钟`;
+  }
+
+  return result;
+};
 
 // ============ 本周概览数据 ============
 
