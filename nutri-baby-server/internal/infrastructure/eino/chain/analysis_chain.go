@@ -4,576 +4,329 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"regexp"
+	"strings"
 	"time"
 
 	"github.com/cloudwego/eino/components/model"
 	"github.com/cloudwego/eino/schema"
-	"go.uber.org/zap"
-
 	"github.com/wxlbd/nutri-baby-server/internal/domain/entity"
+	"github.com/wxlbd/nutri-baby-server/internal/infrastructure/eino/tools"
 	"github.com/wxlbd/nutri-baby-server/pkg/errors"
+	"go.uber.org/zap"
 )
 
 // AnalysisChainBuilder 分析链构建器
 type AnalysisChainBuilder struct {
-	chatModel model.ChatModel
-	logger    *zap.Logger
+	chatModel         model.ToolCallingChatModel
+	dataTools         *tools.DataQueryTools
+	userFriendlyAgent *UserFriendlyAgent
+	logger            *zap.Logger
 }
 
 // NewAnalysisChainBuilder 创建分析链构建器
-func NewAnalysisChainBuilder(chatModel model.ChatModel, logger *zap.Logger) *AnalysisChainBuilder {
+func NewAnalysisChainBuilder(
+	chatModel model.ToolCallingChatModel,
+	dataTools *tools.DataQueryTools,
+	logger *zap.Logger,
+) *AnalysisChainBuilder {
+	// 创建用户友好Agent
+	userFriendlyAgent := NewUserFriendlyAgent(chatModel, logger)
+
 	return &AnalysisChainBuilder{
-		chatModel: chatModel,
-		logger:    logger,
+		chatModel:         chatModel,
+		dataTools:         dataTools,
+		userFriendlyAgent: userFriendlyAgent,
+		logger:            logger,
 	}
-}
-
-// AnalysisData 分析数据
-type AnalysisData struct {
-	Baby           *entity.Baby              `json:"baby"`
-	FeedingRecords []entity.FeedingRecord    `json:"feeding_records,omitempty"`
-	SleepRecords   []entity.SleepRecord      `json:"sleep_records,omitempty"`
-	GrowthRecords  []entity.GrowthRecord     `json:"growth_records,omitempty"`
-	DiaperRecords  []entity.DiaperRecord     `json:"diaper_records,omitempty"`
-	VaccineRecords []entity.BabyVaccineSchedule `json:"vaccine_records,omitempty"`
-	AnalysisType   entity.AIAnalysisType     `json:"analysis_type"`
-	StartDate      time.Time                 `json:"start_date"`
-	EndDate        time.Time                 `json:"end_date"`
-}
-
-// AnalysisResult 分析结果
-type AnalysisResult struct {
-	Score       float64                `json:"score"`
-	Insights    []entity.AIInsight     `json:"insights"`
-	Alerts      []entity.AIAlert       `json:"alerts"`
-	Patterns    []entity.AIPattern     `json:"patterns"`
-	Predictions []entity.AIPrediction  `json:"predictions"`
-	Metadata    map[string]interface{} `json:"metadata"`
 }
 
 // Analyze 执行AI分析
-func (b *AnalysisChainBuilder) Analyze(ctx context.Context, analysis *entity.AIAnalysis, data map[string]interface{}) (*entity.AIAnalysisResult, error) {
-	// 构建分析数据
-	analysisData, err := b.buildAnalysisData(analysis, data)
+func (b *AnalysisChainBuilder) Analyze(ctx context.Context, analysis *entity.AIAnalysis) (*entity.AIAnalysisResult, error) {
+	// 绑定数据查询工具
+	toolBoundModel, err := b.chatModel.WithTools(b.dataTools.GetToolInfos())
 	if err != nil {
-		return nil, errors.Wrap(errors.InternalError, "构建分析数据失败", err)
+		return nil, errors.Wrap(errors.InternalError, "绑定工具失败", err)
 	}
 
-	// 根据分析类型选择不同的分析链
-	switch analysis.AnalysisType {
-	case entity.AIAnalysisTypeFeeding:
-		return b.analyzeFeeding(ctx, analysisData)
-	case entity.AIAnalysisTypeSleep:
-		return b.analyzeSleep(ctx, analysisData)
-	case entity.AIAnalysisTypeGrowth:
-		return b.analyzeGrowth(ctx, analysisData)
-	case entity.AIAnalysisTypeHealth:
-		return b.analyzeHealth(ctx, analysisData)
-	case entity.AIAnalysisTypeBehavior:
-		return b.analyzeBehavior(ctx, analysisData)
-	default:
-		return nil, errors.New(errors.ParamError, "不支持的分析类型")
+	// 构建系统提示
+	systemPrompt := b.buildSystemPrompt(analysis.AnalysisType)
+
+	// 构建用户提示
+	userPrompt := b.buildUserPrompt(analysis)
+
+	messages := []*schema.Message{
+		schema.SystemMessage(systemPrompt),
+		schema.UserMessage(userPrompt),
 	}
+
+	// 开始对话循环，处理工具调用
+	maxIterations := 10 // 防止无限循环
+	for i := 0; i < maxIterations; i++ {
+		response, err := toolBoundModel.Generate(ctx, messages)
+		if err != nil {
+			return nil, errors.Wrap(errors.InternalError, "AI分析失败", err)
+		}
+
+		messages = append(messages, response)
+
+		// 检查是否有工具调用
+		if len(response.ToolCalls) == 0 {
+			// 没有工具调用，说明分析完成
+			result, err := b.parseAnalysisResponse(response.Content, analysis.AnalysisType, analysis.BabyID)
+			if err != nil {
+				return nil, err
+			}
+
+			// 生成用户友好的分析结果
+			if err := b.generateUserFriendlyResult(ctx, result, analysis.BabyID); err != nil {
+				b.logger.Error("生成用户友好结果失败", zap.Error(err))
+				// 不影响主要分析结果，继续返回
+			}
+
+			return result, nil
+		}
+
+		// 处理工具调用
+		for _, toolCall := range response.ToolCalls {
+			toolResult, err := b.executeToolCall(ctx, toolCall)
+			if err != nil {
+				b.logger.Error("工具调用失败",
+					zap.String("tool_name", toolCall.Function.Name),
+					zap.Error(err),
+				)
+				toolResult = fmt.Sprintf("工具调用失败: %v", err)
+			}
+
+			// 添加工具调用结果到消息历史
+			messages = append(messages, &schema.Message{
+				Role:       schema.Tool,
+				Content:    toolResult,
+				ToolCallID: toolCall.ID,
+			})
+		}
+	}
+
+	return nil, errors.New(errors.InternalError, "分析超时，达到最大迭代次数")
 }
 
 // GenerateDailyTips 生成每日建议
-func (b *AnalysisChainBuilder) GenerateDailyTips(ctx context.Context, baby *entity.Baby, data map[string]interface{}) ([]entity.DailyTip, error) {
-	// 构建提示消息
-	messages := []*schema.Message{
-		schema.SystemMessage(b.buildDailyTipsSystemPrompt()),
-		schema.UserMessage(b.buildDailyTipsUserPrompt(baby, data)),
-	}
-
-	// 调用大模型
-	response, err := b.chatModel.Generate(ctx, messages)
+func (b *AnalysisChainBuilder) GenerateDailyTips(ctx context.Context, baby *entity.Baby, date time.Time) ([]entity.DailyTip, error) {
+	// 绑定数据查询工具
+	toolBoundModel, err := b.chatModel.WithTools(b.dataTools.GetToolInfos())
 	if err != nil {
-		return nil, errors.Wrap(errors.InternalError, "调用大模型失败", err)
+		return nil, errors.Wrap(errors.InternalError, "绑定工具失败", err)
 	}
 
-	// 解析响应
-	tips, err := b.parseDailyTipsResponse(response.Content)
-	if err != nil {
-		return nil, errors.Wrap(errors.InternalError, "解析建议响应失败", err)
-	}
-
-	return tips, nil
-}
-
-// buildAnalysisData 构建分析数据
-func (b *AnalysisChainBuilder) buildAnalysisData(analysis *entity.AIAnalysis, data map[string]interface{}) (*AnalysisData, error) {
-	analysisData := &AnalysisData{
-		AnalysisType: analysis.AnalysisType,
-		StartDate:    analysis.StartDate,
-		EndDate:      analysis.EndDate,
-	}
-
-	// 解析宝宝信息
-	if baby, ok := data["baby"].(*entity.Baby); ok {
-		analysisData.Baby = baby
-	}
-
-	// 解析各种记录数据
-	if feedingRecords, ok := data["feeding_records"].([]entity.FeedingRecord); ok {
-		analysisData.FeedingRecords = feedingRecords
-	}
-
-	if sleepRecords, ok := data["sleep_records"].([]entity.SleepRecord); ok {
-		analysisData.SleepRecords = sleepRecords
-	}
-
-	if growthRecords, ok := data["growth_records"].([]entity.GrowthRecord); ok {
-		analysisData.GrowthRecords = growthRecords
-	}
-
-	if diaperRecords, ok := data["diaper_records"].([]entity.DiaperRecord); ok {
-		analysisData.DiaperRecords = diaperRecords
-	}
-
-	if vaccineRecords, ok := data["vaccine_records"].([]entity.BabyVaccineSchedule); ok {
-		analysisData.VaccineRecords = vaccineRecords
-	}
-
-	return analysisData, nil
-}
-
-// analyzeFeeding 分析喂养数据
-func (b *AnalysisChainBuilder) analyzeFeeding(ctx context.Context, data *AnalysisData) (*entity.AIAnalysisResult, error) {
-	prompt := b.buildFeedingAnalysisPrompt(data)
+	systemPrompt := b.buildDailyTipsSystemPrompt()
+	userPrompt := b.buildDailyTipsUserPrompt(baby, date)
 
 	messages := []*schema.Message{
-		schema.SystemMessage("你是一个专业的婴幼儿喂养专家，擅长分析宝宝的喂养数据并提供专业建议。"),
-		schema.UserMessage(prompt),
+		schema.SystemMessage(systemPrompt),
+		schema.UserMessage(userPrompt),
 	}
 
-	response, err := b.chatModel.Generate(ctx, messages)
-	if err != nil {
-		return nil, errors.Wrap(errors.InternalError, "喂养分析失败", err)
+	// 对话循环处理工具调用
+	maxIterations := 10
+	for i := 0; i < maxIterations; i++ {
+		response, err := toolBoundModel.Generate(ctx, messages)
+		if err != nil {
+			return nil, errors.Wrap(errors.InternalError, "生成每日建议失败", err)
+		}
+
+		messages = append(messages, response)
+
+		// 检查是否有工具调用
+		if len(response.ToolCalls) == 0 {
+			// 没有工具调用，解析建议
+			return b.parseDailyTipsResponse(response.Content)
+		}
+
+		// 处理工具调用
+		for _, toolCall := range response.ToolCalls {
+			toolResult, err := b.executeToolCall(ctx, toolCall)
+			if err != nil {
+				b.logger.Error("工具调用失败",
+					zap.String("tool_name", toolCall.Function.Name),
+					zap.Error(err),
+				)
+				toolResult = fmt.Sprintf("工具调用失败: %v", err)
+			}
+
+			messages = append(messages, &schema.Message{
+				Role:       schema.Tool,
+				Content:    toolResult,
+				ToolCallID: toolCall.ID,
+			})
+		}
 	}
 
-	return b.parseAnalysisResponse(response.Content, entity.AIAnalysisTypeFeeding, data.Baby.ID)
+	return nil, errors.New(errors.InternalError, "生成建议超时，达到最大迭代次数")
 }
 
-// analyzeSleep 分析睡眠数据
-func (b *AnalysisChainBuilder) analyzeSleep(ctx context.Context, data *AnalysisData) (*entity.AIAnalysisResult, error) {
-	prompt := b.buildSleepAnalysisPrompt(data)
-
-	messages := []*schema.Message{
-		schema.SystemMessage("你是一个专业的婴幼儿睡眠专家，擅长分析宝宝的睡眠模式和质量。"),
-		schema.UserMessage(prompt),
+// executeToolCall 执行工具调用
+func (b *AnalysisChainBuilder) executeToolCall(ctx context.Context, toolCall schema.ToolCall) (string, error) {
+	// 解析工具参数
+	var params map[string]interface{}
+	if err := json.Unmarshal([]byte(toolCall.Function.Arguments), &params); err != nil {
+		return "", fmt.Errorf("解析工具参数失败: %v", err)
 	}
 
-	response, err := b.chatModel.Generate(ctx, messages)
-	if err != nil {
-		return nil, errors.Wrap(errors.InternalError, "睡眠分析失败", err)
-	}
-
-	return b.parseAnalysisResponse(response.Content, entity.AIAnalysisTypeSleep, data.Baby.ID)
+	// 执行工具
+	return b.dataTools.ExecuteTool(ctx, toolCall.Function.Name, params)
 }
 
-// analyzeGrowth 分析成长数据
-func (b *AnalysisChainBuilder) analyzeGrowth(ctx context.Context, data *AnalysisData) (*entity.AIAnalysisResult, error) {
-	prompt := b.buildGrowthAnalysisPrompt(data)
+// buildSystemPrompt 构建系统提示
+func (b *AnalysisChainBuilder) buildSystemPrompt(analysisType entity.AIAnalysisType) string {
+	basePrompt := `你是一个专业的婴幼儿护理专家，擅长分析宝宝的各项数据并提供专业建议。
 
-	messages := []*schema.Message{
-		schema.SystemMessage("你是一个专业的儿科医生，擅长评估婴幼儿的生长发育情况。"),
-		schema.UserMessage(prompt),
-	}
+你可以使用以下工具来获取宝宝的数据：
+- get_baby_info: 获取宝宝基本信息
+- get_feeding_data: 获取喂养记录
+- get_sleep_data: 获取睡眠记录  
+- get_growth_data: 获取成长记录
+- get_diaper_data: 获取尿布记录
+- get_vaccine_data: 获取疫苗记录
 
-	response, err := b.chatModel.Generate(ctx, messages)
-	if err != nil {
-		return nil, errors.Wrap(errors.InternalError, "成长分析失败", err)
-	}
+请根据分析类型，主动调用相关工具获取数据，然后进行专业分析。
 
-	return b.parseAnalysisResponse(response.Content, entity.AIAnalysisTypeGrowth, data.Baby.ID)
+**重要：最终必须只返回纯JSON格式的分析结果，不要包含任何解释文字或其他内容。**
+
+JSON格式要求：
+{
+  "score": 0-100的评分,
+  "insights": [洞察数组],
+  "alerts": [警告数组],
+  "patterns": [模式数组],
+  "predictions": [预测数组]
 }
 
-// analyzeHealth 分析健康数据
-func (b *AnalysisChainBuilder) analyzeHealth(ctx context.Context, data *AnalysisData) (*entity.AIAnalysisResult, error) {
-	prompt := b.buildHealthAnalysisPrompt(data)
+**请确保响应只包含有效的JSON，不要添加任何前缀、后缀或解释文本。**
 
-	messages := []*schema.Message{
-		schema.SystemMessage("你是一个专业的儿科医生，擅长通过多维度数据评估宝宝的健康状况。"),
-		schema.UserMessage(prompt),
+每个洞察包含：type(string), title(string), description(string), priority(string), category(string)
+每个警告包含：level(string), type(string), title(string), description(string), suggestion(string), timestamp(time.Time)
+每个模式包含：pattern_type(string), description(string), confidence(float64), frequency(string), time_range(TimeRange对象，包含start和end时间)
+每个预测包含：prediction_type(string), value(string), confidence(float64), time_frame(string), reason(string)
+
+注意：
+- confidence字段必须是0-1之间的浮点数
+- timestamp字段使用ISO 8601格式的时间字符串
+- time_range对象格式：{"start": "2024-01-01T00:00:00Z", "end": "2024-01-02T00:00:00Z"}`
+
+	switch analysisType {
+	case entity.AIAnalysisTypeFeeding:
+		return basePrompt + "\n\n专业领域：婴幼儿喂养营养分析。重点关注喂养规律、营养摄入、消化健康等方面。"
+	case entity.AIAnalysisTypeSleep:
+		return basePrompt + "\n\n专业领域：婴幼儿睡眠质量分析。重点关注睡眠时长、作息规律、睡眠质量等方面。"
+	case entity.AIAnalysisTypeGrowth:
+		return basePrompt + "\n\n专业领域：婴幼儿生长发育分析。重点关注身高体重增长、发育里程碑、WHO标准对比等方面。"
+	case entity.AIAnalysisTypeHealth:
+		return basePrompt + "\n\n专业领域：婴幼儿综合健康分析。需要综合多种数据进行整体健康评估。"
+	case entity.AIAnalysisTypeBehavior:
+		return basePrompt + "\n\n专业领域：婴幼儿行为模式分析。重点关注行为发展、习惯养成、个性特征等方面。"
+	default:
+		return basePrompt
 	}
-
-	response, err := b.chatModel.Generate(ctx, messages)
-	if err != nil {
-		return nil, errors.Wrap(errors.InternalError, "健康分析失败", err)
-	}
-
-	return b.parseAnalysisResponse(response.Content, entity.AIAnalysisTypeHealth, data.Baby.ID)
 }
 
-// analyzeBehavior 分析行为数据
-func (b *AnalysisChainBuilder) analyzeBehavior(ctx context.Context, data *AnalysisData) (*entity.AIAnalysisResult, error) {
-	prompt := b.buildBehaviorAnalysisPrompt(data)
+// buildUserPrompt 构建用户提示
+func (b *AnalysisChainBuilder) buildUserPrompt(analysis *entity.AIAnalysis) string {
+	return fmt.Sprintf(`请对宝宝ID %d 在 %s 至 %s 期间的 %s 数据进行专业分析。
 
-	messages := []*schema.Message{
-		schema.SystemMessage("你是一个专业的儿童发展专家，擅长分析婴幼儿的行为模式和发展趋势。"),
-		schema.UserMessage(prompt),
-	}
-
-	response, err := b.chatModel.Generate(ctx, messages)
-	if err != nil {
-		return nil, errors.Wrap(errors.InternalError, "行为分析失败", err)
-	}
-
-	return b.parseAnalysisResponse(response.Content, entity.AIAnalysisTypeBehavior, data.Baby.ID)
-}
-
-// buildFeedingAnalysisPrompt 构建喂养分析提示
-func (b *AnalysisChainBuilder) buildFeedingAnalysisPrompt(data *AnalysisData) string {
-	// 解析出生日期
-	birthDate, err := time.Parse("2006-01-02", data.Baby.BirthDate)
-	if err != nil {
-		birthDate = time.Now().AddDate(-1, 0, 0) // 默认1岁
-	}
-	babyAge := calculateBabyAgeInMonths(birthDate, time.Now())
-
-	prompt := fmt.Sprintf(`请分析以下宝宝的喂养数据：
-
-宝宝信息：
-- 月龄：%d个月
-- 性别：%s
-- 出生日期：%s
-
-分析时间范围：%s 至 %s
-
-喂养记录：
-%s
-
-请提供以下分析：
-1. 喂养模式评估（规律性、适量性、多样性）
-2. 营养摄入分析
-3. 喂养时间建议
-4. 异常情况识别
-5. 总体评分（0-100分）
-
-请以JSON格式返回分析结果，包含：score、insights、alerts、patterns、predictions字段。`,
-		babyAge,
-		data.Baby.Gender,
-		data.Baby.BirthDate,
-		data.StartDate.Format("2006-01-02"),
-		data.EndDate.Format("2006-01-02"),
-		b.formatFeedingRecords(data.FeedingRecords),
+请先获取宝宝的基本信息，然后根据分析类型获取相关数据，最后提供专业的分析报告。`,
+		analysis.BabyID,
+		analysis.StartDate.Format("2006-01-02"),
+		analysis.EndDate.Format("2006-01-02"),
+		b.getAnalysisTypeName(analysis.AnalysisType),
 	)
-
-	return prompt
-}
-
-// buildSleepAnalysisPrompt 构建睡眠分析提示
-func (b *AnalysisChainBuilder) buildSleepAnalysisPrompt(data *AnalysisData) string {
-	// 解析出生日期
-	birthDate, err := time.Parse("2006-01-02", data.Baby.BirthDate)
-	if err != nil {
-		birthDate = time.Now().AddDate(-1, 0, 0) // 默认1岁
-	}
-	babyAge := calculateBabyAgeInMonths(birthDate, time.Now())
-
-	prompt := fmt.Sprintf(`请分析以下宝宝的睡眠数据：
-
-宝宝信息：
-- 月龄：%d个月
-- 性别：%s
-
-分析时间范围：%s 至 %s
-
-睡眠记录：
-%s
-
-请提供以下分析：
-1. 睡眠质量评估（连续性、时长、规律）
-2. 作息规律分析
-3. 睡眠问题识别
-4. 改善建议
-5. 总体评分（0-100分）
-
-请以JSON格式返回分析结果，包含：score、insights、alerts、patterns、predictions字段。`,
-		babyAge,
-		data.Baby.Gender,
-		data.StartDate.Format("2006-01-02"),
-		data.EndDate.Format("2006-01-02"),
-		b.formatSleepRecords(data.SleepRecords),
-	)
-
-	return prompt
-}
-
-// buildGrowthAnalysisPrompt 构建成长分析提示
-func (b *AnalysisChainBuilder) buildGrowthAnalysisPrompt(data *AnalysisData) string {
-	// 解析出生日期
-	birthDate, err := time.Parse("2006-01-02", data.Baby.BirthDate)
-	if err != nil {
-		birthDate = time.Now().AddDate(-1, 0, 0) // 默认1岁
-	}
-	babyAge := calculateBabyAgeInMonths(birthDate, time.Now())
-
-	prompt := fmt.Sprintf(`请分析以下宝宝的成长发育数据：
-
-宝宝信息：
-- 月龄：%d个月
-- 性别：%s
-
-分析时间范围：%s 至 %s
-
-成长记录：
-%s
-
-请提供以下分析：
-1. 生长发育评估（身高、体重、头围）
-2. 生长曲线分析
-3. 与WHO标准对比
-4. 发育里程碑评估
-5. 总体评分（0-100分）
-
-请以JSON格式返回分析结果，包含：score、insights、alerts、patterns、predictions字段。`,
-		babyAge,
-		data.Baby.Gender,
-		data.StartDate.Format("2006-01-02"),
-		data.EndDate.Format("2006-01-02"),
-		b.formatGrowthRecords(data.GrowthRecords),
-	)
-
-	return prompt
-}
-
-// buildHealthAnalysisPrompt 构建健康分析提示
-func (b *AnalysisChainBuilder) buildHealthAnalysisPrompt(data *AnalysisData) string {
-	// 解析出生日期
-	birthDate, err := time.Parse("2006-01-02", data.Baby.BirthDate)
-	if err != nil {
-		birthDate = time.Now().AddDate(-1, 0, 0) // 默认1岁
-	}
-	babyAge := calculateBabyAgeInMonths(birthDate, time.Now())
-
-	prompt := fmt.Sprintf(`请综合分析以下宝宝的健康数据：
-
-宝宝信息：
-- 月龄：%d个月
-- 性别：%s
-
-分析时间范围：%s 至 %s
-
-数据汇总：
-- 喂养记录：%d条
-- 睡眠记录：%d条
-- 排泄记录：%d条
-
-请提供以下分析：
-1. 整体健康状况评估
-2. 消化健康分析
-3. 行为模式识别
-4. 潜在健康问题预警
-5. 总体评分（0-100分）
-
-请以JSON格式返回分析结果，包含：score、insights、alerts、patterns、predictions字段。`,
-		babyAge,
-		data.Baby.Gender,
-		data.StartDate.Format("2006-01-02"),
-		data.EndDate.Format("2006-01-02"),
-		len(data.FeedingRecords),
-		len(data.SleepRecords),
-		len(data.DiaperRecords),
-	)
-
-	return prompt
-}
-
-// buildBehaviorAnalysisPrompt 构建行为分析提示
-func (b *AnalysisChainBuilder) buildBehaviorAnalysisPrompt(data *AnalysisData) string {
-	// 解析出生日期
-	birthDate, err := time.Parse("2006-01-02", data.Baby.BirthDate)
-	if err != nil {
-		birthDate = time.Now().AddDate(-1, 0, 0) // 默认1岁
-	}
-	babyAge := calculateBabyAgeInMonths(birthDate, time.Now())
-
-	prompt := fmt.Sprintf(`请分析以下宝宝的行为模式：
-
-宝宝信息：
-- 月龄：%d个月
-- 性别：%s
-
-分析时间范围：%s 至 %s
-
-行为数据：
-%s
-
-请提供以下分析：
-1. 行为模式识别
-2. 发展里程碑评估
-3. 个性化特征分析
-4. 行为趋势预测
-5. 总体评分（0-100分）
-
-请以JSON格式返回分析结果，包含：score、insights、alerts、patterns、predictions字段。`,
-		babyAge,
-		data.Baby.Gender,
-		data.StartDate.Format("2006-01-02"),
-		data.EndDate.Format("2006-01-02"),
-		b.formatBehaviorData(data),
-	)
-
-	return prompt
 }
 
 // buildDailyTipsSystemPrompt 构建每日建议系统提示
 func (b *AnalysisChainBuilder) buildDailyTipsSystemPrompt() string {
 	return `你是一个专业的育儿专家，擅长根据宝宝的日常数据提供个性化的育儿建议。
-请基于提供的数据，生成3-5条实用、具体的育儿建议。
+
+你可以使用工具获取宝宝的各项数据，然后基于这些数据生成实用的育儿建议。
+
+请生成3-5条实用、具体的育儿建议，以JSON数组格式返回：
+[
+  {
+    "id": "唯一标识",
+    "icon": "表情符号",
+    "title": "建议标题",
+    "description": "详细描述",
+    "type": "类型(feeding/sleep/growth/health/behavior)",
+    "priority": "优先级(high/medium/low)",
+    "action_url": "相关页面链接(可选)"
+  }
+]
+
 建议应该：
 1. 基于实际数据，具有针对性
 2. 实用性强，易于执行
 3. 考虑宝宝的月龄和发展阶段
 4. 包含具体的行动建议
-5. 使用友好的语气
-
-请以JSON数组格式返回，每个建议包含：id、icon、title、description、type、priority、action_url字段。`
+5. 使用友好的语气`
 }
 
 // buildDailyTipsUserPrompt 构建每日建议用户提示
-func (b *AnalysisChainBuilder) buildDailyTipsUserPrompt(baby *entity.Baby, data map[string]interface{}) string {
-	// 解析出生日期
-	birthDate, err := time.Parse("2006-01-02", baby.BirthDate)
-	if err != nil {
-		birthDate = time.Now().AddDate(-1, 0, 0) // 默认1岁
-	}
-	babyAge := calculateBabyAgeInMonths(birthDate, time.Now())
+func (b *AnalysisChainBuilder) buildDailyTipsUserPrompt(baby *entity.Baby, date time.Time) string {
+	return fmt.Sprintf(`请为宝宝ID %d 生成 %s 的个性化育儿建议。
 
-	prompt := fmt.Sprintf(`请为以下宝宝生成今日育儿建议：
-
-宝宝信息：
-- 月龄：%d个月
-- 性别：%s
-- 出生日期：%s
-
-最近数据概况：
-%s
-
-请基于以上信息，生成个性化的育儿建议。`,
-		babyAge,
-		baby.Gender,
-		baby.BirthDate,
-		b.formatRecentData(data),
+请先获取宝宝的基本信息，然后获取最近7天的相关数据（喂养、睡眠、成长等），基于这些数据生成针对性的建议。`,
+		baby.ID,
+		date.Format("2006-01-02"),
 	)
-
-	return prompt
 }
 
-// formatFeedingRecords 格式化喂养记录
-func (b *AnalysisChainBuilder) formatFeedingRecords(records []entity.FeedingRecord) string {
-	if len(records) == 0 {
-		return "暂无喂养记录"
+// getAnalysisTypeName 获取分析类型名称
+func (b *AnalysisChainBuilder) getAnalysisTypeName(analysisType entity.AIAnalysisType) string {
+	switch analysisType {
+	case entity.AIAnalysisTypeFeeding:
+		return "喂养"
+	case entity.AIAnalysisTypeSleep:
+		return "睡眠"
+	case entity.AIAnalysisTypeGrowth:
+		return "成长"
+	case entity.AIAnalysisTypeHealth:
+		return "健康"
+	case entity.AIAnalysisTypeBehavior:
+		return "行为"
+	default:
+		return "综合"
 	}
-
-	result := ""
-	for i, record := range records {
-		if i >= 5 { // 只显示最近5条
-			break
-		}
-		result += fmt.Sprintf("- %s: %s喂养，奶量%dml，时长%d分钟\n",
-			time.Unix(record.Time/1000, 0).Format("01-02 15:04"),
-			record.FeedingType,
-			record.Amount,
-			record.Duration/60,
-		)
-	}
-	return result
-}
-
-// formatSleepRecords 格式化睡眠记录
-func (b *AnalysisChainBuilder) formatSleepRecords(records []entity.SleepRecord) string {
-	if len(records) == 0 {
-		return "暂无睡眠记录"
-	}
-
-	result := ""
-	for i, record := range records {
-		if i >= 5 { // 只显示最近5条
-			break
-		}
-		endTime := ""
-		if record.EndTime != nil {
-			endTime = time.Unix(*record.EndTime/1000, 0).Format("01-02 15:04")
-		}
-		duration := 0
-		if record.Duration != nil {
-			duration = *record.Duration
-		}
-		result += fmt.Sprintf("- %s至%s: 睡眠%d小时%d分钟\n",
-			time.Unix(record.StartTime/1000, 0).Format("01-02 15:04"),
-			endTime,
-			duration/3600,
-			(duration%3600)/60,
-		)
-	}
-	return result
-}
-
-// formatGrowthRecords 格式化成长记录
-func (b *AnalysisChainBuilder) formatGrowthRecords(records []entity.GrowthRecord) string {
-	if len(records) == 0 {
-		return "暂无成长记录"
-	}
-
-	result := ""
-	for i, record := range records {
-		if i >= 3 { // 只显示最近3条
-			break
-		}
-		result += fmt.Sprintf("- %s: 身高%.1fcm，体重%.1fkg，头围%.1fcm\n",
-			time.Unix(record.Time/1000, 0).Format("2006-01-02"),
-			record.Height,
-			record.Weight,
-			record.HeadCircumference,
-		)
-	}
-	return result
-}
-
-// formatBehaviorData 格式化行为数据
-func (b *AnalysisChainBuilder) formatBehaviorData(data *AnalysisData) string {
-	result := fmt.Sprintf("喂养记录：%d条\n", len(data.FeedingRecords))
-	result += fmt.Sprintf("睡眠记录：%d条\n", len(data.SleepRecords))
-	result += fmt.Sprintf("成长记录：%d条\n", len(data.GrowthRecords))
-	return result
-}
-
-// formatRecentData 格式化近期数据
-func (b *AnalysisChainBuilder) formatRecentData(data map[string]interface{}) string {
-	result := ""
-
-	if feedingRecords, ok := data["feeding_records"].([]entity.FeedingRecord); ok {
-		result += fmt.Sprintf("- 最近喂养：%d次\n", len(feedingRecords))
-	}
-
-	if sleepRecords, ok := data["sleep_records"].([]entity.SleepRecord); ok {
-		totalSleep := 0
-		for _, record := range sleepRecords {
-			if record.Duration != nil {
-				totalSleep += *record.Duration
-			}
-		}
-		result += fmt.Sprintf("- 总睡眠时长：%d小时\n", totalSleep/3600)
-	}
-
-	if growthRecords, ok := data["growth_records"].([]entity.GrowthRecord); ok && len(growthRecords) > 0 {
-		latest := growthRecords[len(growthRecords)-1]
-		result += fmt.Sprintf("- 最新成长数据：身高%.1fcm，体重%.1fkg\n", latest.Height, latest.Weight)
-	}
-
-	return result
 }
 
 // parseAnalysisResponse 解析分析响应
 func (b *AnalysisChainBuilder) parseAnalysisResponse(content string, analysisType entity.AIAnalysisType, babyID int64) (*entity.AIAnalysisResult, error) {
-	var result AnalysisResult
-	if err := json.Unmarshal([]byte(content), &result); err != nil {
+	// 记录原始响应用于调试
+	b.logger.Debug("原始AI响应", zap.String("content", content))
+
+	// 清理和提取JSON
+	jsonContent := b.extractJSON(content)
+	if jsonContent == "" {
+		b.logger.Error("无法从响应中提取JSON", zap.String("content", content))
+		return nil, errors.New(errors.InternalError, "响应中未找到有效的JSON格式")
+	}
+
+	b.logger.Debug("提取的JSON", zap.String("json", jsonContent))
+
+	var result struct {
+		Score       float64               `json:"score"`
+		Insights    []entity.AIInsight    `json:"insights"`
+		Alerts      []entity.AIAlert      `json:"alerts"`
+		Patterns    []entity.AIPattern    `json:"patterns"`
+		Predictions []entity.AIPrediction `json:"predictions"`
+	}
+
+	if err := json.Unmarshal([]byte(jsonContent), &result); err != nil {
+		b.logger.Error("JSON解析失败",
+			zap.String("json", jsonContent),
+			zap.Error(err),
+		)
 		return nil, errors.Wrap(errors.InternalError, "解析分析响应失败", err)
 	}
 
-	// 转换格式
-	analysisResult := &entity.AIAnalysisResult{
+	return &entity.AIAnalysisResult{
 		BabyID:       babyID,
 		AnalysisType: analysisType,
 		Score:        result.Score,
@@ -581,10 +334,7 @@ func (b *AnalysisChainBuilder) parseAnalysisResponse(content string, analysisTyp
 		Alerts:       result.Alerts,
 		Patterns:     result.Patterns,
 		Predictions:  result.Predictions,
-		Metadata:     result.Metadata,
-	}
-
-	return analysisResult, nil
+	}, nil
 }
 
 // parseDailyTipsResponse 解析每日建议响应
@@ -596,19 +346,98 @@ func (b *AnalysisChainBuilder) parseDailyTipsResponse(content string) ([]entity.
 	return tips, nil
 }
 
-// calculateBabyAgeInMonths 计算宝宝月龄
-func calculateBabyAgeInMonths(birthDate, currentDate time.Time) int {
-	years := currentDate.Year() - birthDate.Year()
-	months := int(currentDate.Month()) - int(birthDate.Month())
+// extractJSON 从响应中提取JSON内容
+func (b *AnalysisChainBuilder) extractJSON(content string) string {
+	// 去除前后空白
+	content = strings.TrimSpace(content)
 
-	totalMonths := years*12 + months
-	if currentDate.Day() < birthDate.Day() {
-		totalMonths--
+	// 如果内容以 { 开始，尝试找到完整的JSON
+	if strings.HasPrefix(content, "{") {
+		// 找到第一个 { 和最后一个 } 之间的内容
+		braceCount := 0
+		start := -1
+		end := -1
+
+		for i, char := range content {
+			if char == '{' {
+				if start == -1 {
+					start = i
+				}
+				braceCount++
+			} else if char == '}' {
+				braceCount--
+				if braceCount == 0 && start != -1 {
+					end = i + 1
+					break
+				}
+			}
+		}
+
+		if start != -1 && end != -1 {
+			return content[start:end]
+		}
 	}
 
-	if totalMonths < 0 {
-		totalMonths = 0
+	// 尝试使用正则表达式提取JSON
+	re := regexp.MustCompile(`\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}`)
+	matches := re.FindAllString(content, -1)
+
+	// 返回最长的匹配项（可能是最完整的JSON）
+	var longest string
+	for _, match := range matches {
+		if len(match) > len(longest) {
+			longest = match
+		}
 	}
 
-	return totalMonths
+	if longest != "" {
+		return longest
+	}
+
+	// 如果都失败了，返回原内容让JSON解析器处理
+	return content
+}
+
+// generateUserFriendlyResult 生成用户友好的分析结果
+func (b *AnalysisChainBuilder) generateUserFriendlyResult(ctx context.Context, result *entity.AIAnalysisResult, babyID int64) error {
+	// 获取宝宝信息
+	baby, err := b.getBabyInfo(ctx, babyID)
+	if err != nil {
+		return errors.Wrap(errors.InternalError, "获取宝宝信息失败", err)
+	}
+
+	// 使用用户友好Agent生成结果
+	userFriendlyResult, err := b.userFriendlyAgent.GenerateUserFriendlyAnalysis(ctx, result, baby)
+	if err != nil {
+		return errors.Wrap(errors.InternalError, "生成用户友好分析失败", err)
+	}
+
+	// 将用户友好结果添加到原始结果中
+	result.UserFriendly = userFriendlyResult
+	return nil
+}
+
+// getBabyInfo 获取宝宝信息（通过数据工具）
+func (b *AnalysisChainBuilder) getBabyInfo(ctx context.Context, babyID int64) (*entity.Baby, error) {
+	// 调用数据查询工具获取宝宝信息
+	params := map[string]interface{}{
+		"baby_id": float64(babyID),
+	}
+
+	resultStr, err := b.dataTools.ExecuteTool(ctx, "get_baby_info", params)
+	if err != nil {
+		return nil, err
+	}
+
+	// 解析结果
+	var result struct {
+		Type string       `json:"type"`
+		Baby *entity.Baby `json:"baby"`
+	}
+
+	if err := json.Unmarshal([]byte(resultStr), &result); err != nil {
+		return nil, errors.Wrap(errors.InternalError, "解析宝宝信息失败", err)
+	}
+
+	return result.Baby, nil
 }

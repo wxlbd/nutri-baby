@@ -168,7 +168,17 @@ func NewRouter(
 			authRequired.GET("/sync", syncHandler.HandleSync)
 
 			// 后台任务（需要认证）
-			handler.RegisterBackgroundJobs(authRequired, aiAnalysisService, logger)
+			backgroundJobs := authRequired.Group("/background")
+			{
+				backgroundJobs.POST("/process-pending-analyses", func(c *gin.Context) {
+					if err := aiAnalysisService.ProcessPendingAnalyses(c.Request.Context()); err != nil {
+						logger.Error("处理待分析任务失败", zap.Error(err))
+						c.JSON(500, gin.H{"error": err.Error()})
+						return
+					}
+					c.JSON(200, gin.H{"message": "处理完成"})
+				})
+			}
 		}
 	}
 
