@@ -50,9 +50,9 @@ type WeeklyFeedingStats struct {
 
 // WeeklySleepStats 本周睡眠统计
 type WeeklySleepStats struct {
-	TotalHours  float64 `json:"totalHours"`  // 本周总睡眠小时数
-	Trend       float64 `json:"trend"`       // 趋势对比（与上周的小时数差异）
-	AvgPerDay   float64 `json:"avgPerDay"`   // 日均睡眠小时数
+	TotalMinutes int     `json:"totalMinutes"` // 本周总睡眠分钟数
+	Trend        float64 `json:"trend"`        // 趋势对比（与上周的分钟数差异）
+	AvgPerDay    float64 `json:"avgPerDay"`    // 日均睡眠分钟数
 }
 
 // WeeklyGrowthStats 本周成长统计

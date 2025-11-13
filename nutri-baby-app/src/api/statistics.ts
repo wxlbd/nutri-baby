@@ -48,9 +48,9 @@ export interface WeeklyFeedingStats {
 
 // 本周睡眠统计
 export interface WeeklySleepStats {
-  totalHours: number  // 本周总睡眠小时数
-  trend: number       // 趋势对比（与上周的小时数差异）
-  avgPerDay: number   // 日均睡眠小时数
+  totalMinutes: number  // 本周总睡眠分钟数
+  trend: number       // 趋势对比（与上周的分钟数差异）
+  avgPerDay: number   // 日均睡眠分钟数
 }
 
 // 本周成长统计
