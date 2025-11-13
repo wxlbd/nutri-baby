@@ -82,7 +82,7 @@ ai:
   gemini:
     api_key: "sk-wxl095"
     base_url: "http://47.129.124.80:8000"
-    model: "gemini-2.5-pro"
+    model: "gemini-2.5-flash"
   # 分析配置
   analysis:
     timeout: 30 # 秒
