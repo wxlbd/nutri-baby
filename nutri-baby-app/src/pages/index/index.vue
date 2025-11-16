@@ -130,9 +130,9 @@
                 <text class="stat-card-title">总睡眠时长</text>
               </view>
               <view class="stat-main">
-                <text class="stat-value">{{ todayStats.sleepDurationMinutes }}分钟</text>
+                <text class="stat-value">{{ formatSleepDuration(todayStats.sleepDurationMinutes) }}</text>
                 <text class="stat-sub"
-                  >上次睡眠: {{ todayStats.lastSleepMinutes }}分钟</text
+                  >上次睡眠: {{ formatSleepDuration(todayStats.lastSleepMinutes) }}</text
                 >
               </view>
             </view>
@@ -277,7 +277,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
-import { onShow } from "@dcloudio/uni-app";
+import { onShow, onPullDownRefresh } from "@dcloudio/uni-app";
 import { isLoggedIn, fetchUserInfo } from "@/store/user";
 import { currentBaby, fetchBabyList } from "@/store/baby";
 import {
@@ -375,25 +375,25 @@ const lastFeedingTime = computed(() => {
   return formatRelativeTime(statistics.value.today.feeding.lastFeedingTime);
 });
 
-// 格式化睡眠时间为 X小时Y分钟
+// 格式化睡眠时间为 X时Y分
 const formatSleepDuration = (minutes: number): string => {
-  if (minutes <= 0) return "0分钟";
+  if (minutes <= 0) return "0分";
 
   const hours = Math.floor(minutes / 60);
   const remainingMinutes = minutes % 60;
 
   if (hours === 0) {
-    return `${remainingMinutes}分钟`;
+    return `${remainingMinutes}分`;
   } else if (remainingMinutes === 0) {
-    return `${hours}小时`;
+    return `${hours}时`;
   } else {
-    return `${hours}小时${remainingMinutes}分钟`;
+    return `${hours}时${remainingMinutes}分`;
   }
 };
 
-// 格式化睡眠趋势为 ±X小时Y分钟
+// 格式化睡眠趋势为 ±X时Y分
 const formatSleepTrend = (minutes: number): string => {
-  if (minutes === 0) return "0分钟";
+  if (minutes === 0) return "0分";
 
   const absMinutes = Math.abs(minutes);
   const hours = Math.floor(absMinutes / 60);
@@ -402,11 +402,11 @@ const formatSleepTrend = (minutes: number): string => {
   let result = minutes > 0 ? "+" : "-";
 
   if (hours === 0) {
-    result += `${remainingMinutes}分钟`;
+    result += `${remainingMinutes}分`;
   } else if (remainingMinutes === 0) {
-    result += `${hours}小时`;
+    result += `${hours}时`;
   } else {
-    result += `${hours}小时${remainingMinutes}分钟`;
+    result += `${hours}时${remainingMinutes}分`;
   }
 
   return result;
@@ -528,16 +528,35 @@ const checkLoginAndBaby = async () => {
   }
 };
 
+type LoadTodayDataOptions = {
+  preserveData?: boolean;
+  pullDown?: boolean;
+};
+
 // 加载今日数据
-const loadTodayData = async () => {
-  if (!currentBaby.value) return;
+const loadTodayData = async (options: LoadTodayDataOptions = {}) => {
+  if (!currentBaby.value) {
+    if (options.pullDown) {
+      uni.hideNavigationBarLoading();
+      uni.stopPullDownRefresh();
+    }
+    return;
+  }
 
   const babyId = currentBaby.value.babyId;
 
+  if (options.pullDown) {
+    uni.showNavigationBarLoading();
+  } else {
+    uni.showLoading({ title: "加载中", mask: false });
+  }
+
   try {
-    // 清空旧数据
-    statistics.value = null;
-    upcomingVaccines.value = [];
+    if (!options.preserveData) {
+      // 清空旧数据
+      statistics.value = null;
+      upcomingVaccines.value = [];
+    }
 
     // 并行加载统计数据和疫苗提醒
     const [statisticsResponse, vaccineRemindersResponse] = await Promise.all([
@@ -556,13 +575,11 @@ const loadTodayData = async () => {
       (r: vaccineApi.VaccineReminderResponse) =>
         r.status === "upcoming" || r.status === "due" || r.status === "overdue"
     );
-    filtered.forEach((r: vaccineApi.VaccineReminderResponse) => {
-      upcomingVaccines.value.push(
-        `${r.vaccineName} ${r.doseNumber ? `（第${r.doseNumber}针）` : ""} ${
-          vaccineApi.VaccineReminderStatusMap[r.status]
-        }，应于 ${formatDate(r.scheduledDate, "YYYY-MM-DD")}接种`
-      );
-    });
+    upcomingVaccines.value = filtered.map((r: vaccineApi.VaccineReminderResponse) =>
+      `${r.vaccineName} ${r.doseNumber ? `（第${r.doseNumber}针）` : ""} ${
+        vaccineApi.VaccineReminderStatusMap[r.status]
+      }，应于 ${formatDate(r.scheduledDate, "YYYY-MM-DD")}接种`
+    );
 
     console.log("[Index] 统计数据加载完成", {
       today: statisticsResponse.data?.today,
@@ -573,11 +590,42 @@ const loadTodayData = async () => {
       total: reminders.length,
       upcoming: upcomingVaccines.value.length,
     });
+
+    if (options.pullDown) {
+      uni.showToast({
+        title: "刷新成功",
+        icon: "success",
+        duration: 1200,
+      });
+    }
   } catch (error) {
     console.error("[Index] 加载数据失败:", error);
+    if (options.pullDown) {
+      uni.showToast({
+        title: "刷新失败",
+        icon: "none",
+        duration: 1500,
+      });
+    }
     // 不显示错误提示，静默失败
+  } finally {
+    if (options.pullDown) {
+      uni.hideNavigationBarLoading();
+      uni.stopPullDownRefresh();
+    } else {
+      uni.hideLoading();
+    }
   }
 };
+
+onPullDownRefresh(async () => {
+  if (!isLoggedIn.value || !currentBaby.value) {
+    uni.stopPullDownRefresh();
+    uni.hideNavigationBarLoading();
+    return;
+  }
+  await loadTodayData({ preserveData: true, pullDown: true });
+});
 
 // 跳转到登录
 const goToLogin = () => {

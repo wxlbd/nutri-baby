@@ -45,6 +45,7 @@ func NewRouter(
 		auth := v1.Group("/auth")
 		{
 			auth.POST("/wechat-login", authHandler.WechatLogin)
+			auth.GET("/app-version", authHandler.GetAppVersion)
 		}
 
 		// 邀请相关（公开访问，无需认证）

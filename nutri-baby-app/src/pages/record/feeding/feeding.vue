@@ -36,31 +36,33 @@
             <!-- 手动输入时长 -->
             <wd-cell
               v-if="breastForm.side === 'left' || breastForm.side === 'both'"
-              title="左侧时长(秒)"
+              title="左侧时长(分钟)"
               title-width="100px"
               prop="count"
             >
               <view style="text-align: left">
                 <wd-input-number
-                  input-width="100rpx"
-                  v-model="breastForm.leftDuration"
+                  input-width="120rpx"
+                  v-model="leftDurationMinutes"
                   type="number"
                   min="0"
+                  step="0.5"
                 />
               </view>
             </wd-cell>
             <wd-cell
               v-if="breastForm.side === 'right' || breastForm.side === 'both'"
-              title="右侧时长(秒)"
+              title="右侧时长(分钟)"
               title-width="100px"
               prop="count"
             >
               <view style="text-align: left">
                 <wd-input-number
-                  input-width="100rpx"
-                  v-model="breastForm.rightDuration"
+                  input-width="120rpx"
+                  v-model="rightDurationMinutes"
                   type="number"
                   min="0"
+                  step="0.5"
                 />
               </view>
             </wd-cell>
@@ -289,6 +291,30 @@ const breastForm = ref({
   side: "left" as "left" | "right" | "both",
   leftDuration: 0,
   rightDuration: 0,
+});
+
+const convertMinutesToSeconds = (minutes: number) => {
+  if (!minutes || minutes <= 0) return 0;
+  return Math.max(0, Math.round(minutes * 60));
+};
+
+const convertSecondsToMinutes = (seconds: number) => {
+  if (!seconds || seconds <= 0) return 0;
+  return Number((seconds / 60).toFixed(1));
+};
+
+const leftDurationMinutes = computed({
+  get: () => convertSecondsToMinutes(breastForm.value.leftDuration),
+  set: (minutes: number) => {
+    breastForm.value.leftDuration = convertMinutesToSeconds(minutes || 0);
+  },
+});
+
+const rightDurationMinutes = computed({
+  get: () => convertSecondsToMinutes(breastForm.value.rightDuration),
+  set: (minutes: number) => {
+    breastForm.value.rightDuration = convertMinutesToSeconds(minutes || 0);
+  },
 });
 
 // 奶瓶喂养表单
