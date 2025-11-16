@@ -61,7 +61,7 @@
       <view class="stat-cards">
         <view class="stat-card">
           <view class="card-label">总时长</view>
-          <view class="card-value">{{ sleepStats.totalHours }}h</view>
+          <view class="card-value">{{ sleepStats.totalDurationFormatted }}</view>
         </view>
         <view class="stat-card">
           <view class="card-label">睡眠次数</view>
@@ -69,7 +69,7 @@
         </view>
         <view class="stat-card">
           <view class="card-label">日均时长</view>
-          <view class="card-value">{{ sleepStats.avgHours }}h</view>
+          <view class="card-value">{{ sleepStats.avgDurationFormatted }}</view>
         </view>
       </view>
 
@@ -79,19 +79,19 @@
         <view class="quality-content">
           <view class="quality-item">
             <text class="quality-label">最长单次睡眠:</text>
-            <text class="quality-value">{{ sleepStats.longestSleep }}分钟</text>
+            <text class="quality-value">{{ sleepStats.longestSleep }}分</text>
           </view>
           <view class="quality-item">
             <text class="quality-label">平均单次时长:</text>
-            <text class="quality-value">{{ sleepStats.avgSingleSleep }}分钟</text>
+            <text class="quality-value">{{ sleepStats.avgSingleSleep }}分</text>
           </view>
           <view class="quality-item">
             <text class="quality-label">夜间睡眠:</text>
-            <text class="quality-value">{{ sleepStats.nightSleepCount }}次 ({{ sleepStats.nightSleepHours }}h)</text>
+            <text class="quality-value">{{ sleepStats.nightSleepCount }}次 ({{ formatDurationToTimeString(Math.round(sleepStats.nightSleepHours * 60)) }})</text>
           </view>
           <view class="quality-item">
             <text class="quality-label">小睡:</text>
-            <text class="quality-value">{{ sleepStats.napCount }}次 ({{ sleepStats.napHours }}h)</text>
+            <text class="quality-value">{{ sleepStats.napCount }}次 ({{ formatDurationToTimeString(Math.round(sleepStats.napHours * 60)) }})</text>
           </view>
           <view v-if="sleepStats.recommendation" class="quality-recommendation">
             <image src="/static/lightbulb_yellow.svg" class="recommendation-icon" />
@@ -203,6 +203,22 @@ let weightChartInstance: any = null
 
 // 时间范围
 const timeRange = ref<string>('week')
+
+// 格式化睡眠时长为 X时Y分
+const formatDurationToTimeString = (minutes: number): string => {
+  if (minutes <= 0) return '0分'
+
+  const hours = Math.floor(minutes / 60)
+  const remainingMinutes = minutes % 60
+
+  if (hours === 0) {
+    return `${remainingMinutes}分`
+  } else if (remainingMinutes === 0) {
+    return `${hours}时`
+  } else {
+    return `${hours}时${remainingMinutes}分`
+  }
+}
 
 // 初始化图表
 const {
@@ -347,34 +363,40 @@ const sleepStats = computed(() => {
     }
   }
 
-  const totalMinutes = sleepRecords.value.reduce((sum, r) => sum + (r.duration || 0), 0)
+  // ⚠️ 注意：sleepRecords.value.duration 存储的是秒，需要转换为分钟
+  const totalSeconds = sleepRecords.value.reduce((sum, r) => sum + (r.duration || 0), 0)
+  const totalMinutes = Math.round(totalSeconds / 60)
   const days = timeRange.value === 'week' ? 7 : 30
 
-  // 计算最长单次睡眠
-  const longestSleep = sleepRecords.value.length > 0
+  // 计算最长单次睡眠（秒转分钟）
+  const longestSleepSeconds = sleepRecords.value.length > 0
     ? Math.max(...sleepRecords.value.map(r => r.duration || 0))
     : 0
+  const longestSleep = Math.round(longestSleepSeconds / 60)
 
-  // 计算平均单次睡眠
+  // 计算平均单次睡眠（秒转分钟）
   const avgSingleSleep = sleepRecords.value.length > 0
     ? Math.round(totalMinutes / sleepRecords.value.length)
     : 0
 
-  // 统计夜间睡眠和小睡
-  let nightSleepMinutes = 0
+  // 统计夜间睡眠和小睡（秒转分钟）
+  let nightSleepSeconds = 0
   let nightSleepCount = 0
-  let napMinutes = 0
+  let napSeconds = 0
   let napCount = 0
 
   sleepRecords.value.forEach(r => {
     if (r.sleepType === 'night') {
-      nightSleepMinutes += r.duration || 0
+      nightSleepSeconds += r.duration || 0
       nightSleepCount++
     } else {
-      napMinutes += r.duration || 0
+      napSeconds += r.duration || 0
       napCount++
     }
   })
+
+  const nightSleepMinutes = Math.round(nightSleepSeconds / 60)
+  const napMinutes = Math.round(napSeconds / 60)
 
   // 计算宝宝月龄
   const birthDate = new Date(currentBaby.value.birthDate)
@@ -426,7 +448,10 @@ const sleepStats = computed(() => {
     nightSleepHours: Math.round(nightSleepMinutes / 60 * 10) / 10,
     napCount,
     napHours: Math.round(napMinutes / 60 * 10) / 10,
-    recommendation
+    recommendation,
+    // 添加格式化后的时长字段（X时Y分）
+    totalDurationFormatted: formatDurationToTimeString(totalMinutes),
+    avgDurationFormatted: formatDurationToTimeString(Math.round(totalMinutes / days))
   }
 })
 

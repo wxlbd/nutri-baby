@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/wxlbd/nutri-baby-server/internal/application/dto"
+	"github.com/wxlbd/nutri-baby-server/internal/domain/entity"
 	"github.com/wxlbd/nutri-baby-server/internal/domain/repository"
 	"github.com/wxlbd/nutri-baby-server/pkg/errors"
 	"go.uber.org/zap"
@@ -156,9 +157,9 @@ func (s *StatisticsService) getTodayFeedingStats(ctx context.Context, babyID int
 	bottleMl := int64(0)
 
 	for _, record := range todayRecords {
-		if record.FeedingType == "breast" {
+		if record.FeedingType == entity.FeedingTypeBreast {
 			breastCount++
-		} else if record.FeedingType == "bottle" {
+		} else if record.FeedingType == entity.FeedingTypeBottle {
 			bottleCount++
 			if record.Amount > 0 {
 				bottleMl += record.Amount
@@ -331,19 +332,25 @@ func (s *StatisticsService) getWeeklySleepStats(ctx context.Context, babyID int6
 		return nil, errors.Wrap(errors.DatabaseError, "查询上周睡眠记录失败", err)
 	}
 
-	// 计算本周总睡眠分钟数
+	// 计算本周总睡眠分钟数（将秒转换为分钟，使用向上取整避免精度丢失）
 	thisWeekMinutes := 0
 	for _, record := range thisWeekRecords {
 		if record.Duration != nil {
-			thisWeekMinutes += *record.Duration
+			// ⚠️ Duration 存储为秒，需要转换为分钟
+			// 使用向上取整：(duration + 59) / 60
+			minutes := int((*record.Duration + 59) / 60)
+			thisWeekMinutes += minutes
 		}
 	}
 
-	// 计算上周总睡眠分钟数
+	// 计算上周总睡眠分钟数（将秒转换为分钟，使用向上取整避免精度丢失）
 	prevWeekMinutes := 0
 	for _, record := range prevWeekRecords {
 		if record.Duration != nil {
-			prevWeekMinutes += *record.Duration
+			// ⚠️ Duration 存储为秒，需要转换为分钟
+			// 使用向上取整：(duration + 59) / 60
+			minutes := int((*record.Duration + 59) / 60)
+			prevWeekMinutes += minutes
 		}
 	}
 

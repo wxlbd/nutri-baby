@@ -146,7 +146,7 @@
 
     <!-- 版本信息 -->
     <view class="version">
-      <text>宝宝喂养时刻 v3.1.2</text>
+      <text>{{ appVersion }}</text>
     </view>
   </view>
 </template>
@@ -162,12 +162,14 @@ import * as babyApi from "@/api/baby";
 import * as feedingApi from "@/api/feeding";
 import * as diaperApi from "@/api/diaper";
 import * as sleepApi from "@/api/sleep";
+import { apiGetAppVersion } from "@/api/auth";
 
 // 数据统计(从 API 获取)
 const babyList = ref<babyApi.BabyProfileResponse[]>([]);
 const feedingRecordsCount = ref(0);
 const diaperRecordsCount = ref(0);
 const sleepRecordsCount = ref(0);
+const appVersion = ref("宝宝喂养时刻");
 
 // 加载统计数据
 const loadStatistics = async () => {
@@ -197,6 +199,15 @@ const loadStatistics = async () => {
 
 // 页面加载时获取数据
 onMounted(() => {
+  // 获取应用版本信息
+  apiGetAppVersion()
+    .then((versionInfo) => {
+      appVersion.value = `${versionInfo.name} v${versionInfo.version}`;
+    })
+    .catch((error) => {
+      console.error("获取版本信息失败:", error);
+    });
+
   if (isLoggedIn.value) {
     loadStatistics();
   }

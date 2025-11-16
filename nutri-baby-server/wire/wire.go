@@ -47,6 +47,7 @@ func InitApp(cfg *config.Config) (*App, error) {
 		persistence.NewSubscribeRepository,           // 订阅消息仓储
 		persistence.NewAIAnalysisRepository,          // AI分析结果仓储
 		persistence.NewDailyTipsRepository,           // 每日建议仓储
+		persistence.NewAppVersionRepository,          // 应用版本仓储
 
 		// 应用服务层
 		service.NewWechatService,    // 微信服务
@@ -63,6 +64,7 @@ func InitApp(cfg *config.Config) (*App, error) {
 		service.NewSchedulerService,       // 定时任务服务
 		service.NewUploadService,          // 文件上传服务
 		service.NewAIAnalysisService,      // AI分析服务（工具调用架构）
+		service.NewAppVersionService,      // 应用版本服务
 		// service.NewSyncService, // TODO: WebSocket同步未实现，暂时注释
 
 		// HTTP处理器
