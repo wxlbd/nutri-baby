@@ -38,6 +38,27 @@ func NewFeedingRecordRepository(db *gorm.DB) repository.FeedingRecordRepository 
 	return &feedingRecordRepositoryImpl{db: db}
 }
 
+func (r *feedingRecordRepositoryImpl) GetDailyStats(ctx context.Context, babyID int64, startDate, endDate int64) ([]*entity.DailyFeedingItem, error) {
+	var records []*entity.DailyFeedingItem
+	query := r.db.WithContext(ctx).
+		Model(&entity.FeedingRecord{}).
+		Select(`
+        to_char(to_timestamp(time / 1000), 'YYYY-MM-DD') AS date,
+        feeding_type,
+        COUNT(*) AS total_count,
+        COALESCE(SUM(amount), 0) AS total_amount,
+        COALESCE(SUM(duration), 0) AS total_duration`).
+		Where("baby_id = ? AND time BETWEEN ? AND ?", babyID, startDate, endDate).
+		Group("date, feeding_type").
+		Order("date ASC")
+
+	if err := query.Scan(&records).Error; err != nil {
+		return nil, errors.Wrap(errors.DatabaseError, "failed to get daily stats", err)
+	}
+
+	return records, nil
+}
+
 func (r *feedingRecordRepositoryImpl) Create(ctx context.Context, record *entity.FeedingRecord) error {
 	if err := r.db.WithContext(ctx).Create(record).Error; err != nil {
 		return errors.Wrap(errors.DatabaseError, "failed to create feeding record", err)

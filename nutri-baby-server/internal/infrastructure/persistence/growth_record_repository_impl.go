@@ -140,3 +140,24 @@ func (r *growthRecordRepositoryImpl) GetLatestRecord(ctx context.Context, babyID
 
 	return &record, nil
 }
+
+func (r *growthRecordRepositoryImpl) GetDailyStats(ctx context.Context, babyID int64, startDate, endDate int64) ([]*entity.DailyGrowthItem, error) {
+	var records []*entity.DailyGrowthItem
+	query := r.db.WithContext(ctx).
+		Model(&entity.GrowthRecord{}).
+		Select(`
+			to_char(to_timestamp(time / 1000), 'YYYY-MM-DD') AS date,
+			MAX(height) AS latest_height,
+			MAX(weight) AS latest_weight,
+			MAX(head_circumference) AS latest_head_circumference,
+			COUNT(*) AS record_count`).
+		Where("baby_id = ? AND time BETWEEN ? AND ?", babyID, startDate, endDate).
+		Group("date").
+		Order("date ASC")
+
+	if err := query.Scan(&records).Error; err != nil {
+		return nil, errors.Wrap(errors.DatabaseError, "failed to get daily growth stats", err)
+	}
+
+	return records, nil
+}

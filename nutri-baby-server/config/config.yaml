@@ -81,7 +81,7 @@ ai:
     model: "deepseek-chat"
   gemini:
     api_key: "sk-wxl095"
-    base_url: "http://47.129.124.80:8000"
+    base_url: "https://iyewyedqjtzv.ap-southeast-1.clawcloudrun.com"
     model: "gemini-2.5-flash"
   # 分析配置
   analysis:

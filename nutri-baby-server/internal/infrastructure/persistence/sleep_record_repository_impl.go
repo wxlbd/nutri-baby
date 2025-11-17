@@ -20,6 +20,25 @@ func NewSleepRecordRepository(db *gorm.DB) repository.SleepRecordRepository {
 	return &sleepRecordRepositoryImpl{db: db}
 }
 
+func (r *sleepRecordRepositoryImpl) GetDailyStats(ctx context.Context, babyID int64, startDate, endDate int64) ([]*entity.DailySleepItem, error) {
+	var records []*entity.DailySleepItem
+	query := r.db.WithContext(ctx).
+		Model(&entity.SleepRecord{}).
+		Select(`
+			to_char(to_timestamp(start_time / 1000), 'YYYY-MM-DD') AS date,
+			COALESCE(SUM(duration), 0) AS total_duration,
+			COUNT(*) AS total_count`).
+		Where("baby_id = ? AND start_time BETWEEN ? AND ?", babyID, startDate, endDate).
+		Group("date").
+		Order("date ASC")
+
+	if err := query.Find(&records).Error; err != nil {
+		return nil, errors.Wrap(errors.DatabaseError, "failed to get daily stats", err)
+	}
+
+	return records, nil
+}
+
 func (r *sleepRecordRepositoryImpl) Create(ctx context.Context, record *entity.SleepRecord) error {
 	if err := r.db.WithContext(ctx).Create(record).Error; err != nil {
 		return errors.Wrap(errors.DatabaseError, "failed to create sleep record", err)

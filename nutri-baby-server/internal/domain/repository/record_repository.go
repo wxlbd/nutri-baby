@@ -28,6 +28,8 @@ type FeedingRecordRepository interface {
 	GetTodayStatsByType(ctx context.Context, babyID int64, feedingType string, todayStart, todayEnd int64) (count int64, totalAmount float64, totalDuration int, err error)
 	// FindLatestRecord 查询宝宝最新的一条喂养记录
 	FindLatestRecord(ctx context.Context, babyID int64) (*entity.FeedingRecord, error)
+	// 获取指定时间范围的每日统计数据
+	GetDailyStats(ctx context.Context, babyID int64, startDate, endDate int64) ([]*entity.DailyFeedingItem, error)
 }
 
 // SleepRecordRepository 睡眠记录仓储接口
@@ -46,6 +48,7 @@ type SleepRecordRepository interface {
 	FindUpdatedAfter(ctx context.Context, babyID int64, timestamp int64) ([]*entity.SleepRecord, error)
 	// FindOngoingSleep 查找进行中的睡眠记录
 	FindOngoingSleep(ctx context.Context, babyID int64) (*entity.SleepRecord, error)
+	GetDailyStats(ctx context.Context, babyID int64, startDate, endDate int64) ([]*entity.DailySleepItem, error)
 }
 
 // DiaperRecordRepository 换尿布记录仓储接口
@@ -62,6 +65,8 @@ type DiaperRecordRepository interface {
 	Delete(ctx context.Context, recordID int64) error
 	// FindUpdatedAfter 查找指定时间后更新的记录(用于同步)
 	FindUpdatedAfter(ctx context.Context, babyID int64, timestamp int64) ([]*entity.DiaperRecord, error)
+	// GetDailyStats 获取指定时间范围的每日统计数据
+	GetDailyStats(ctx context.Context, babyID int64, startDate, endDate int64) ([]*entity.DailyDiaperItem, error)
 }
 
 // GrowthRecordRepository 成长记录仓储接口
@@ -78,4 +83,6 @@ type GrowthRecordRepository interface {
 	Delete(ctx context.Context, recordID int64) error
 	// FindUpdatedAfter 查找指定时间后更新的记录(用于同步)
 	FindUpdatedAfter(ctx context.Context, babyID int64, timestamp int64) ([]*entity.GrowthRecord, error)
+	// GetDailyStats 获取指定时间范围的每日统计数据
+	GetDailyStats(ctx context.Context, babyID int64, startDate, endDate int64) ([]*entity.DailyGrowthItem, error)
 }
