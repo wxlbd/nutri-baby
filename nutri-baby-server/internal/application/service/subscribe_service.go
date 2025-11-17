@@ -184,7 +184,7 @@ func (s *SubscribeService) SendSubscribeMessage(
 		req.TemplateID,
 		req.Data,
 		req.Page,
-		"developer",
+		"formal",
 	)
 
 	// 4. 标记授权为已使用(无论发送成功或失败,授权都会被消耗)

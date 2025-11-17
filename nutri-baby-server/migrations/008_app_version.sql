@@ -54,7 +54,19 @@ VALUES (
     '3.2.0',
     '宝宝喂养时刻',
     '修复隐私政策合规问题，优化版本管理系统',
+    FALSE,
+    CURRENT_TIMESTAMP
+) ON CONFLICT (version) DO NOTHING;
+
+-- 插入新版本数据（3.3.0）
+INSERT INTO app_versions (version, name, description, is_active, force_update, release_notes, build_time)
+VALUES (
+    '3.3.0',
+    '宝宝喂养时刻',
+    '新增应用版本管理功能，支持版本检测和更新提醒',
     TRUE,
+    FALSE,
+    '✨ 新增功能：\n- 应用版本管理系统\n- 版本检测和更新提醒\n- 登录页面版本检测\n- 统计页面睡眠数据显示优化\n- 时间线和喂养记录页面UI改进',
     CURRENT_TIMESTAMP
 ) ON CONFLICT (version) DO NOTHING;
 

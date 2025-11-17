@@ -2,8 +2,8 @@
     "name" : "宝宝喂养日志",
     "appid" : "__UNI__0BCDDA9",
     "description" : "记录宝宝喂养、睡眠、成长的智能育儿助手",
-    "versionName" : "1.0.0",
-    "versionCode" : "100",
+    "versionName" : "3.3.0",
+    "versionCode" : "330",
     "transformPx" : false,
     /* 5+App特有相关 */
     "app-plus" : {

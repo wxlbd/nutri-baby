@@ -108,7 +108,7 @@
                   label="喂养量"
                   v-model="bottleForm.amount"
                   type="number"
-                  :min="30"
+                  :min="0"
                   step="10"
                 />
               </view>
