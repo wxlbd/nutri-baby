@@ -123,3 +123,22 @@ func (r *diaperRecordRepositoryImpl) FindUpdatedAfter(
 
 	return records, nil
 }
+
+func (r *diaperRecordRepositoryImpl) GetDailyStats(ctx context.Context, babyID int64, startDate, endDate int64) ([]*entity.DailyDiaperItem, error) {
+	var records []*entity.DailyDiaperItem
+	query := r.db.WithContext(ctx).
+		Model(&entity.DiaperRecord{}).
+		Select(`
+			to_char(to_timestamp(time / 1000), 'YYYY-MM-DD') AS date,
+			type AS diaper_type,
+			COUNT(*) AS total_count`).
+		Where("baby_id = ? AND time BETWEEN ? AND ?", babyID, startDate, endDate).
+		Group("date, type").
+		Order("date ASC")
+
+	if err := query.Scan(&records).Error; err != nil {
+		return nil, errors.Wrap(errors.DatabaseError, "failed to get daily diaper stats", err)
+	}
+
+	return records, nil
+}

@@ -27,10 +27,10 @@ func InitApp(cfg *config.Config) (*App, error) {
 		wechat.NewClient,     // 微信 SDK 客户端
 
 		// Eino AI框架（工具调用架构）
-		model.NewToolCallingChatModel,        // 支持工具调用的AI模型客户端
-		tools.NewDataQueryTools,              // 数据查询工具集
-		tools.NewBatchDataTools,              // 批量数据查询工具
-		chain.NewAnalysisChainBuilder,        // AI分析链构建器
+		model.NewToolCallingChatModel, // 支持工具调用的AI模型客户端
+		tools.NewDataQueryTools,       // 数据查询工具集
+		tools.NewBatchDataTools,       // 批量数据查询工具
+		chain.NewAnalysisChainBuilder, // AI分析链构建器
 
 		// 仓储层
 		persistence.NewSubscriptionCacheRepository, // 订阅权限缓存管理器
@@ -61,6 +61,7 @@ func InitApp(cfg *config.Config) (*App, error) {
 		service.NewTimelineService,        // 时间线聚合服务
 		service.NewVaccineScheduleService, // 新增：疫苗接种日程服务
 		service.NewStatisticsService,      // 新增：统计服务
+		service.NewDailyStatsService,      // 新增：按日统计服务
 		service.NewSchedulerService,       // 定时任务服务
 		service.NewUploadService,          // 文件上传服务
 		service.NewAIAnalysisService,      // AI分析服务（工具调用架构）
@@ -73,10 +74,11 @@ func InitApp(cfg *config.Config) (*App, error) {
 		handler.NewRecordHandler,
 		handler.NewVaccineScheduleHandler, // 新增：疫苗接种日程处理器
 		handler.NewStatisticsHandler,      // 新增：统计处理器
+		handler.NewDailyStatsHandler,      // 新增：按日统计处理器
 		handler.NewSubscribeHandler,       // 订阅消息处理器
 		handler.NewAIAnalysisHandler,      // AI分析处理器（工具调用架构）
 		handler.NewSyncHandler,
-		handler.NewUploadHandler,          // 文件上传处理器
+		handler.NewUploadHandler, // 文件上传处理器
 
 		// 路由
 		router.NewRouter,

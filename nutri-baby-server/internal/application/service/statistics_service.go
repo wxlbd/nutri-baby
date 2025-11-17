@@ -146,24 +146,21 @@ func (s *StatisticsService) getTodayFeedingStats(ctx context.Context, babyID int
 	stats := &dto.TodayFeedingStats{}
 
 	// 获取今日所有喂养记录（用于统计今日的母乳、奶瓶等）
-	todayRecords, _, err := s.feedingRecordRepo.FindByBabyID(ctx, babyID, startTime, endTime, 1, 1000)
+	todayRecords, err := s.feedingRecordRepo.GetDailyStats(ctx, babyID, startTime, endTime)
 	if err != nil {
 		return nil, errors.Wrap(errors.DatabaseError, "查询喂养记录失败", err)
 	}
 
-	// 分别统计今日的母乳和奶瓶
-	breastCount := 0
-	bottleCount := 0
-	bottleMl := int64(0)
-
 	for _, record := range todayRecords {
-		if record.FeedingType == entity.FeedingTypeBreast {
-			breastCount++
-		} else if record.FeedingType == entity.FeedingTypeBottle {
-			bottleCount++
-			if record.Amount > 0 {
-				bottleMl += record.Amount
-			}
+		stats.TotalCount += int(record.TotalCount)
+		switch record.FeedingType {
+		case entity.FeedingTypeBreast:
+			stats.BreastCount = int(record.TotalCount)
+		case entity.FeedingTypeBottle:
+			stats.BottleCount = int(record.TotalCount)
+			stats.BottleMl = record.TotalAmount
+		case entity.FeedingTypeFood:
+			stats.FoodCount = int(record.TotalCount)
 		}
 	}
 
@@ -172,14 +169,9 @@ func (s *StatisticsService) getTodayFeedingStats(ctx context.Context, babyID int
 	if err != nil {
 		s.logger.Info("查询最新喂养记录失败", zap.Int64("babyId", babyID), zap.Error(err))
 	}
-
 	if latestRecord != nil {
 		stats.LastFeedingTime = &latestRecord.Time
 	}
-	stats.BreastCount = breastCount
-	stats.BottleMl = bottleMl
-	stats.TotalCount = breastCount + bottleCount
-
 	return stats, nil
 }
 
