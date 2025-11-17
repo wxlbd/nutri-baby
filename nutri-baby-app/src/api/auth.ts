@@ -34,11 +34,12 @@ export interface RefreshTokenResponse {
 }
 
 /**
- * API 请求: 更新用户信息
+ * API 响应: 应用版本信息
  */
-export interface UpdateUserInfoRequest {
-  nickName: string
-  avatarUrl: string
+export interface AppVersionResponse {
+  version: string
+  name: string
+  buildTime: string
 }
 
 // ============ API 函数 ============
@@ -106,6 +107,19 @@ export async function apiUpdateUserInfo(data: UpdateUserInfoRequest): Promise<Us
   const response = await put<UserInfo>('/auth/user-info', data)
   if (!response.data) {
     throw new Error(response.message || '更新用户信息失败')
+  }
+  return response.data
+}
+
+/**
+ * 获取应用版本信息（无需登录）
+ *
+ * @returns Promise<AppVersionResponse>
+ */
+export async function apiGetAppVersion(): Promise<AppVersionResponse> {
+  const response = await get<AppVersionResponse>('/auth/app-version')
+  if (!response.data) {
+    throw new Error(response.message || '获取版本信息失败')
   }
   return response.data
 }

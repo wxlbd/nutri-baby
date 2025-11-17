@@ -538,18 +538,23 @@ const deleteRecord = async (record: TimelineRecord) => {
 };
 
 // 加载更多状态计算
+const filteredHasMore = computed(() => {
+  if (!hasMore.value) return false;
+  if (recordTypeFilter.value === "all") return hasMore.value;
+
+  // 当筛选特定类型时，如果当前可见记录不足一页，则视为已加载完
+  return allRecords.value.length >= pageSize.value;
+});
+
 const loadMoreState = computed<string>(() => {
-  // 如果没有登录或没有选中宝宝，不显示加载状态
   if (!isLoggedIn.value || !currentBaby.value) return "finished";
 
-  // 如果记录为空，显示完成状态
-  if (timelineItems.value.length === 0) return "finished";
+  if (timelineItems.value.length === 0) return hasMore.value ? "loading" : "finished";
 
-  // 根据是否还有更多数据和是否正在加载来返回状态
   if (isLoadingMore.value) return "loading";
-  if (!hasMore.value) return "finished";
 
-  // 默认状态
+  if (!filteredHasMore.value) return "finished";
+
   return "loading";
 });
 

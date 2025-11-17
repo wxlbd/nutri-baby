@@ -1,56 +1,70 @@
 <template>
-  <view class="profile-page">
-    <wd-message-box />
-    <wd-toast />
+  <view>
+    <wd-navbar
+      title="编辑资料"
+      left-text="返回"
+      left-arrow
+      safeAreaInsetTop
+      placeholder
+      fixed
+    >
+      <template #capsule>
+        <wd-navbar-capsule @back="goBack" @back-home="goBackHome" />
+      </template>
+    </wd-navbar>
+    <view class="profile-page">
+      <wd-message-box />
+      <wd-toast />
 
-    <!-- 头像编辑 -->
-    <wd-cell-group custom-class="group" title="个人信息" border>
-      <wd-cell title="头像" title-width="200rpx">
-        <view class="avatar-section">
-          <button open-type="chooseAvatar" @chooseavatar="onChooseAvatar">
-            <image
-              :src="formData.avatarUrl || '/static/default.png'"
-              class="avatar-preview"
-              mode="aspectFill"
+      <!-- 头像编辑 -->
+      <wd-cell-group custom-class="group" title="个人信息" border>
+        <wd-cell title="头像" title-width="200rpx">
+          <view class="avatar-section">
+            <button open-type="chooseAvatar" @chooseavatar="onChooseAvatar">
+              <image
+                :src="formData.avatarUrl || '/static/default.png'"
+                class="avatar-preview"
+                mode="aspectFill"
+              />
+            </button>
+          </view>
+        </wd-cell>
+
+        <!-- 昵称编辑 -->
+        <wd-cell title="昵称" title-width="200rpx">
+          <view class="nickname-section">
+            <!-- 微信原生昵称输入框 -->
+            <input
+              type="nickname"
+              class="nickname-input"
+              v-model="formData.nickName"
+              placeholder="请输入昵称"
+              maxlength="20"
+              @blur="onNicknameBlur"
             />
-          </button>
-        </view>
-      </wd-cell>
+          </view>
+        </wd-cell>
 
-      <!-- 昵称编辑 -->
-      <wd-cell title="昵称" title-width="200rpx">
-        <view class="nickname-section">
-          <!-- 微信原生昵称输入框 -->
-          <input
-            type="nickname"
-            class="nickname-input"
-            v-model="formData.nickName"
-            placeholder="请输入昵称"
-            maxlength="20"
-            @blur="onNicknameBlur"
-          />
-        </view>
-      </wd-cell>
+        <!-- 用户ID(只读) -->
+        <wd-cell title="用户ID" title-width="200rpx">
+          <text class="user-id">{{
+            formData.openid ? formData.openid.slice(0, 12) + "..." : "-"
+          }}</text>
+        </wd-cell>
+      </wd-cell-group>
 
-      <!-- 用户ID(只读) -->
-      <wd-cell title="用户ID" title-width="200rpx">
-        <text class="user-id">{{
-          formData.openid ? formData.openid.slice(0, 12) + "..." : "-"
-        }}</text>
-      </wd-cell>
-    </wd-cell-group>
-
-    <!-- 底部按钮 -->
-    <view class="footer">
-      <wd-button
-        type="primary"
-        size="large"
-        block
-        :loading="isSubmitting"
-        @click="handleSubmit"
-      >
-        保存更改
-      </wd-button>
+      <!-- 底部按钮 -->
+      <view class="footer">
+        <wd-button
+          type="primary"
+          size="large"
+          block
+          :loading="isSubmitting"
+          @click="handleSubmit"
+        >
+          保存更改
+        </wd-button>
+      </view>
     </view>
   </view>
 </template>
@@ -60,6 +74,7 @@ import { ref, onMounted } from "vue";
 import { getUserInfo, setUserInfo } from "@/store/user";
 import { uploadFile } from "@/utils/request";
 import * as authApi from "@/api/auth";
+import { goBack, goBackHome } from "@/utils/common";
 
 // 表单数据
 const formData = ref({

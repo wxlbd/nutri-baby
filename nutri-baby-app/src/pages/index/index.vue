@@ -30,7 +30,7 @@
               <text class="baby-name">{{ currentBaby.name }}</text>
               <text class="baby-age">{{ babyAge }}</text>
             </view>
-            <wd-icon name="right" size="12" color="#999" class="arrow-icon" />
+            <wd-icon name="right" size="12" color="#7f8c8d" class="arrow-icon" />
           </view>
         </view>
         <!-- 没有宝宝时显示录入按钮 -->
@@ -44,7 +44,7 @@
           }"
         >
           <view class="button-content">
-            <wd-icon name="plus" size="18" color="#7dd3a2" class="plus-icon" />
+            <wd-icon name="plus" size="18" color="#32dc6e" class="plus-icon" />
             <text class="button-text">添加宝宝</text>
           </view>
         </view>
@@ -61,13 +61,12 @@
         >
           <wd-notice-bar
             prefix="warn-bold"
-            direction="vertical"
             :text="upcomingVaccines"
             :delay="3"
             custom-class="space"
           >
         <template #suffix>
-          <wd-icon name="arrow-right" size="12" color="#333" />
+          <wd-icon name="arrow-right" size="12" color="#2c3e50" />
         </template>
         </wd-notice-bar>
         </view>
@@ -90,7 +89,7 @@
           </view>
           <view class="feeding-action">
             <view class="action-btn" @click="handleFeeding">
-              <wd-icon name="arrow-right" size="12" color="#333" />
+              <wd-icon name="arrow-right" size="12" color="#2c3e50" />
             </view>
           </view>
         </view>
@@ -131,9 +130,9 @@
                 <text class="stat-card-title">总睡眠时长</text>
               </view>
               <view class="stat-main">
-                <text class="stat-value">{{ todayStats.sleepDurationMinutes }}分钟</text>
+                <text class="stat-value">{{ formatSleepDuration(todayStats.sleepDurationMinutes) }}</text>
                 <text class="stat-sub"
-                  >上次睡眠: {{ todayStats.lastSleepMinutes }}分钟</text
+                  >上次睡眠: {{ formatSleepDuration(todayStats.lastSleepMinutes) }}</text
                 >
               </view>
             </view>
@@ -200,13 +199,13 @@
             </view>
             <view class="overview-item">
               <view class="overview-label">总睡眠时长</view>
-              <text class="overview-value">{{ weeklyStats.sleepHours }} 小时</text>
+              <text class="overview-value">{{ formatSleepDuration(weeklyStats.sleepMinutes) }}</text>
               <text
                 class="overview-trend"
                 :class="weeklyStats.sleepTrend >= 0 ? 'up' : 'down'"
               >
                 {{ weeklyStats.sleepTrend >= 0 ? "↑" : "↓" }}
-                {{ Math.abs(weeklyStats.sleepTrend) }}h
+                {{ formatSleepTrend(weeklyStats.sleepTrend) }}
               </text>
             </view>
             <view class="overview-item">
@@ -278,7 +277,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
-import { onShow } from "@dcloudio/uni-app";
+import { onShow, onPullDownRefresh } from "@dcloudio/uni-app";
 import { isLoggedIn, fetchUserInfo } from "@/store/user";
 import { currentBaby, fetchBabyList } from "@/store/baby";
 import {
@@ -376,6 +375,43 @@ const lastFeedingTime = computed(() => {
   return formatRelativeTime(statistics.value.today.feeding.lastFeedingTime);
 });
 
+// 格式化睡眠时间为 X时Y分
+const formatSleepDuration = (minutes: number): string => {
+  if (minutes <= 0) return "0分";
+
+  const hours = Math.floor(minutes / 60);
+  const remainingMinutes = minutes % 60;
+
+  if (hours === 0) {
+    return `${remainingMinutes}分`;
+  } else if (remainingMinutes === 0) {
+    return `${hours}时`;
+  } else {
+    return `${hours}时${remainingMinutes}分`;
+  }
+};
+
+// 格式化睡眠趋势为 ±X时Y分
+const formatSleepTrend = (minutes: number): string => {
+  if (minutes === 0) return "0分";
+
+  const absMinutes = Math.abs(minutes);
+  const hours = Math.floor(absMinutes / 60);
+  const remainingMinutes = absMinutes % 60;
+
+  let result = minutes > 0 ? "+" : "-";
+
+  if (hours === 0) {
+    result += `${remainingMinutes}分`;
+  } else if (remainingMinutes === 0) {
+    result += `${hours}时`;
+  } else {
+    result += `${hours}时${remainingMinutes}分`;
+  }
+
+  return result;
+};
+
 // ============ 本周概览数据 ============
 
 // 本周统计数据
@@ -384,7 +420,7 @@ const weeklyStats = computed(() => {
     return {
       feedingCount: 0,
       feedingTrend: 0,
-      sleepHours: 0,
+      sleepMinutes: 0,
       sleepTrend: 0,
       weightGain: 0,
     };
@@ -394,7 +430,7 @@ const weeklyStats = computed(() => {
   return {
     feedingCount: weekly.feeding.totalCount,
     feedingTrend: weekly.feeding.trend,
-    sleepHours: Math.round(weekly.sleep.totalHours * 10) / 10,
+    sleepMinutes: weekly.sleep.totalMinutes,
     sleepTrend: weekly.sleep.trend,
     weightGain: weekly.growth.weightGain,
   };
@@ -492,13 +528,36 @@ const checkLoginAndBaby = async () => {
   }
 };
 
+type LoadTodayDataOptions = {
+  preserveData?: boolean;
+  pullDown?: boolean;
+};
+
 // 加载今日数据
-const loadTodayData = async () => {
-  if (!currentBaby.value) return;
+const loadTodayData = async (options: LoadTodayDataOptions = {}) => {
+  if (!currentBaby.value) {
+    if (options.pullDown) {
+      uni.hideNavigationBarLoading();
+      uni.stopPullDownRefresh();
+    }
+    return;
+  }
 
   const babyId = currentBaby.value.babyId;
 
+  if (options.pullDown) {
+    uni.showNavigationBarLoading();
+  } else {
+    uni.showLoading({ title: "加载中", mask: false });
+  }
+
   try {
+    if (!options.preserveData) {
+      // 清空旧数据
+      statistics.value = null;
+      upcomingVaccines.value = [];
+    }
+
     // 并行加载统计数据和疫苗提醒
     const [statisticsResponse, vaccineRemindersResponse] = await Promise.all([
       statisticsApi.apiFetchBabyStatistics(babyId),
@@ -516,13 +575,11 @@ const loadTodayData = async () => {
       (r: vaccineApi.VaccineReminderResponse) =>
         r.status === "upcoming" || r.status === "due" || r.status === "overdue"
     );
-    filtered.forEach((r: vaccineApi.VaccineReminderResponse) => {
-      upcomingVaccines.value.push(
-        `${r.vaccineName} ${r.doseNumber ? `（第${r.doseNumber}针）` : ""} ${
-          vaccineApi.VaccineReminderStatusMap[r.status]
-        }，应于 ${formatDate(r.scheduledDate, "YYYY-MM-DD")}接种`
-      );
-    });
+    upcomingVaccines.value = filtered.map((r: vaccineApi.VaccineReminderResponse) =>
+      `${r.vaccineName} ${r.doseNumber ? `（第${r.doseNumber}针）` : ""} ${
+        vaccineApi.VaccineReminderStatusMap[r.status]
+      }，应于 ${formatDate(r.scheduledDate, "YYYY-MM-DD")}接种`
+    );
 
     console.log("[Index] 统计数据加载完成", {
       today: statisticsResponse.data?.today,
@@ -533,11 +590,42 @@ const loadTodayData = async () => {
       total: reminders.length,
       upcoming: upcomingVaccines.value.length,
     });
+
+    if (options.pullDown) {
+      uni.showToast({
+        title: "刷新成功",
+        icon: "success",
+        duration: 1200,
+      });
+    }
   } catch (error) {
     console.error("[Index] 加载数据失败:", error);
+    if (options.pullDown) {
+      uni.showToast({
+        title: "刷新失败",
+        icon: "none",
+        duration: 1500,
+      });
+    }
     // 不显示错误提示，静默失败
+  } finally {
+    if (options.pullDown) {
+      uni.hideNavigationBarLoading();
+      uni.stopPullDownRefresh();
+    } else {
+      uni.hideLoading();
+    }
   }
 };
+
+onPullDownRefresh(async () => {
+  if (!isLoggedIn.value || !currentBaby.value) {
+    uni.stopPullDownRefresh();
+    uni.hideNavigationBarLoading();
+    return;
+  }
+  await loadTodayData({ preserveData: true, pullDown: true });
+});
 
 // 跳转到登录
 const goToLogin = () => {
@@ -815,7 +903,7 @@ $spacing: 20rpx; // 统一间距
   transition: all $transition-slow;
 
   &:active {
-    background: rgba(50, 220, 110, 0.15);
+    background: $color-primary-lighter;
     transform: scale(0.95);
   }
 }
@@ -838,7 +926,7 @@ $spacing: 20rpx; // 统一间距
   transform: translateX(-50%);
   font-size: 34rpx; // 标准导航栏标题大小 (17px = 34rpx)
   font-weight: 600;
-  color: #000;
+  color: $color-text-primary;
   pointer-events: none;
 }
 
@@ -895,7 +983,7 @@ $spacing: 20rpx; // 统一间距
   width: 48rpx;
   height: 48rpx;
   border-radius: $radius-full;
-  background: rgba(50, 220, 110, 0.15);
+  background: $color-primary-lighter;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -960,7 +1048,7 @@ $spacing: 20rpx; // 统一间距
 .banner-icon {
   font-size: 32rpx;
   font-weight: 700;
-  color: #999;
+  color: $color-text-secondary;
   flex-shrink: 0;
 }
 
@@ -973,7 +1061,7 @@ $spacing: 20rpx; // 统一间距
 
   text {
     font-size: 32rpx;
-    color: #333;
+    color: $color-text-primary;
     line-height: 1.3;
     word-break: break-word;
   }
@@ -1034,7 +1122,7 @@ $spacing: 20rpx; // 统一间距
 .stat-value {
   font-size: 34rpx;
   font-weight: 450;
-  color: $color-text-primary;
+  color: $color-primary-light;
   line-height: 1.3;
   text-align: center;
 }
@@ -1098,7 +1186,7 @@ $spacing: 20rpx; // 统一间距
 .overview-value {
   font-size: 36rpx;
   font-weight: 450;
-  color: $color-text-primary;
+  color: $color-primary-light;
   line-height: 1.2;
 }
 
@@ -1189,7 +1277,7 @@ $spacing: 20rpx; // 统一间距
 .action-title {
   font-size: 28rpx;
   font-weight: $font-weight-semibold;
-  color: $color-text-secondary;
+  color: $color-text-primary;
   text-align: center;
   margin-bottom: $spacing-lg;
 }
@@ -1228,7 +1316,7 @@ $spacing: 20rpx; // 统一间距
   width: 48rpx;
   height: 48rpx;
   border-radius: $radius-full;
-  background: rgba(50, 220, 110, 0.15);
+  background: $color-primary-lighter;
   display: flex;
   align-items: center;
   justify-content: center;

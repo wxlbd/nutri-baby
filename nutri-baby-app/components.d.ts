@@ -7,6 +7,10 @@ export {}
 
 declare module 'vue' {
   export interface GlobalComponents {
+    AIAlertCard: typeof import('./src/components/ai/AIAlertCard.vue')['default']
+    AIChart: typeof import('./src/components/charts/AIChart.vue')['default']
+    AIInsightCard: typeof import('./src/components/ai/AIInsightCard.vue')['default']
+    AIScoreCard: typeof import('./src/components/ai/AIScoreCard.vue')['default']
     BabyCollaboratorsPreview: typeof import('./src/components/BabyCollaboratorsPreview.vue')['default']
     SubscribeGuide: typeof import('./src/components/SubscribeGuide.vue')['default']
     UChart: typeof import('./src/components/UChart.vue')['default']

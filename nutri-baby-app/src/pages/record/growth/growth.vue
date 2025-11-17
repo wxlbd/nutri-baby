@@ -1,159 +1,183 @@
 <template>
-  <view class="growth-container">
-    <!-- 页面内容 -->
-    <view class="growth-content">
-      <!-- 最新数据卡片 -->
-      <view v-if="latestRecord" class="latest-card">
-        <view class="card-title">最新记录</view>
-        <view class="data-grid">
-          <view v-if="latestRecord.height" class="data-item">
-            <view class="data-icon">📏</view>
-            <view class="data-value">{{ latestRecord.height }}</view>
-            <view class="data-label">身高(cm)</view>
+  <view>
+    <wd-navbar
+      title="成长记录"
+      left-text="返回"
+      left-arrow
+      safeAreaInsetTop
+      placeholder
+      fixed
+    >
+      <template #capsule>
+        <wd-navbar-capsule @back="goBack" @back-home="goBackHome" />
+      </template>
+    </wd-navbar>
+    <view class="growth-container">
+      <!-- 页面内容 -->
+      <view class="growth-content">
+        <!-- 最新数据卡片 -->
+        <view v-if="latestRecord" class="latest-card">
+          <view class="card-title">最新记录</view>
+          <view class="data-grid">
+            <view v-if="latestRecord.height" class="data-item">
+              <view class="data-icon">📏</view>
+              <view class="data-value">{{ latestRecord.height }}</view>
+              <view class="data-label">身高(cm)</view>
+            </view>
+            <view v-if="latestRecord.weight" class="data-item">
+              <view class="data-icon">⚖️</view>
+              <view class="data-value">{{ latestRecord.weight }}</view>
+              <view class="data-label">体重(g)</view>
+            </view>
+            <view v-if="latestRecord.headCircumference" class="data-item">
+              <view class="data-icon">📐</view>
+              <view class="data-value">{{
+                latestRecord.headCircumference
+              }}</view>
+              <view class="data-label">头围(cm)</view>
+            </view>
           </view>
-          <view v-if="latestRecord.weight" class="data-item">
-            <view class="data-icon">⚖️</view>
-            <view class="data-value">{{ latestRecord.weight }}</view>
-            <view class="data-label">体重(g)</view>
-          </view>
-          <view v-if="latestRecord.headCircumference" class="data-item">
-            <view class="data-icon">📐</view>
-            <view class="data-value">{{ latestRecord.headCircumference }}</view>
-            <view class="data-label">头围(cm)</view>
+          <view class="record-time">
+            记录于
+            {{ formatDate(latestRecord.measureTime, "YYYY-MM-DD HH:mm") }}
           </view>
         </view>
-        <view class="record-time">
-          记录于
-          {{ formatDate(latestRecord.measureTime, "YYYY-MM-DD HH:mm") }}
-        </view>
-      </view>
 
-      <!-- 添加记录按钮 -->
-      <view class="add-section">
-        <wd-button
-          type="primary"
-          size="large"
-          block
-          @click="showAddDialog = true"
-        >
-          + 添加成长记录
-        </wd-button>
-      </view>
-
-      <!-- 历史记录列表 -->
-      <view class="records-section">
-        <view class="section-title">历史记录</view>
-
-        <view v-if="recordList.length === 0" class="empty-state">
-          <wd-status-tip description="暂无成长记录" />
-        </view>
-
-        <view v-else class="record-list">
-          <view
-            v-for="record in recordList"
-            :key="record.recordId"
-            class="record-item"
+        <!-- 添加记录按钮 -->
+        <view class="add-section">
+          <wd-button
+            type="primary"
+            size="large"
+            block
+            @click="showAddDialog = true"
           >
-            <view class="record-header">
-              <view class="record-date">
-                {{ formatDate(record.measureTime, "YYYY-MM-DD") }}
+            + 添加成长记录
+          </wd-button>
+        </view>
+
+        <!-- 历史记录列表 -->
+        <view class="records-section">
+          <view class="section-title">历史记录</view>
+
+          <view v-if="recordList.length === 0" class="empty-state">
+            <wd-status-tip description="暂无成长记录" />
+          </view>
+
+          <view v-else class="record-list">
+            <view
+              v-for="record in recordList"
+              :key="record.recordId"
+              class="record-item"
+            >
+              <view class="record-header">
+                <view class="record-date">
+                  {{ formatDate(record.measureTime, "YYYY-MM-DD") }}
+                </view>
+                <wd-button
+                  size="small"
+                  type="info"
+                  @click="handleDelete(record.recordId)"
+                >
+                  删除
+                </wd-button>
               </view>
-              <wd-button
-                size="small"
-                type="info"
-                @click="handleDelete(record.recordId)"
+
+              <view class="record-data">
+                <view v-if="record.height" class="data-row">
+                  <text class="data-label">身高:</text>
+                  <text class="data-value">{{ record.height }} cm</text>
+                </view>
+                <view v-if="record.weight" class="data-row">
+                  <text class="data-label">体重:</text>
+                  <text class="data-value">{{ record.weight }} g</text>
+                </view>
+                <view v-if="record.headCircumference" class="data-row">
+                  <text class="data-label">头围:</text>
+                  <text class="data-value"
+                    >{{ record.headCircumference }} cm</text
+                  >
+                </view>
+                <view v-if="record.note" class="data-row">
+                  <text class="data-label">备注:</text>
+                  <text class="data-value">{{ record.note }}</text>
+                </view>
+              </view>
+            </view>
+          </view>
+        </view>
+      </view>
+
+      <!-- 添加记录对话框 -->
+      <wd-popup
+        v-model="showAddDialog"
+        custom-style="height: 60%"
+        position="bottom"
+        round
+        closeable
+      >
+        <view class="dialog-content">
+          <view class="dialog-title">{{
+            isEditing ? "编辑成长记录" : "添加成长记录"
+          }}</view>
+          <wd-form ref="form" :model="formData">
+            <wd-cell-group border>
+              <wd-input
+                v-model="formData.height"
+                placeholder="请输入身高..."
+                label="身高"
+                required
+                type="number"
+                inputmode="numeric"
+                ><template #suffix>厘米</template></wd-input
               >
-                删除
+              <wd-input
+                v-model="formData.weight"
+                placeholder="请输入体重..."
+                label="体重"
+                required
+                type="number"
+                inputmode="numeric"
+                ><template #suffix>克</template></wd-input
+              >
+              <wd-input
+                v-model="formData.headCircumference"
+                placeholder="请输入头围..."
+                label="头围"
+                required
+                type="number"
+                inputmode="numeric"
+                ><template #suffix>厘米</template></wd-input
+              >
+              <!-- 备注 -->
+              <wd-textarea
+                v-model="formData.note"
+                placeholder="请输入备注..."
+                label="备注"
+                rows="3"
+              ></wd-textarea>
+            </wd-cell-group>
+            <view class="dialog-footer">
+              <wd-button
+                type="info"
+                size="large"
+                block
+                @click="showAddDialog = false"
+              >
+                取消
+              </wd-button>
+              <wd-button
+                type="primary"
+                size="large"
+                block
+                @click="handleSubmit"
+              >
+                {{ isEditing ? "更新" : "保存" }}
               </wd-button>
             </view>
-
-            <view class="record-data">
-              <view v-if="record.height" class="data-row">
-                <text class="data-label">身高:</text>
-                <text class="data-value">{{ record.height }} cm</text>
-              </view>
-              <view v-if="record.weight" class="data-row">
-                <text class="data-label">体重:</text>
-                <text class="data-value">{{ record.weight }} g</text>
-              </view>
-              <view v-if="record.headCircumference" class="data-row">
-                <text class="data-label">头围:</text>
-                <text class="data-value"
-                  >{{ record.headCircumference }} cm</text
-                >
-              </view>
-              <view v-if="record.note" class="data-row">
-                <text class="data-label">备注:</text>
-                <text class="data-value">{{ record.note }}</text>
-              </view>
-            </view>
-          </view>
+          </wd-form>
         </view>
-      </view>
+      </wd-popup>
     </view>
-
-    <!-- 添加记录对话框 -->
-    <wd-popup
-      v-model="showAddDialog"
-      custom-style="height: 60%"
-      position="bottom"
-      round
-      closeable
-    >
-      <view class="dialog-content">
-        <view class="dialog-title">{{
-          isEditing ? "编辑成长记录" : "添加成长记录"
-        }}</view>
-        <wd-form ref="form" :model="formData">
-          <wd-cell-group border>
-            <wd-input
-              v-model="formData.height"
-              placeholder="请输入身高..."
-              label="身高"
-              required
-              type="number"
-              inputmode="numeric"
-            ><template #suffix>厘米</template></wd-input>
-            <wd-input
-              v-model="formData.weight"
-              placeholder="请输入体重..."
-              label="体重"
-              required
-              type="number"
-              inputmode="numeric"
-            ><template #suffix>克</template></wd-input>
-            <wd-input
-              v-model="formData.headCircumference"
-              placeholder="请输入头围..."
-              label="头围"
-              required
-              type="number"
-              inputmode="numeric"
-            ><template #suffix>厘米</template></wd-input>
-            <!-- 备注 -->
-            <wd-textarea
-              v-model="formData.note"
-              placeholder="请输入备注..."
-              label="备注"
-              rows="3"
-            ></wd-textarea>
-          </wd-cell-group>
-          <view class="dialog-footer">
-            <wd-button
-              type="info"
-              size="large"
-              block
-              @click="showAddDialog = false"
-            >
-              取消
-            </wd-button>
-            <wd-button type="primary" size="large" block @click="handleSubmit">
-              {{ isEditing ? "更新" : "保存" }}
-            </wd-button>
-          </view>
-        </wd-form>
-      </view>
-    </wd-popup>
   </view>
 </template>
 
@@ -165,6 +189,7 @@ import { formatDate } from "@/utils/date";
 
 // 直接调用 API 层
 import * as growthApi from "@/api/growth";
+import { goBack, goBackHome } from "@/utils/common";
 
 // 编辑模式相关
 const editId = ref<string>("");
@@ -300,7 +325,10 @@ const handleSubmit = async () => {
     return;
   }
 
-  if (formData.value.weight && (isNaN(weight) || weight <= 0 || weight > 200000)) {
+  if (
+    formData.value.weight &&
+    (isNaN(weight) || weight <= 0 || weight > 200000)
+  ) {
     uni.showToast({
       title: "体重数据不合理",
       icon: "none",
@@ -478,7 +506,7 @@ const handleDelete = async (id: string) => {
 
 .records-section {
   background: white;
-  border: 1rpx solid #CAE3D4;
+  border: 1rpx solid #cae3d4;
   border-radius: 16rpx;
   padding: 30rpx;
   flex: 1;
@@ -504,7 +532,7 @@ const handleDelete = async (id: string) => {
 
 .record-item {
   background: white;
-  border: 1rpx solid #CAE3D4;
+  border: 1rpx solid #cae3d4;
   border-radius: 12rpx;
   padding: 24rpx;
   box-shadow: 0 2rpx 8rpx rgba(125, 211, 162, 0.08);

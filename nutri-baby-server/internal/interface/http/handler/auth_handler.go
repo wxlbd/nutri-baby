@@ -10,12 +10,16 @@ import (
 
 // AuthHandler 认证处理器
 type AuthHandler struct {
-	authService *service.AuthService
+	authService        *service.AuthService
+	appVersionService  *service.AppVersionService
 }
 
 // NewAuthHandler 创建认证处理器
-func NewAuthHandler(authService *service.AuthService) *AuthHandler {
-	return &AuthHandler{authService: authService}
+func NewAuthHandler(authService *service.AuthService, appVersionService *service.AppVersionService) *AuthHandler {
+	return &AuthHandler{
+		authService:       authService,
+		appVersionService: appVersionService,
+	}
 }
 
 // WechatLogin 微信小程序登录
@@ -105,4 +109,16 @@ func (h *AuthHandler) UpdateUserInfo(c *gin.Context) {
 	}
 
 	response.Success(c, userInfo)
+}
+
+// GetAppVersion 获取应用版本信息（无需认证）
+// @Router /auth/app-version [get]
+func (h *AuthHandler) GetAppVersion(c *gin.Context) {
+	versionDTO, err := h.appVersionService.GetCurrentVersion(c.Request.Context())
+	if err != nil {
+		response.Error(c, err)
+		return
+	}
+
+	response.Success(c, versionDTO)
 }

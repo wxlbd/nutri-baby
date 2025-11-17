@@ -104,6 +104,11 @@ func (s *BabyService) CreateBaby(ctx context.Context, openID string, req *dto.Cr
 		s.logger.Error("初始化疫苗计划失败", zap.Error(err))
 	}
 
+	// 如果该用户没有其他宝宝,直接将该宝宝设置为默认宝宝
+	if err := s.setDefaultBabyIfNeeded(ctx, openID, baby.ID); err != nil {
+		s.logger.Error("设置默认宝宝失败", zap.Error(err))
+	}
+
 	return &dto.BabyDTO{
 		BabyID:     strconv.FormatInt(baby.ID, 10),
 		Name:       baby.Name,
@@ -503,6 +508,11 @@ func (s *BabyService) JoinBaby(ctx context.Context, openID string, req *dto.Join
 		return nil, err
 	}
 
+	// 如果该用户没有其他宝宝,直接将该宝宝设置为默认宝宝
+	if err := s.setDefaultBabyIfNeeded(ctx, openID, babyIDInt64); err != nil {
+		s.logger.Error("设置默认宝宝失败", zap.Error(err))
+	}
+
 	// 返回宝宝信息
 	return s.GetBabyDetail(ctx, req.BabyID, openID)
 }
@@ -699,4 +709,21 @@ func (s *BabyService) generateUniqueShortCode(ctx context.Context) (string, erro
 	}
 
 	return "", errors.New(errors.InternalError, "无法生成唯一短码,请稍后重试")
+}
+
+// setDefaultBabyIfNeeded 如果用户没有其他宝宝,则将该宝宝设置为默认宝宝
+func (s *BabyService) setDefaultBabyIfNeeded(ctx context.Context, openID string, babyID int64) error {
+	// 获取用户信息
+	user, err := s.userRepo.FindByOpenID(ctx, openID)
+	if err != nil {
+		return err
+	}
+
+	// 如果用户已有默认宝宝,则不需要设置
+	if user.DefaultBabyID != 0 {
+		return nil
+	}
+
+	// 设置为默认宝宝
+	return s.userRepo.UpdateDefaultBabyID(ctx, openID, babyID)
 }
