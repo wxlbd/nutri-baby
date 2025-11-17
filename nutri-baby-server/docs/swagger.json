@@ -8,7 +8,7 @@
         "description": "全栈育儿记录系统 API 文档",
         "title": "宝宝喂养记录 API",
         "contact": {},
-        "version": "1.0",
+        "version": "3.3.0",
         "x-logo": {
             "url": "https://example.com/logo.png"
         }
