@@ -13,9 +13,10 @@ import {
   getAIAnalysisResult,
   getLatestAIAnalysis,
   getAIAnalysisStats,
-  getDailyTips,
-  generateDailyTips,
-  pollAnalysisStatus
+  getDailyTips as apiGetDailyTips,
+  generateDailyTips as apiGenerateDailyTips,
+  pollAnalysisStatus as apiPollAnalysisStatus,
+  batchAIAnalysis
 } from '@/api/ai'
 
 /**
@@ -24,11 +25,13 @@ import {
 export const useAIStore = () => {
   // 状态定义
   const analyses = reactive<Record<number, AIAnalysis>>({}) // 分析记录映射
-  const dailyTips = reactive<Record<string, DailyTip[]>>({}) // 每日建议映射
-  const stats = reactive<AnalysisStatsResponse | null>(null) // 分析统计
+  const dailyTips = ref<Record<string, DailyTip[]>>({}) // 每日建议映射 - 使用ref确保响应式
+  const stats = ref<AnalysisStatsResponse | null>(null) // 分析统计
   const isAnalyzing = ref(false) // 是否正在分析
   const analyzingIds = reactive<Set<number>>(new Set()) // 正在分析的ID集合
   const currentAnalysis = ref<AIAnalysis | null>(null) // 当前分析
+  const backgroundPollingEnabled = ref(true) // 是否启用后台轮询
+  const pollingTimers = reactive<Map<number, number>>(new Map()) // 轮询定时器映射
 
   // 计算属性
   const completedAnalyses = computed(() => {
@@ -46,13 +49,13 @@ export const useAIStore = () => {
   })
 
   const todayTips = computed(() => {
-    const today = new Date().toISOString().split('T')[0]
-    return dailyTips[today] || []
+    const today: string = new Date().toISOString().split('T')[0]
+    return dailyTips.value[today] || []
   })
 
   const hasUnexpiredTips = computed(() => {
     const now = new Date()
-    return Object.entries(dailyTips).some(([date, tips]) => {
+    return Object.entries(dailyTips.value).some(([date, tips]) => {
       const tipDate = new Date(date)
       const expiryDate = new Date(tipDate.getTime() + 24 * 60 * 60 * 1000) // 24小时后过期
       return now < expiryDate && tips.length > 0
@@ -75,23 +78,26 @@ export const useAIStore = () => {
         end_date: endDate
       })
 
+      // 从API响应中提取数据
+      const analysisData = response.data
+
       // 添加到分析记录
       const analysis: AIAnalysis = {
-        id: response.analysis_id,
+        id: analysisData.analysis_id,
         baby_id: babyId,
         analysis_type: analysisType,
-        status: response.status,
+        status: analysisData.status,
         start_date: startDate,
         end_date: endDate,
-        created_at: response.created_at,
-        updated_at: response.created_at
+        created_at: analysisData.created_at,
+        updated_at: analysisData.created_at
       }
 
       analyses[analysis.id] = analysis
       analyzingIds.add(analysis.id)
 
       // 开始轮询状态
-      pollAnalysisStatus(analysis.id)
+      pollAnalysisStatusInternal(analysis.id)
 
       return analysis
     } catch (error) {
@@ -103,19 +109,20 @@ export const useAIStore = () => {
   }
 
   /**
-   * 轮询分析状态
+   * 轮询分析状态（内部方法）
    */
-  const pollAnalysisStatus = async (analysisId: number) => {
+  const pollAnalysisStatusInternal = async (analysisId: number) => {
     try {
-      const result = await pollAnalysisStatus(analysisId, (status) => {
+      const result = await apiPollAnalysisStatus(analysisId.toString(), (status, progress, message) => {
         // 更新分析状态
         if (analyses[analysisId]) {
           analyses[analysisId].status = status as AIAnalysisStatus
         }
+        console.log(`分析${analysisId}状态更新: ${status}, 进度: ${progress}%, 消息: ${message}`)
       })
 
       // 更新完整分析结果
-      if (result.result) {
+      if (result.result && analyses[analysisId]) {
         analyses[analysisId] = {
           ...analyses[analysisId],
           status: result.status as AIAnalysisStatus,
@@ -151,19 +158,23 @@ export const useAIStore = () => {
   const getAnalysisResult = async (analysisId: number): Promise<AIAnalysis> => {
     try {
       const response = await getAIAnalysisResult(analysisId)
+      const analysisData = response.data
 
       // 更新本地缓存
       if (analyses[analysisId]) {
-        analyses[analysisId].status = response.status as AIAnalysisStatus
-        if (response.result) {
-          analyses[analysisId].result = response.result
-          analyses[analysisId].score = response.result.score
-          analyses[analysisId].insights = response.result.insights?.map(insight => JSON.stringify(insight))
-          analyses[analysisId].alerts = response.result.alerts?.map(alert => JSON.stringify(alert))
+        analyses[analysisId].status = analysisData.status as AIAnalysisStatus
+        if (analysisData.result) {
+          analyses[analysisId].result = analysisData.result
+          analyses[analysisId].score = analysisData.result.score
+          analyses[analysisId].insights = analysisData.result.insights?.map(insight => JSON.stringify(insight))
+          analyses[analysisId].alerts = analysisData.result.alerts?.map(alert => JSON.stringify(alert))
         }
         analyses[analysisId].updated_at = new Date().toISOString()
       }
 
+      if (!analyses[analysisId]) {
+        throw new Error('分析记录不存在')
+      }
       return analyses[analysisId]
     } catch (error) {
       console.error('获取分析结果失败:', error)
@@ -177,21 +188,22 @@ export const useAIStore = () => {
   const getLatestAnalysis = async (babyId: number, analysisType: AIAnalysisType): Promise<AIAnalysis | null> => {
     try {
       const response = await getLatestAIAnalysis(babyId, analysisType)
+      const analysisData = response.data
 
-      if (response.result) {
+      if (analysisData.result) {
         const analysis: AIAnalysis = {
-          id: response.analysis_id,
+          id: analysisData.analysis_id,
           baby_id: babyId,
           analysis_type: analysisType,
-          status: response.status as AIAnalysisStatus,
+          status: analysisData.status as AIAnalysisStatus,
           start_date: '', // 将从result中获取
           end_date: '',   // 将从result中获取
-          result: response.result,
-          score: response.result.score,
-          insights: response.result.insights?.map(insight => JSON.stringify(insight)),
-          alerts: response.result.alerts?.map(alert => JSON.stringify(alert)),
-          created_at: response.created_at,
-          updated_at: response.created_at
+          result: analysisData.result,
+          score: analysisData.result.score,
+          insights: analysisData.result.insights?.map(insight => JSON.stringify(insight)),
+          alerts: analysisData.result.alerts?.map(alert => JSON.stringify(alert)),
+          created_at: analysisData.created_at,
+          updated_at: analysisData.created_at
         }
 
         analyses[analysis.id] = analysis
@@ -199,8 +211,8 @@ export const useAIStore = () => {
       }
 
       return null
-    } catch (error) {
-      if (error.response?.status === 404) {
+    } catch (error: any) {
+      if (error?.response?.status === 404) {
         return null // 未找到分析结果
       }
       console.error('获取最新分析结果失败:', error)
@@ -214,8 +226,9 @@ export const useAIStore = () => {
   const getAnalysisStats = async (babyId: number): Promise<AnalysisStatsResponse> => {
     try {
       const response = await getAIAnalysisStats(babyId)
-      stats = response
-      return response
+      // 正确更新ref值
+      stats.value = response.data
+      return response.data
     } catch (error) {
       console.error('获取分析统计失败:', error)
       throw error
@@ -227,14 +240,21 @@ export const useAIStore = () => {
    */
   const generateDailyTips = async (babyId: number, date?: string): Promise<DailyTip[]> => {
     try {
-      const response = await generateDailyTips(babyId, date)
+      const response = await apiGenerateDailyTips(babyId, date)
 
-      const targetDate = date || new Date().toISOString().split('T')[0]
-      dailyTips[targetDate] = response.tips
+      const targetDate: string = date || new Date().toISOString().split('T')[0]
 
-      return response.tips
-    } catch (error) {
+      // 直接赋值新对象触发ref更新
+      dailyTips.value = { ...dailyTips.value, [targetDate]: response.data.tips }
+      console.log('✅ 已生成并保存每日建议:', targetDate, response.data.tips.length, '条')
+
+      return response.data.tips
+    } catch (error: any) {
       console.error('生成每日建议失败:', error)
+      // 如果是404错误，说明还没有数据，返回空数组
+      if (error?.response?.status === 404) {
+        return []
+      }
       throw error
     }
   }
@@ -244,21 +264,37 @@ export const useAIStore = () => {
    */
   const getDailyTips = async (babyId: number, date?: string): Promise<DailyTip[]> => {
     try {
-      const targetDate = date || new Date().toISOString().split('T')[0]
+      const targetDate: string = date || new Date().toISOString().split('T')[0]
 
       // 如果已有缓存且未过期，直接返回
-      if (dailyTips[targetDate] && dailyTips[targetDate].length > 0) {
-        return dailyTips[targetDate]
+      const cachedTips = dailyTips.value[targetDate]
+      if (cachedTips && cachedTips.length > 0) {
+        console.log('✅ 使用缓存的每日建议:', targetDate, cachedTips.length, '条')
+        return cachedTips
       }
 
       // 否则从服务器获取
-      const response = await getDailyTips(babyId, date)
-      dailyTips[targetDate] = response.tips
+      try {
+        const response = await apiGetDailyTips(babyId, date)
 
-      return response.tips
+        // 直接赋值新对象触发ref更新
+        dailyTips.value = { ...dailyTips.value, [targetDate]: response.data.tips }
+        console.log('✅ 已从API获取并保存每日建议:', targetDate, response.data.tips.length, '条')
+        console.log('📊 当前dailyTips keys:', Object.keys(dailyTips.value))
+
+        return response.data.tips
+      } catch (error: any) {
+        // 如果获取失败（404），尝试生成新的每日建议
+        if (error?.response?.status === 404) {
+          console.log('⚠️ 未找到每日建议，尝试生成新的建议...')
+          return await generateDailyTips(babyId, date)
+        }
+        throw error
+      }
     } catch (error) {
-      console.error('获取每日建议失败:', error)
-      throw error
+      console.error('❌ 获取每日建议失败:', error)
+      // 返回空数组而不是抛出错误，避免阻塞页面加载
+      return []
     }
   }
 
@@ -280,13 +316,13 @@ export const useAIStore = () => {
    * 清除每日建议缓存
    */
   const clearDailyTipsCache = (date?: string) => {
-    if (date) {
-      delete dailyTips[date]
-    } else {
+    if (date && dailyTips.value[date]) {
+      const newTips = { ...dailyTips.value }
+      delete newTips[date]
+      dailyTips.value = newTips
+    } else if (!date) {
       // 清除所有每日建议缓存
-      Object.keys(dailyTips).forEach(key => {
-        delete dailyTips[key]
-      })
+      dailyTips.value = {}
     }
   }
 
@@ -308,9 +344,11 @@ export const useAIStore = () => {
     if (typeAnalyses.length === 0) return null
 
     // 按创建时间排序，返回最新的
-    return typeAnalyses.sort((a, b) =>
+    const sorted = typeAnalyses.sort((a, b) =>
       new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-    )[0]
+    )
+
+    return sorted[0] || null
   }
 
   /**
@@ -331,6 +369,66 @@ export const useAIStore = () => {
   }
 
   /**
+   * 批量分析
+   */
+  const batchAnalyze = async (babyId: number, startDate: string, endDate: string) => {
+    try {
+      const response = await batchAIAnalysis(babyId, startDate, endDate)
+      return response.data // 返回批量分析响应数据
+    } catch (error) {
+      console.error('批量分析失败:', error)
+      throw error
+    }
+  }
+
+  /**
+   * 开始轮询分析状态
+   */
+  const startPolling = (analysisId: number, onStatusUpdate?: (status: string, progress?: number, message?: string) => void) => {
+    // 如果已经在轮询，不重复启动
+    if (pollingTimers.has(analysisId)) {
+      console.log(`分析${analysisId}已在轮询中`)
+      return
+    }
+
+    apiPollAnalysisStatus(analysisId.toString(), onStatusUpdate || (() => { }), 30, 2000)
+      .then(result => {
+        console.log('轮询完成:', result)
+        pollingTimers.delete(analysisId)
+      })
+      .catch(error => {
+        console.error('轮询失败:', error)
+        pollingTimers.delete(analysisId)
+      })
+
+    // 标记为正在轮询
+    pollingTimers.set(analysisId, Date.now())
+  }
+
+  /**
+   * 停止轮询
+   */
+  const stopPolling = (analysisId: number) => {
+    pollingTimers.delete(analysisId)
+    analyzingIds.delete(analysisId)
+  }
+
+  /**
+   * 停止所有轮询
+   */
+  const stopAllPolling = () => {
+    pollingTimers.clear()
+    analyzingIds.clear()
+  }
+
+  /**
+   * 设置后台轮询
+   */
+  const setBackgroundPolling = (enabled: boolean) => {
+    backgroundPollingEnabled.value = enabled
+  }
+
+  /**
    * 获取需要关注的事项
    */
   const getAttentionItems = (babyId: number) => {
@@ -338,7 +436,14 @@ export const useAIStore = () => {
       analysis.baby_id === babyId && analysis.status === 'completed'
     )
 
-    const attentionItems = []
+    const attentionItems: Array<{
+      type: string
+      title: string
+      description: string
+      level: string
+      analysisType: string
+      score?: number
+    }> = []
 
     babyAnalyses.forEach(analysis => {
       // 检查警告
@@ -375,7 +480,7 @@ export const useAIStore = () => {
     })
 
     return attentionItems.sort((a, b) => {
-      const levelPriority = { critical: 3, warning: 2, info: 1 }
+      const levelPriority: Record<string, number> = { critical: 3, warning: 2, info: 1 }
       return (levelPriority[b.level] || 0) - (levelPriority[a.level] || 0)
     })
   }
@@ -388,6 +493,7 @@ export const useAIStore = () => {
     isAnalyzing,
     analyzingIds,
     currentAnalysis,
+    backgroundPollingEnabled,
 
     // 计算属性
     completedAnalyses,
@@ -399,7 +505,7 @@ export const useAIStore = () => {
 
     // 方法
     createAnalysis,
-    pollAnalysisStatus,
+    pollAnalysisStatus: pollAnalysisStatusInternal,
     getAnalysisResult,
     getLatestAnalysis,
     getAnalysisStats,
@@ -409,7 +515,12 @@ export const useAIStore = () => {
     clearDailyTipsCache,
     getLatestAnalysisByType,
     getAnalysisOverview,
-    getAttentionItems
+    getAttentionItems,
+    batchAnalyze,
+    startPolling,
+    stopPolling,
+    stopAllPolling,
+    setBackgroundPolling
   }
 }
 

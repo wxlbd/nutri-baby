@@ -65,11 +65,18 @@
             :delay="3"
             custom-class="space"
           >
-        <template #suffix>
-          <wd-icon name="arrow-right" size="12" color="#2c3e50" />
-        </template>
-        </wd-notice-bar>
+            <template #suffix>
+              <wd-icon name="arrow-right" size="12" color="#2c3e50" />
+            </template>
+          </wd-notice-bar>
         </view>
+
+        <!-- AI每日建议 -->
+        <DailyTipsCard 
+          :tips="todayTips" 
+          :max-display="10"
+          @tip-click="handleTipClick"
+        />
 
         <!-- 距离上次喂养时间提示 - 显眼卡片 -->
         <view class="last-feeding-card">
@@ -268,6 +275,16 @@
               </view>
               <text class="action-label">记录成长</text>
             </view>
+            <!-- <view class="action-card action-ai" @click="handleAIAnalysis">
+              <view class="action-icon-wrapper">
+                <image
+                  src="/static/smart_toy.svg"
+                  mode="aspectFill"
+                  class="action-icon"
+                />
+              </view>
+              <text class="action-label">AI分析</text>
+            </view> -->
           </view>
         </view>
       </view>
@@ -280,11 +297,22 @@ import { computed, onMounted, ref } from "vue";
 import { onShow, onPullDownRefresh } from "@dcloudio/uni-app";
 import { isLoggedIn, fetchUserInfo } from "@/store/user";
 import { currentBaby, fetchBabyList } from "@/store/baby";
+import { aiStore } from "@/store/ai";
 import {
   formatRelativeTime,
   calculateAge,
   formatDate,
 } from "@/utils/date";
+import DailyTipsCard from "@/components/DailyTipsCard.vue";
+
+// 临时类型定义，避免导入问题
+interface DailyTip {
+  id: string
+  title: string
+  description: string
+  type: string
+  priority: 'high' | 'medium' | 'low'
+}
 
 // 直接调用 API 层
 import * as statisticsApi from "@/api/statistics";
@@ -328,6 +356,9 @@ const statistics = ref<statisticsApi.BabyStatisticsResponse | null>(null);
 
 // 疫苗提醒数据（最多显示2个即将接种或逾期的疫苗）
 const upcomingVaccines = ref<string[]>([]);
+
+// 每日建议数据
+const todayTips = computed(() => aiStore.todayTips.value || []);
 
 // ============ 计算属性 ============
 
@@ -558,11 +589,14 @@ const loadTodayData = async (options: LoadTodayDataOptions = {}) => {
       upcomingVaccines.value = [];
     }
 
-    // 并行加载统计数据和疫苗提醒
+    // 并行加载统计数据和疫苗提醒（重要数据）
     const [statisticsResponse, vaccineRemindersResponse] = await Promise.all([
       statisticsApi.apiFetchBabyStatistics(babyId),
       vaccineApi.apiFetchVaccineReminders({
         babyId,
+      }).catch(error => {
+        console.error("加载疫苗提醒失败:", error);
+        return { reminders: [], total: 0 };
       }),
     ]);
 
@@ -581,15 +615,8 @@ const loadTodayData = async (options: LoadTodayDataOptions = {}) => {
       }，应于 ${formatDate(r.scheduledDate, "YYYY-MM-DD")}接种`
     );
 
-    console.log("[Index] 统计数据加载完成", {
-      today: statisticsResponse.data?.today,
-      weekly: statisticsResponse.data?.weekly,
-    });
-
-    console.log("[Index] 疫苗提醒加载完成", {
-      total: reminders.length,
-      upcoming: upcomingVaccines.value.length,
-    });
+    // 异步加载每日建议（非阻塞）
+    loadDailyTipsAsync(babyId);
 
     if (options.pullDown) {
       uni.showToast({
@@ -753,6 +780,17 @@ const handleGrowth = () => {
   });
 };
 
+// 异步加载每日建议（非阻塞式）
+const loadDailyTipsAsync = async (babyId: string) => {
+  try {
+    // 完全静默加载，不输出任何日志
+    await aiStore.getDailyTips(parseInt(babyId));
+  } catch (error) {
+    // 完全静默失败，不输出任何日志，不影响其他功能
+    // 即使失败也不影响用户体验
+  }
+};
+
 // 跳转到疫苗页面
 const goToVaccine = () => {
   if (!isLoggedIn.value) {
@@ -777,6 +815,47 @@ const goToVaccine = () => {
   }
   uni.navigateTo({
     url: "/pages/vaccine/vaccine",
+  });
+};
+
+// 处理每日建议点击
+const handleTipClick = (tip: DailyTip) => {
+  console.log("点击每日建议:", tip);
+  
+  // 显示建议详情弹窗
+  uni.showModal({
+    title: tip.title,
+    content: tip.description,
+    showCancel: false,
+    confirmText: "知道了",
+  });
+};
+
+// AI分析
+const handleAIAnalysis = () => {
+  if (!isLoggedIn?.value) {
+    uni.showModal({
+      title: "提示",
+      content: "该功能需要登录，是否前往登录？",
+      success: (res) => {
+        if (res.confirm) {
+          goToLogin();
+        }
+      },
+    });
+    return;
+  }
+
+  if (!currentBaby?.value) {
+    uni.showToast({
+      title: "请先添加宝宝",
+      icon: "none",
+    });
+    return;
+  }
+  
+  uni.navigateTo({
+    url: "/pages/statistics/ai-analysis",
   });
 };
 </script>
@@ -1329,4 +1408,6 @@ $spacing: 20rpx; // 统一间距
   text-align: center;
   line-height: 1.2;
 }
+
+
 </style>

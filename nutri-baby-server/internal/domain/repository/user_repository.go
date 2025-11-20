@@ -39,4 +39,6 @@ type BabyRepository interface {
 	FindByCreator(ctx context.Context, creatorID int64) ([]*entity.Baby, error)
 	// FindAll 查找所有宝宝
 	FindAll(ctx context.Context) ([]*entity.Baby, error)
+	// FindActiveBabies 查找活跃宝宝（创建者或协作者在 activeSince 后登录过）
+	FindActiveBabies(ctx context.Context, activeSince int64) ([]*entity.Baby, error)
 }

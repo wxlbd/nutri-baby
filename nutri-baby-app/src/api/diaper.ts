@@ -12,7 +12,7 @@ import { get, post, put, del } from '@/utils/request'
 export interface DiaperRecordResponse {
   recordId: string
   babyId: string
-  diaperType: 'pee' | 'poo' | 'both'
+  diaperType: 'pee' | 'poop' | 'both'
   pooColor?: string
   pooTexture?: string
   note?: string

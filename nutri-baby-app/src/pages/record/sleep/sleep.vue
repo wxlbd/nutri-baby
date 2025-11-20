@@ -129,12 +129,16 @@
             label="开始时间"
             size="large"
             v-model="quickRecord.startTime"
+            :min-date="minDateTime"
+            :max-date="maxDateTime"
           />
           <!-- 结束时间 -->
           <wd-datetime-picker
             label="结束时间"
             size="large"
             v-model="quickRecord.endTime"
+            :min-date="minDateTime"
+            :max-date="maxDateTime"
           />
 
           <!-- 操作按钮 -->
@@ -188,6 +192,11 @@ interface TempSleepRecording {
   type: "nap" | "night";
   startTime: number; // 开始时间戳(毫秒)
 }
+
+const minDateTime = ref(
+  Date.parse(currentBaby.value?.birthDate || "2015-01-01")
+); // 最小: 出生日期或2015-01-01
+const maxDateTime = ref(new Date().getTime()); // 最大: 当前时间
 
 // 睡眠类型
 const sleepType = ref<"nap" | "night">("nap");

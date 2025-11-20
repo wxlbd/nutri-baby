@@ -17,18 +17,27 @@ import (
 
 // CreateAnalysisRequest 创建分析请求
 type CreateAnalysisRequest struct {
-	BabyID       int64                    `json:"baby_id" binding:"required"`
-	AnalysisType entity.AIAnalysisType   `json:"analysis_type" binding:"required"`
-	StartDate    CustomTime              `json:"start_date" binding:"required"`
-	EndDate      CustomTime              `json:"end_date" binding:"required"`
+	BabyID       int64                 `json:"baby_id" binding:"required"`
+	AnalysisType entity.AIAnalysisType `json:"analysis_type" binding:"required"`
+	StartDate    CustomTime            `json:"start_date" binding:"required"`
+	EndDate      CustomTime            `json:"end_date" binding:"required"`
 }
 
 // AnalysisResponse 分析响应
 type AnalysisResponse struct {
-	AnalysisID string                     `json:"analysis_id"`
-	Status     entity.AIAnalysisStatus   `json:"status"`
-	Result     *entity.AIAnalysisResult  `json:"result,omitempty"`
-	CreatedAt  time.Time                 `json:"created_at"`
+	AnalysisID int64                    `json:"analysis_id"` // 修改为int64以匹配前端number类型
+	Status     entity.AIAnalysisStatus  `json:"status"`
+	Result     *entity.AIAnalysisResult `json:"result,omitempty"`
+	CreatedAt  time.Time                `json:"created_at"`
+}
+
+// AnalysisStatusResponse 分析状态响应（用于轮询）
+type AnalysisStatusResponse struct {
+	AnalysisID string                  `json:"analysis_id"`
+	Status     entity.AIAnalysisStatus `json:"status"`
+	Progress   int                     `json:"progress"` // 进度百分比 0-100
+	Message    string                  `json:"message"`  // 状态描述
+	UpdatedAt  time.Time               `json:"updated_at"`
 }
 
 // DailyTipsResponse 每日建议响应
@@ -40,30 +49,33 @@ type DailyTipsResponse struct {
 
 // BatchAnalysisRequest 批量分析请求
 type BatchAnalysisRequest struct {
-	BabyID       int64                    `json:"baby_id" binding:"required"`
+	BabyID        int64                   `json:"baby_id" binding:"required"`
 	AnalysisTypes []entity.AIAnalysisType `json:"analysis_types" binding:"required"`
-	StartDate    CustomTime              `json:"start_date" binding:"required"`
-	EndDate      CustomTime              `json:"end_date" binding:"required"`
+	StartDate     CustomTime              `json:"start_date" binding:"required"`
+	EndDate       CustomTime              `json:"end_date" binding:"required"`
 }
 
 // BatchAnalysisResponse 批量分析响应
 type BatchAnalysisResponse struct {
-	Results []AnalysisResponse `json:"results"`
+	TotalCount     int                `json:"total_count"`
+	Analyses       []AnalysisResponse `json:"analyses"`
+	CompletedCount int                `json:"completed_count"` // 新增：已完成数量
+	FailedCount    int                `json:"failed_count"`    // 新增：失败数量
 }
 
 // AnalysisStatsResponse 分析统计响应
 type AnalysisStatsResponse struct {
-	TotalAnalyses int                                    `json:"total_analyses"`
-	ByType        map[entity.AIAnalysisType]int         `json:"by_type"`
-	ByStatus      map[entity.AIAnalysisStatus]int       `json:"by_status"`
-	AvgScore      float64                               `json:"avg_score"`
-	Trends        []AnalysisTrend                       `json:"trends"`
+	TotalAnalyses int                             `json:"total_analyses"`
+	ByType        map[entity.AIAnalysisType]int   `json:"by_type"`
+	ByStatus      map[entity.AIAnalysisStatus]int `json:"by_status"`
+	AvgScore      float64                         `json:"avg_score"`
+	Trends        []AnalysisTrend                 `json:"trends"`
 }
 
 // AnalysisTrend 分析趋势
 type AnalysisTrend struct {
-	Date  time.Time `json:"date"`
-	Score float64   `json:"score"`
+	Date  time.Time             `json:"date"`
+	Score float64               `json:"score"`
 	Type  entity.AIAnalysisType `json:"type"`
 }
 
@@ -93,36 +105,39 @@ func (ct CustomTime) MarshalJSON() ([]byte, error) {
 type AIAnalysisService interface {
 	// 创建分析任务
 	CreateAnalysis(ctx context.Context, req *CreateAnalysisRequest) (*AnalysisResponse, error)
-	
+
 	// 生成每日建议
 	GenerateDailyTips(ctx context.Context, babyID string, date time.Time) (*DailyTipsResponse, error)
-	
+
 	// 处理待分析的任务
 	ProcessPendingAnalyses(ctx context.Context) error
-	
+
 	// 获取分析结果
 	GetAnalysisResult(ctx context.Context, analysisID string) (*AnalysisResponse, error)
-	
+
+	// 获取分析状态（用于轮询）
+	GetAnalysisStatus(ctx context.Context, analysisID string) (*AnalysisStatusResponse, error)
+
 	// 获取最新分析
 	GetLatestAnalysis(ctx context.Context, babyID string, analysisType entity.AIAnalysisType) (*AnalysisResponse, error)
-	
+
 	// 批量分析
 	BatchAnalyze(ctx context.Context, req *BatchAnalysisRequest) (*BatchAnalysisResponse, error)
-	
+
 	// 获取每日建议
 	GetDailyTips(ctx context.Context, babyID string, date time.Time) (*DailyTipsResponse, error)
-	
+
 	// 获取分析统计
 	GetAnalysisStats(ctx context.Context, babyID string, days int) (*AnalysisStatsResponse, error)
 }
 
 // aiAnalysisServiceImpl AI分析服务实现
 type aiAnalysisServiceImpl struct {
-	aiAnalysisRepo   repository.AIAnalysisRepository
-	dailyTipsRepo    repository.DailyTipsRepository
-	babyRepo         repository.BabyRepository
-	chainBuilder     *chain.AnalysisChainBuilder
-	logger           *zap.Logger
+	aiAnalysisRepo repository.AIAnalysisRepository
+	dailyTipsRepo  repository.DailyTipsRepository
+	babyRepo       repository.BabyRepository
+	chainBuilder   *chain.AnalysisChainBuilder
+	logger         *zap.Logger
 }
 
 // NewAIAnalysisService 创建AI分析服务实例
@@ -134,15 +149,15 @@ func NewAIAnalysisService(
 	logger *zap.Logger,
 ) AIAnalysisService {
 	return &aiAnalysisServiceImpl{
-		aiAnalysisRepo:   aiAnalysisRepo,
-		dailyTipsRepo:    dailyTipsRepo,
-		babyRepo:         babyRepo,
-		chainBuilder:     chainBuilder,
-		logger:           logger,
+		aiAnalysisRepo: aiAnalysisRepo,
+		dailyTipsRepo:  dailyTipsRepo,
+		babyRepo:       babyRepo,
+		chainBuilder:   chainBuilder,
+		logger:         logger,
 	}
 }
 
-// CreateAnalysis 创建分析任务
+// CreateAnalysis 创建分析任务（异步模式）
 func (s *aiAnalysisServiceImpl) CreateAnalysis(ctx context.Context, req *CreateAnalysisRequest) (*AnalysisResponse, error) {
 	// 验证宝宝是否存在
 	_, err := s.babyRepo.FindByID(ctx, req.BabyID)
@@ -168,19 +183,27 @@ func (s *aiAnalysisServiceImpl) CreateAnalysis(ctx context.Context, req *CreateA
 		return nil, errors.Wrap(errors.InternalError, "创建分析任务失败", err)
 	}
 
-	// 立即进行分析
-	if err := s.processAnalysis(ctx, analysis.ID); err != nil {
-		s.logger.Error("AI分析失败",
-			zap.Int64("analysis_id", analysis.ID),
-			zap.Error(err),
-		)
-		// 更新状态为失败
-		s.aiAnalysisRepo.UpdateStatus(ctx, analysis.ID, entity.AIAnalysisStatusFailed)
-		return nil, errors.Wrap(errors.InternalError, "AI分析失败", err)
-	}
+	// 异步处理分析任务
+	go func() {
+		// 使用新的context，避免原context被取消
+		bgCtx := context.Background()
 
-	// 获取分析结果
-	return s.GetAnalysisResult(ctx, strconv.FormatInt(analysis.ID, 10))
+		if err := s.processAnalysis(bgCtx, analysis.ID); err != nil {
+			s.logger.Error("AI分析失败",
+				zap.Int64("analysis_id", analysis.ID),
+				zap.Error(err),
+			)
+			// 更新状态为失败
+			s.aiAnalysisRepo.UpdateStatus(bgCtx, analysis.ID, entity.AIAnalysisStatusFailed)
+		}
+	}()
+
+	// 立即返回任务ID和pending状态
+	return &AnalysisResponse{
+		AnalysisID: analysis.ID, // 直接使用int64类型
+		Status:     entity.AIAnalysisStatusPending,
+		CreatedAt:  analysis.CreatedAt,
+	}, nil
 }
 
 // GenerateDailyTips 生成每日建议
@@ -191,9 +214,13 @@ func (s *aiAnalysisServiceImpl) GenerateDailyTips(ctx context.Context, babyID st
 		return nil, errors.Wrap(errors.ParamError, "无效的宝宝ID", err)
 	}
 
-	// 检查是否已存在当日建议
+	// 优先检查是否已存在当日建议，如果存在直接返回
 	existingTips, err := s.dailyTipsRepo.GetByBabyIDAndDate(ctx, id, date)
 	if err == nil && existingTips != nil {
+		s.logger.Info("返回已存在的每日建议",
+			zap.String("baby_id", babyID),
+			zap.String("date", date.Format("2006-01-02")),
+		)
 		return &DailyTipsResponse{
 			Tips:        existingTips.Tips,
 			GeneratedAt: existingTips.CreatedAt,
@@ -201,11 +228,24 @@ func (s *aiAnalysisServiceImpl) GenerateDailyTips(ctx context.Context, babyID st
 		}, nil
 	}
 
+	// 记录查询错误但继续生成（可能是记录不存在）
+	if err != nil {
+		s.logger.Debug("查询已存在建议时出错，将生成新建议",
+			zap.String("baby_id", babyID),
+			zap.Error(err),
+		)
+	}
+
 	// 获取宝宝信息
 	baby, err := s.babyRepo.FindByID(ctx, id)
 	if err != nil {
 		return nil, errors.Wrap(errors.NotFound, "获取宝宝信息失败", err)
 	}
+
+	s.logger.Info("开始生成新的每日建议",
+		zap.String("baby_id", babyID),
+		zap.String("date", date.Format("2006-01-02")),
+	)
 
 	// 使用分析链生成建议
 	tips, err := s.chainBuilder.GenerateDailyTips(ctx, baby, date)
@@ -228,6 +268,11 @@ func (s *aiAnalysisServiceImpl) GenerateDailyTips(ctx context.Context, babyID st
 	if err := s.dailyTipsRepo.Create(ctx, dailyTips); err != nil {
 		return nil, errors.Wrap(errors.InternalError, "保存每日建议失败", err)
 	}
+
+	s.logger.Info("成功生成并保存每日建议",
+		zap.String("baby_id", babyID),
+		zap.Int("tips_count", len(tips)),
+	)
 
 	return &DailyTipsResponse{
 		Tips:        tips,
@@ -271,7 +316,7 @@ func (s *aiAnalysisServiceImpl) GetAnalysisResult(ctx context.Context, analysisI
 	}
 
 	response := &AnalysisResponse{
-		AnalysisID: analysisID,
+		AnalysisID: id, // 使用int64类型的id
 		Status:     analysis.Status,
 		CreatedAt:  analysis.CreatedAt,
 	}
@@ -292,6 +337,49 @@ func (s *aiAnalysisServiceImpl) GetAnalysisResult(ctx context.Context, analysisI
 	return response, nil
 }
 
+// GetAnalysisStatus 获取分析状态（用于轮询）
+func (s *aiAnalysisServiceImpl) GetAnalysisStatus(ctx context.Context, analysisID string) (*AnalysisStatusResponse, error) {
+	id, err := strconv.ParseInt(analysisID, 10, 64)
+	if err != nil {
+		return nil, errors.Wrap(errors.ParamError, "无效的分析ID", err)
+	}
+
+	analysis, err := s.aiAnalysisRepo.GetByID(ctx, id)
+	if err != nil {
+		return nil, errors.Wrap(errors.NotFound, "获取分析记录失败", err)
+	}
+
+	// 根据状态计算进度和消息
+	var progress int
+	var message string
+
+	switch analysis.Status {
+	case entity.AIAnalysisStatusPending:
+		progress = 10
+		message = "分析任务已创建，等待处理"
+	case entity.AIAnalysisStatusAnalyzing:
+		progress = 50
+		message = "AI正在分析数据中..."
+	case entity.AIAnalysisStatusCompleted:
+		progress = 100
+		message = "分析完成"
+	case entity.AIAnalysisStatusFailed:
+		progress = 0
+		message = "分析失败，请重试"
+	default:
+		progress = 0
+		message = "未知状态"
+	}
+
+	return &AnalysisStatusResponse{
+		AnalysisID: analysisID,
+		Status:     analysis.Status,
+		Progress:   progress,
+		Message:    message,
+		UpdatedAt:  analysis.UpdatedAt,
+	}, nil
+}
+
 // GetLatestAnalysis 获取最新分析
 func (s *aiAnalysisServiceImpl) GetLatestAnalysis(ctx context.Context, babyID string, analysisType entity.AIAnalysisType) (*AnalysisResponse, error) {
 	id, err := strconv.ParseInt(babyID, 10, 64)
@@ -307,21 +395,45 @@ func (s *aiAnalysisServiceImpl) GetLatestAnalysis(ctx context.Context, babyID st
 	return s.GetAnalysisResult(ctx, strconv.FormatInt(analysis.ID, 10))
 }
 
-// BatchAnalyze 批量分析
+// BatchAnalyze 批量分析（异步模式）
 func (s *aiAnalysisServiceImpl) BatchAnalyze(ctx context.Context, req *BatchAnalysisRequest) (*BatchAnalysisResponse, error) {
+	// 验证宝宝是否存在
+	_, err := s.babyRepo.FindByID(ctx, req.BabyID)
+	if err != nil {
+		return nil, errors.Wrap(errors.NotFound, "获取宝宝信息失败", err)
+	}
+
+	// 验证时间范围
+	if req.EndDate.Before(req.StartDate.Time) {
+		return nil, errors.New(errors.ParamError, "结束日期不能早于开始日期")
+	}
+
 	var results []AnalysisResponse
 
-	for _, analysisType := range req.AnalysisTypes {
-		createReq := &CreateAnalysisRequest{
+	// 如果没有指定分析类型，使用所有类型
+	analysisTypes := req.AnalysisTypes
+	if len(analysisTypes) == 0 {
+		analysisTypes = []entity.AIAnalysisType{
+			entity.AIAnalysisTypeFeeding,
+			entity.AIAnalysisTypeSleep,
+			entity.AIAnalysisTypeGrowth,
+			entity.AIAnalysisTypeHealth,
+			entity.AIAnalysisTypeBehavior,
+		}
+	}
+
+	for _, analysisType := range analysisTypes {
+		// 创建分析记录
+		analysis := &entity.AIAnalysis{
 			BabyID:       req.BabyID,
 			AnalysisType: analysisType,
-			StartDate:    req.StartDate,
-			EndDate:      req.EndDate,
+			Status:       entity.AIAnalysisStatusPending,
+			StartDate:    req.StartDate.Time,
+			EndDate:      req.EndDate.Time,
 		}
 
-		result, err := s.CreateAnalysis(ctx, createReq)
-		if err != nil {
-			s.logger.Error("批量分析中的单个分析失败",
+		if err := s.aiAnalysisRepo.Create(ctx, analysis); err != nil {
+			s.logger.Error("创建批量分析任务失败",
 				zap.Int64("baby_id", req.BabyID),
 				zap.String("analysis_type", string(analysisType)),
 				zap.Error(err),
@@ -329,11 +441,34 @@ func (s *aiAnalysisServiceImpl) BatchAnalyze(ctx context.Context, req *BatchAnal
 			continue
 		}
 
-		results = append(results, *result)
+		// 异步处理分析任务
+		analysisID := analysis.ID
+		go func(id int64, aType entity.AIAnalysisType) {
+			bgCtx := context.Background()
+
+			if err := s.processAnalysis(bgCtx, id); err != nil {
+				s.logger.Error("批量AI分析失败",
+					zap.Int64("analysis_id", id),
+					zap.String("analysis_type", string(aType)),
+					zap.Error(err),
+				)
+				s.aiAnalysisRepo.UpdateStatus(bgCtx, id, entity.AIAnalysisStatusFailed)
+			}
+		}(analysisID, analysisType)
+
+		// 添加到结果列表
+		results = append(results, AnalysisResponse{
+			AnalysisID: analysis.ID, // 使用int64类型
+			Status:     entity.AIAnalysisStatusPending,
+			CreatedAt:  analysis.CreatedAt,
+		})
 	}
 
 	return &BatchAnalysisResponse{
-		Results: results,
+		TotalCount:     len(results),
+		Analyses:       results,
+		CompletedCount: 0, // 初始时都是pending状态
+		FailedCount:    0,
 	}, nil
 }
 
@@ -354,8 +489,8 @@ func (s *aiAnalysisServiceImpl) GetAnalysisStats(ctx context.Context, babyID str
 	}
 
 	// TODO: 实现完整的统计功能，需要扩展 repository 接口
-	s.logger.Info("GetAnalysisStats 调用", 
-		zap.String("baby_id", babyID), 
+	s.logger.Info("GetAnalysisStats 调用",
+		zap.String("baby_id", babyID),
 		zap.Int("days", days),
 	)
 

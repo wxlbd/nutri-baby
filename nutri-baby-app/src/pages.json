@@ -121,13 +121,21 @@
     {
       "path": "pages/timeline/timeline",
       "style": {
-        "navigationBarTitleText": "时间轴"
+        "navigationBarTitleText": "时间轴",
+        "enablePullDownRefresh": true
       }
     },
     {
       "path": "pages/statistics/statistics",
       "style": {
         "navigationBarTitleText": "统计分析"
+      }
+    },
+    {
+      "path": "pages/statistics/ai-analysis",
+      "style": {
+        "navigationBarTitleText": "AI智能分析",
+        "navigationStyle": "custom"
       }
     },
     {

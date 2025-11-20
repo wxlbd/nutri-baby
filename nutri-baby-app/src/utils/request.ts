@@ -7,7 +7,7 @@ import { StorageKeys, getStorage } from '@/utils/storage'
 
 // API 基础配置
 const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://api.example.com'
-const TIMEOUT = 30000
+const TIMEOUT = 120000 // 2分钟超时，用于AI分析等长时间请求
 
 /**
  * 请求配置接口
@@ -18,6 +18,9 @@ interface RequestConfig {
   data?: any
   header?: Record<string, string>
   timeout?: number
+  retry?: number // 重试次数
+  retryDelay?: number // 重试延迟（毫秒）
+  showError?: boolean // 是否显示错误提示
 }
 
 /**
@@ -52,9 +55,36 @@ function buildQueryString(params?: any): string {
 }
 
 /**
- * 封装的请求方法
+ * 延迟函数
+ */
+function delay(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms))
+}
+
+/**
+ * 封装的请求方法（带重试机制）
  */
 export function request<T = any>(config: RequestConfig): Promise<ApiResponse<T>> {
+  const {
+    retry = 0,
+    retryDelay = 1000,
+    showError = true,
+    ...requestConfig
+  } = config
+
+  return requestWithRetry<T>(requestConfig, retry, retryDelay, showError)
+}
+
+/**
+ * 带重试的请求实现
+ */
+function requestWithRetry<T = any>(
+  config: Omit<RequestConfig, 'retry' | 'retryDelay' | 'showError'>,
+  retriesLeft: number,
+  retryDelay: number,
+  showError: boolean,
+  attempt: number = 1
+): Promise<ApiResponse<T>> {
   return new Promise((resolve, reject) => {
     // 为 GET 请求构建查询字符串
     const finalUrl = config.method === 'GET'
@@ -64,7 +94,7 @@ export function request<T = any>(config: RequestConfig): Promise<ApiResponse<T>>
     uni.request({
       url: finalUrl,
       method: config.method || 'GET',
-      data: config.method === 'GET' ? undefined : config.data, // GET 请求不发送 body
+      data: config.method === 'GET' ? undefined : config.data,
       header: {
         ...getHeaders(),
         ...config.header,
@@ -79,20 +109,24 @@ export function request<T = any>(config: RequestConfig): Promise<ApiResponse<T>>
             resolve(data)
           } else {
             // 业务错误
-            uni.showToast({
-              title: data.message || '请求失败',
-              icon: 'none',
-              duration: 2000,
-            })
+            if (showError) {
+              uni.showToast({
+                title: data.message || '请求失败',
+                icon: 'none',
+                duration: 2000,
+              })
+            }
             reject(data)
           }
         } else if (res.statusCode === 401) {
           // token 过期,跳转登录
-          uni.showToast({
-            title: '登录已过期,请重新登录',
-            icon: 'none',
-          })
-          // 清除 token (使用 StorageKeys 常量)
+          if (showError) {
+            uni.showToast({
+              title: '登录已过期,请重新登录',
+              icon: 'none',
+            })
+          }
+          // 清除 token
           uni.removeStorageSync(StorageKeys.TOKEN)
           // 跳转到登录页
           setTimeout(() => {
@@ -101,22 +135,51 @@ export function request<T = any>(config: RequestConfig): Promise<ApiResponse<T>>
             })
           }, 1500)
           reject(data)
+        } else if (res.statusCode === 404) {
+          // 404错误不显示toast，让调用方处理
+          reject({ ...data, statusCode: 404 })
         } else {
           // HTTP 错误
-          uni.showToast({
-            title: `请求失败: ${res.statusCode}`,
-            icon: 'none',
-          })
+          if (showError) {
+            uni.showToast({
+              title: `请求失败: ${res.statusCode}`,
+              icon: 'none',
+            })
+          }
           reject(data)
         }
       },
-      fail: (err) => {
-        console.error('request error:', err)
-        uni.showToast({
-          title: '网络请求失败',
-          icon: 'none',
-        })
-        reject(err)
+      fail: async (err) => {
+        console.error(`request error (attempt ${attempt}):`, err)
+
+        // 如果还有重试次数，进行重试
+        if (retriesLeft > 0) {
+          console.log(`Retrying... (${retriesLeft} retries left)`)
+          await delay(retryDelay)
+          
+          try {
+            const result = await requestWithRetry<T>(
+              config,
+              retriesLeft - 1,
+              retryDelay,
+              showError,
+              attempt + 1
+            )
+            resolve(result)
+          } catch (retryError) {
+            reject(retryError)
+          }
+        } else {
+          // 没有重试次数了，显示错误
+          if (showError) {
+            uni.showToast({
+              title: '网络请求失败，请检查网络连接',
+              icon: 'none',
+              duration: 2000
+            })
+          }
+          reject(err)
+        }
       },
     })
   })

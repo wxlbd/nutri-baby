@@ -20,6 +20,7 @@ type SchedulerService struct {
 	vaccineScheduleRepo repository.BabyVaccineScheduleRepository // 新增: 疫苗接种日程仓储
 	feedingRecordRepo   repository.FeedingRecordRepository
 	userRepo            repository.UserRepository
+	babyRepo            repository.BabyRepository // 新增: 宝宝仓储
 	subscribeService    *SubscribeService
 	aiAnalysisService   AIAnalysisService // 新增: AI分析服务
 	strategyFactory     *FeedingReminderStrategyFactory
@@ -31,6 +32,7 @@ func NewSchedulerService(
 	vaccineScheduleRepo repository.BabyVaccineScheduleRepository,
 	feedingRecordRepo repository.FeedingRecordRepository,
 	userRepo repository.UserRepository,
+	babyRepo repository.BabyRepository, // 新增
 	subscribeService *SubscribeService,
 	aiAnalysisService AIAnalysisService, // 新增: AI分析服务
 	cfg *config.Config,
@@ -44,6 +46,7 @@ func NewSchedulerService(
 		vaccineScheduleRepo: vaccineScheduleRepo,
 		feedingRecordRepo:   feedingRecordRepo,
 		userRepo:            userRepo,
+		babyRepo:            babyRepo, // 新增
 		subscribeService:    subscribeService,
 		aiAnalysisService:   aiAnalysisService, // 新增
 		strategyFactory:     NewFeedingReminderStrategyFactory(cfg),
@@ -62,6 +65,14 @@ func (s *SchedulerService) Start() {
 		s.logger.Error("添加AI分析定时任务失败", zap.Error(err))
 	} else {
 		s.logger.Info("AI分析自动处理任务已启用 (每5分钟一次)")
+	}
+
+	// 新增: 每天凌晨 00:00 自动生成活跃用户的每日建议
+	_, err = s.scheduler.Every(1).Day().At("00:00").Do(s.generateDailyTipsForActiveBabies)
+	if err != nil {
+		s.logger.Error("添加每日建议生成任务失败", zap.Error(err))
+	} else {
+		s.logger.Info("每日建议自动生成任务已启用 (每天 00:00)")
 	}
 
 	s.logger.Info("Scheduler service started with auto-processing enabled")
@@ -85,6 +96,55 @@ func (s *SchedulerService) processAIAnalysisTasks() {
 	}
 
 	s.logger.Info("自动处理待分析AI任务成功")
+}
+
+// generateDailyTipsForActiveBabies 生成活跃用户的每日建议
+func (s *SchedulerService) generateDailyTipsForActiveBabies() {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
+	defer cancel()
+
+	s.logger.Info("开始生成活跃用户的每日建议")
+
+	// 1. 查找活跃宝宝（过去7天有登录的用户）
+	activeSince := time.Now().AddDate(0, 0, -7).UnixMilli()
+	activeBabies, err := s.babyRepo.FindActiveBabies(ctx, activeSince)
+	if err != nil {
+		s.logger.Error("查找活跃宝宝失败", zap.Error(err))
+		return
+	}
+
+	s.logger.Info("找到活跃宝宝", zap.Int("count", len(activeBabies)))
+
+	// 2. 为每个活跃宝宝生成建议
+	for _, baby := range activeBabies {
+		// 检查context是否取消
+		select {
+		case <-ctx.Done():
+			s.logger.Warn("每日建议生成任务超时或取消")
+			return
+		default:
+		}
+
+		babyIDStr := strconv.FormatInt(baby.ID, 10)
+		date := time.Now()
+
+		// GenerateDailyTips 内部会检查是否已存在，如果已存在则直接返回
+		// 如果不存在，则调用AI生成
+		_, err := s.aiAnalysisService.GenerateDailyTips(ctx, babyIDStr, date)
+		if err != nil {
+			s.logger.Error("生成每日建议失败",
+				zap.String("babyID", babyIDStr),
+				zap.Error(err),
+			)
+		} else {
+			s.logger.Info("生成每日建议成功", zap.String("babyID", babyIDStr))
+		}
+
+		// 稍微延时，避免瞬间请求过多，给其他请求留出资源
+		time.Sleep(500 * time.Millisecond)
+	}
+
+	s.logger.Info("活跃用户每日建议生成完成")
 }
 
 // CheckVaccineReminders 检查疫苗提醒(使用新的 BabyVaccineSchedule 架构)
