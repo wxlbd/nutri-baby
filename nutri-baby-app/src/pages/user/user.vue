@@ -15,8 +15,10 @@
         <!-- 昵称/登录按钮 -->
         <view class="info">
           <!-- 未登录：显示登录/注册按钮 -->
-          <view v-if="!isLoggedIn" class="login-button" @click="goToLogin">
-            <text>登录/注册</text>
+          <view v-if="!isLoggedIn" class="login-container">
+            <view class="login-button" @click="goToLogin">
+              <text>登录/注册</text>
+            </view>
           </view>
 
           <!-- 已登录：显示昵称和时间 -->
@@ -492,6 +494,14 @@ const handleLogout = () => {
   justify-content: center;
 }
 
+// 登录容器 - 限制宽度并靠左显示
+.login-container {
+  display: flex;
+  justify-content: flex-start; // 靠左显示
+  align-items: center; // 垂直居中
+  width: 100%;
+}
+
 .login-button {
   background: #32dc6e;
   border-radius: 20rpx;
@@ -499,11 +509,14 @@ const handleLogout = () => {
   display: inline-block;
   cursor: pointer;
   transition: all 0.3s ease;
+  max-width: 200rpx; // 限制最大宽度
+  text-align: center; // 文字居中
 
   text {
     color: white;
     font-size: 26rpx;
     font-weight: 500;
+    white-space: nowrap; // 防止文字换行
   }
 
   &:active {
