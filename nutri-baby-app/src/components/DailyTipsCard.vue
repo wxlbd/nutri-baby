@@ -15,22 +15,24 @@
           <text class="header-subtitle">个性化智能推荐</text>
         </view>
       </view>
-      <view class="header-right">
-        <text class="more-text">点击卡片查看详情</text>
-      </view>
+      <!-- 移除右侧文案区域 -->
     </view>
 
     <!-- 建议内容 - 横向滚动 -->
     <scroll-view scroll-x class="tips-scroll" show-scrollbar="false">
       <view class="tips-container">
-        <view 
-          v-for="(tip, index) in displayTips" 
+        <view
+          v-for="(tip, index) in displayTips"
           :key="index"
-          class="tip-card"
+          class="tip-card clickable"
           @click="handleTipClick(tip)"
         >
           <view class="tip-header">
             <text class="tip-title">{{ tip.title }}</text>
+            <!-- 添加点击指示器 -->
+            <view class="click-indicator">
+              <wd-icon name="arrow-right" size="14" color="#999" />
+            </view>
           </view>
           <text class="tip-description">{{ tip.description }}</text>
         </view>
@@ -143,16 +145,6 @@ const handleTipClick = (tip: DailyTip) => {
   color: $color-text-secondary;
 }
 
-.header-right {
-  display: flex;
-  align-items: center;
-}
-
-.more-text {
-  font-size: 24rpx;
-  color: $color-text-secondary;
-}
-
 .tips-scroll {
   width: 100%;
   white-space: nowrap;
@@ -168,22 +160,50 @@ const handleTipClick = (tip: DailyTip) => {
   min-width: 280rpx;
   max-width: 320rpx;
   background: $color-bg-secondary;
+  border: 1rpx solid $color-border-primary;
   border-radius: $radius-md;
   padding: $spacing-lg $spacing-md;
   display: flex;
   flex-direction: column;
   gap: $spacing-md;
   transition: all $transition-base;
-  
+  position: relative;
+  overflow: hidden;
+  cursor: pointer;
+
+  // 添加微妙的渐变效果
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 2rpx;
+    background: linear-gradient(90deg, transparent, $color-primary-light, transparent);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+  }
+
+  // 悬停效果
+  &:hover {
+    background: rgba($color-primary, 0.05);
+
+    &::before {
+      opacity: 0.6;
+    }
+  }
+
+  // 按压效果
   &:active {
-    transform: translateY(-2rpx);
-    box-shadow: $shadow-md;
+    transform: scale(0.98);
+    box-shadow: inset 0 2rpx 8rpx rgba(0, 0, 0, 0.1);
   }
 }
 
 .tip-header {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 8rpx;
 }
 
@@ -193,6 +213,23 @@ const handleTipClick = (tip: DailyTip) => {
   font-weight: 350;
   text-align: left;
   line-height: 1.4;
+  flex: 1;
+}
+
+// 点击指示器
+.click-indicator {
+  opacity: 0.6;
+  transition: all 0.2s ease;
+  margin-left: 8rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 28rpx; // 与标题行高匹配，确保垂直居中
+
+  .tip-card:hover & {
+    opacity: 1;
+    transform: translateX(2rpx);
+  }
 }
 
 .tip-description {
@@ -243,13 +280,14 @@ const handleTipClick = (tip: DailyTip) => {
     background: #1a1a1a;
     border-color: #333333;
   }
-  
-  .tip-item {
+
+  .tip-card {
     background: #2a2a2a;
-  }
-  
-  .header-right:active {
-    background: #333333;
+    border-color: #444444;
+
+    &:hover {
+      background: rgba($color-primary, 0.1);
+    }
   }
 }
 </style>
