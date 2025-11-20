@@ -175,8 +175,8 @@
             v-model="recordDateTime"
             :label="isEditing ? '更新时间' : '记录时间'"
             type="datetime"
-            :min-date="minDateTime"
-            :max-date="maxDateTime"
+            :minDate="minDateTime"
+            :maxDate="maxDateTime"
             @confirm="onDateTimeConfirm"
             @cancel="onDateTimeCancel"
           />
@@ -531,7 +531,7 @@ const stopTimer = () => {
 const recordDateTime = ref(new Date().getTime()); // 记录时间,初始为当前时间戳
 const showDatetimePickerModal = ref(false);
 const minDateTime = ref(
-  new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).getTime()
+  Date.parse(currentBaby.value?.birthDate || "2025-01-01")
 ); // 最小: 30天前
 const maxDateTime = ref(new Date().getTime()); // 最大: 当前时间
 

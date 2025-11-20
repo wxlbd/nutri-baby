@@ -30,6 +30,8 @@
         style="display: none"
         v-model="selectedDateTimestamp"
         @confirm="onDateConfirm"
+        :minDate="minDate"
+        :maxDate="maxDate"
       >
       </wd-datetime-picker>
       <!-- </view> -->
@@ -137,7 +139,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from "vue";
-import { onReachBottom } from "@dcloudio/uni-app";
+import { onReachBottom, onPullDownRefresh } from "@dcloudio/uni-app";
 import { isLoggedIn } from "@/store/user";
 import { currentBaby } from "@/store/baby";
 import {
@@ -175,7 +177,10 @@ const totalRecords = ref(0);
 // 滚动时动态更新的当前日期
 const currentScrollDate = ref<string>("");
 const dateTimePickerRef = ref<any>(null);
-
+// 日期选择器的最小和最大日期
+// 最小日期为当前宝宝的出生日期
+const minDate = ref(Date.parse(currentBaby.value?.birthDate || ""));
+const maxDate = ref(Date.now());
 // 分页相关
 const currentPage = ref(1);
 const pageSize = ref(5);
@@ -253,7 +258,7 @@ const allRecords = computed<TimelineRecord[]>(() => {
       typeName = "换尿布";
 
       if (record.diaperType === "pee") detail = "小便";
-      else if (record.diaperType === "poo") detail = "大便";
+      else if (record.diaperType === "poop") detail = "大便";
       else detail = "小便+大便";
 
       if (record.pooColor) detail += ` (${record.pooColor})`;
@@ -351,7 +356,7 @@ const emptyDescription = computed(() => {
 });
 
 // 加载时间线记录 (使用新的聚合 API)
-const loadRecords = async (isRefresh: boolean = false) => {
+const loadRecords = async (isRefresh: boolean = false, pullDown: boolean = false) => {
   if (!currentBaby.value) return;
 
   // 防止重复加载
@@ -393,6 +398,13 @@ const loadRecords = async (isRefresh: boolean = false) => {
 
   try {
     isLoadingMore.value = true;
+    
+    if (pullDown) {
+      uni.showNavigationBarLoading();
+    } else if (isRefresh) {
+      uni.showLoading({ title: "加载中", mask: false });
+    }
+    
     const response = await timelineApi.apiFetchTimeline({
       babyId,
       startTime,
@@ -429,13 +441,35 @@ const loadRecords = async (isRefresh: boolean = false) => {
       total: response.data.total,
       hasMore: hasMore.value,
     });
+    
+    if (pullDown) {
+      uni.showToast({
+        title: "刷新成功",
+        icon: "success",
+        duration: 1200,
+      });
+    }
   } catch (error) {
     console.error("加载时间线失败:", error);
-    uni.showToast({
-      title: "加载数据失败",
-      icon: "none",
-    });
+    if (pullDown) {
+      uni.showToast({
+        title: "刷新失败",
+        icon: "none",
+        duration: 1500,
+      });
+    } else {
+      uni.showToast({
+        title: "加载数据失败",
+        icon: "none",
+      });
+    }
   } finally {
+    if (pullDown) {
+      uni.hideNavigationBarLoading();
+      uni.stopPullDownRefresh();
+    } else if (isRefresh) {
+      uni.hideLoading();
+    }
     isLoadingMore.value = false;
   }
 };
@@ -445,6 +479,16 @@ onMounted(() => {
   if (isLoggedIn.value) {
     loadRecords(true);
   }
+});
+
+// 下拉刷新
+onPullDownRefresh(async () => {
+  if (!isLoggedIn.value || !currentBaby.value) {
+    uni.stopPullDownRefresh();
+    uni.hideNavigationBarLoading();
+    return;
+  }
+  await loadRecords(true, true);
 });
 
 // 页面滚动到底部时触发

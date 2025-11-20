@@ -2,12 +2,14 @@ import { request } from '@/utils/request'
 import type {
   AIAnalysisParams,
   AnalysisResponse,
+  AnalysisStatusResponse,
   BatchAnalysisResponse,
   CreateAnalysisRequest,
   DailyTipsResponse,
   AnalysisStatsResponse,
   AIAnalysisType
 } from '@/types/ai'
+import type { ApiResponse } from '@/types'
 
 /**
  * AI分析相关API
@@ -16,62 +18,81 @@ import type {
 /**
  * 创建AI分析任务
  */
-export const createAIAnalysis = (data: CreateAnalysisRequest): Promise<AnalysisResponse> => {
+export const createAIAnalysis = (data: CreateAnalysisRequest): Promise<ApiResponse<AnalysisResponse>> => {
   return request<AnalysisResponse>({
-    url: '/ai/analysis',
+    url: '/ai-analysis',
     method: 'POST',
-    data
+    data,
+    retry: 2, // 失败时重试2次
+    retryDelay: 1000 // 重试延迟1秒
   })
 }
 
 /**
  * 获取AI分析结果
  */
-export const getAIAnalysisResult = (analysisId: number): Promise<AnalysisResponse> => {
+export const getAIAnalysisResult = (analysisId: number): Promise<ApiResponse<AnalysisResponse>> => {
   return request<AnalysisResponse>({
-    url: `/ai/analysis/${analysisId}`,
+    url: `/ai-analysis/${analysisId}`,
     method: 'GET'
+  })
+}
+
+/**
+ * 获取分析状态（用于轮询）
+ */
+export const getAnalysisStatus = (analysisId: string): Promise<ApiResponse<AnalysisStatusResponse>> => {
+  return request<AnalysisStatusResponse>({
+    url: `/ai-analysis/${analysisId}/status`,
+    method: 'GET',
+    retry: 1, // 轮询失败时重试1次
+    retryDelay: 500,
+    showError: false // 轮询失败不显示错误提示
   })
 }
 
 /**
  * 获取最新AI分析结果
  */
-export const getLatestAIAnalysis = (babyId: number, analysisType: AIAnalysisType): Promise<AnalysisResponse> => {
+export const getLatestAIAnalysis = (babyId: number, analysisType?: AIAnalysisType): Promise<ApiResponse<AnalysisResponse>> => {
+  const params: any = {}
+  if (analysisType) {
+    params.type = analysisType
+  }
+  
   return request<AnalysisResponse>({
-    url: '/ai/analysis/latest',
+    url: `/ai-analysis/baby/${babyId}/latest`,
     method: 'GET',
-    data: {
-      baby_id: babyId,
-      analysis_type: analysisType
-    }
+    data: params
   })
 }
 
 /**
  * 批量AI分析
  */
-export const batchAIAnalysis = (babyId: number, startDate: string, endDate: string): Promise<BatchAnalysisResponse> => {
+export const batchAIAnalysis = (babyId: number, startDate: string, endDate: string): Promise<ApiResponse<BatchAnalysisResponse>> => {
   return request<BatchAnalysisResponse>({
-    url: '/ai/analysis/batch',
+    url: '/ai-analysis/batch',
     method: 'POST',
     data: {
       baby_id: babyId,
       start_date: startDate,
       end_date: endDate
-    }
+    },
+    retry: 2,
+    retryDelay: 1000
   })
 }
 
 /**
  * 获取AI分析统计
  */
-export const getAIAnalysisStats = (babyId: number): Promise<AnalysisStatsResponse> => {
+export const getAIAnalysisStats = (babyId: number, days: number = 30): Promise<ApiResponse<AnalysisStatsResponse>> => {
   return request<AnalysisStatsResponse>({
-    url: '/ai/analysis/stats',
+    url: `/ai-analysis/baby/${babyId}/history`,
     method: 'GET',
     data: {
-      baby_id: babyId
+      days: days
     }
   })
 }
@@ -79,32 +100,22 @@ export const getAIAnalysisStats = (babyId: number): Promise<AnalysisStatsRespons
 /**
  * 生成每日建议
  */
-export const generateDailyTips = (babyId: number, date?: string): Promise<DailyTipsResponse> => {
-  const params: any = { baby_id: babyId }
-  if (date) {
-    params.date = date
-  }
-
+export const generateDailyTips = (babyId: number, date?: string): Promise<ApiResponse<DailyTipsResponse>> => {
   return request<DailyTipsResponse>({
-    url: '/ai/daily-tips',
+    url: `/ai-analysis/daily-tips/${babyId}/generate`,
     method: 'POST',
-    data: params
+    data: date ? { date } : {}
   })
 }
 
 /**
  * 获取每日建议
  */
-export const getDailyTips = (babyId: number, date?: string): Promise<DailyTipsResponse> => {
-  const params: any = { baby_id: babyId }
-  if (date) {
-    params.date = date
-  }
-
+export const getDailyTips = (babyId: number, date?: string): Promise<ApiResponse<DailyTipsResponse>> => {
   return request<DailyTipsResponse>({
-    url: '/ai/daily-tips',
+    url: `/ai-analysis/daily-tips/${babyId}`,
     method: 'GET',
-    data: params
+    data: date ? { date } : undefined
   })
 }
 
@@ -112,21 +123,29 @@ export const getDailyTips = (babyId: number, date?: string): Promise<DailyTipsRe
  * 轮询分析状态
  */
 export const pollAnalysisStatus = async (
-  analysisId: number,
-  onStatusUpdate: (status: string) => void,
+  analysisId: string,
+  onStatusUpdate: (status: string, progress?: number, message?: string) => void,
   maxAttempts = 30,
   interval = 2000
 ): Promise<AnalysisResponse> => {
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
     try {
-      const result = await getAIAnalysisResult(analysisId)
+      // 使用专门的状态查询API
+      const statusResponse = await getAnalysisStatus(analysisId)
+      const statusResult = statusResponse.data
 
-      // 更新状态
-      onStatusUpdate(result.status)
+      // 更新状态，包含进度和消息
+      onStatusUpdate(statusResult.status, statusResult.progress, statusResult.message)
 
-      // 如果分析完成或失败，返回结果
-      if (result.status === 'completed' || result.status === 'failed') {
-        return result
+      // 如果分析完成，获取完整结果
+      if (statusResult.status === 'completed') {
+        const resultResponse = await getAIAnalysisResult(parseInt(analysisId))
+        return resultResponse.data
+      }
+
+      // 如果分析失败，抛出错误
+      if (statusResult.status === 'failed') {
+        throw new Error(statusResult.message || '分析失败')
       }
 
       // 等待下次轮询

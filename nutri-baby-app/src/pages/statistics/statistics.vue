@@ -913,6 +913,21 @@ const touchEndWeight = (e: any) => {
   }
 }
 
+// 跳转到AI分析页面
+const goToAIAnalysis = () => {
+  if (!currentBaby.value) {
+    uni.showToast({
+      title: '请先选择宝宝',
+      icon: 'none'
+    })
+    return
+  }
+  
+  uni.navigateTo({
+    url: '/pages/statistics/ai-analysis'
+  })
+}
+
 // 初始化页面数据
 const initPageData = async () => {
   console.log('[Statistics] 初始化页面数据')
@@ -991,6 +1006,61 @@ onBeforeUnmount(() => {
 
 .time-range {
   background: white;
+}
+
+.ai-analysis-entry {
+  margin: 20rpx;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 16rpx;
+  padding: 24rpx;
+  box-shadow: 0 4rpx 12rpx rgba(102, 126, 234, 0.3);
+  cursor: pointer;
+  transition: all 0.3s ease;
+
+  &:active {
+    transform: scale(0.98);
+  }
+
+  .ai-entry-content {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+
+    .ai-entry-left {
+      display: flex;
+      align-items: center;
+      gap: 16rpx;
+
+      .ai-entry-icon {
+        font-size: 48rpx;
+        filter: drop-shadow(0 2rpx 4rpx rgba(0, 0, 0, 0.2));
+      }
+
+      .ai-entry-text {
+        .ai-entry-title {
+          display: block;
+          font-size: 32rpx;
+          font-weight: 600;
+          color: #ffffff;
+          margin-bottom: 8rpx;
+        }
+
+        .ai-entry-subtitle {
+          display: block;
+          font-size: 24rpx;
+          color: rgba(255, 255, 255, 0.9);
+        }
+      }
+    }
+
+    .ai-entry-right {
+      .ai-entry-arrow {
+        font-size: 32rpx;
+        color: #ffffff;
+        font-weight: bold;
+      }
+    }
+  }
 }
 
 .stat-section {

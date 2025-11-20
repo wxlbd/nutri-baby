@@ -20,13 +20,12 @@ import (
 
 // AnalysisChainBuilder 分析链构建器
 type AnalysisChainBuilder struct {
-	chatModel         model.ToolCallingChatModel
-	dataTools         *tools.DataQueryTools
-	batchDataTools    *tools.BatchDataTools
-	dataCache         *cache.AnalysisDataCache
-	userFriendlyAgent *UserFriendlyAgent
-	logger            *zap.Logger
-	enableParallel    bool // 是否启用并行工具调用
+	chatModel      model.ToolCallingChatModel
+	dataTools      *tools.DataQueryTools
+	batchDataTools *tools.BatchDataTools
+	dataCache      *cache.AnalysisDataCache
+	logger         *zap.Logger
+	enableParallel bool // 是否启用并行工具调用
 }
 
 // NewAnalysisChainBuilder 创建分析链构建器
@@ -36,20 +35,16 @@ func NewAnalysisChainBuilder(
 	batchDataTools *tools.BatchDataTools,
 	logger *zap.Logger,
 ) *AnalysisChainBuilder {
-	// 创建用户友好Agent
-	userFriendlyAgent := NewUserFriendlyAgent(chatModel, logger)
-
 	// 创建数据缓存（5分钟TTL，最多缓存100个宝宝的数据）
 	dataCache := cache.NewAnalysisDataCache(5*time.Minute, 100)
 
 	return &AnalysisChainBuilder{
-		chatModel:         chatModel,
-		dataTools:         dataTools,
-		batchDataTools:    batchDataTools,
-		dataCache:         dataCache,
-		userFriendlyAgent: userFriendlyAgent,
-		logger:            logger,
-		enableParallel:    true, // 默认启用并行优化
+		chatModel:      chatModel,
+		dataTools:      dataTools,
+		batchDataTools: batchDataTools,
+		dataCache:      dataCache,
+		logger:         logger,
+		enableParallel: true, // 默认启用并行优化
 	}
 }
 
@@ -88,12 +83,6 @@ func (b *AnalysisChainBuilder) Analyze(ctx context.Context, analysis *entity.AIA
 			result, err := b.parseAnalysisResponse(response.Content, analysis.AnalysisType, analysis.BabyID)
 			if err != nil {
 				return nil, err
-			}
-
-			// 生成用户友好的分析结果
-			if err := b.generateUserFriendlyResult(ctx, result, analysis.BabyID); err != nil {
-				b.logger.Error("生成用户友好结果失败", zap.Error(err))
-				// 不影响主要分析结果，继续返回
 			}
 
 			return result, nil
@@ -199,12 +188,12 @@ func (b *AnalysisChainBuilder) executeToolCall(ctx context.Context, toolCall sch
 func (b *AnalysisChainBuilder) executeToolCallsParallel(ctx context.Context, toolCalls []schema.ToolCall) []*schema.Message {
 	var wg sync.WaitGroup
 	results := make([]*schema.Message, len(toolCalls))
-	
+
 	for i, toolCall := range toolCalls {
 		wg.Add(1)
 		go func(index int, tc schema.ToolCall) {
 			defer wg.Done()
-			
+
 			toolResult, err := b.executeToolCall(ctx, tc)
 			if err != nil {
 				b.logger.Error("并行工具调用失败",
@@ -213,7 +202,7 @@ func (b *AnalysisChainBuilder) executeToolCallsParallel(ctx context.Context, too
 				)
 				toolResult = fmt.Sprintf("工具调用失败: %v", err)
 			}
-			
+
 			results[index] = &schema.Message{
 				Role:       schema.Tool,
 				Content:    toolResult,
@@ -221,13 +210,13 @@ func (b *AnalysisChainBuilder) executeToolCallsParallel(ctx context.Context, too
 			}
 		}(i, toolCall)
 	}
-	
+
 	wg.Wait()
-	
+
 	b.logger.Debug("并行工具调用完成",
 		zap.Int("tool_count", len(toolCalls)),
 	)
-	
+
 	return results
 }
 
@@ -253,7 +242,36 @@ JSON格式要求：
   "insights": [洞察数组],
   "alerts": [警告数组],
   "patterns": [模式数组],
-  "predictions": [预测数组]
+  "predictions": [预测数组],
+  "user_friendly": {
+    "overall_summary": "总体评价，用温暖的语言概括宝宝的整体情况",
+    "score_explanation": "评分说明，用通俗的语言解释评分含义",
+    "key_highlights": [
+      {
+        "title": "亮点标题",
+        "description": "亮点描述，突出宝宝的优秀表现",
+        "icon": "建议的图标名称"
+      }
+    ],
+    "improvement_areas": [
+      {
+        "area": "改进领域",
+        "issue": "问题描述，用温和的语言",
+        "suggestion": "具体建议，可操作性强",
+        "priority": "优先级",
+        "difficulty": "实施难度"
+      }
+    ],
+    "next_step_actions": [
+      {
+        "action": "具体行动",
+        "timeline": "时间安排",
+        "benefit": "预期收益",
+        "how_to": "具体做法"
+      }
+    ],
+    "encouraging_words": "鼓励话语，给父母信心和支持"
+  }
 }
 
 **请确保响应只包含有效的JSON，不要添加任何前缀、后缀或解释文本。**
@@ -306,8 +324,7 @@ func (b *AnalysisChainBuilder) buildDailyTipsSystemPrompt() string {
 [
   {
     "id": "唯一标识",
-    "icon": "表情符号",
-    "title": "建议标题",
+    "title": "建议标题（不超过10个字）",
     "description": "详细描述",
     "type": "类型(feeding/sleep/growth/health/behavior)",
     "priority": "优先级(high/medium/low)",
@@ -320,7 +337,17 @@ func (b *AnalysisChainBuilder) buildDailyTipsSystemPrompt() string {
 2. 实用性强，易于执行
 3. 考虑宝宝的月龄和发展阶段
 4. 包含具体的行动建议
-5. 使用友好的语气`
+5. 使用友好的语气
+
+重要提醒：
+- 响应必须是纯JSON格式，不要使用任何代码块标记（如` + "`" + `json或` + "`" + `）
+- 不要添加任何前缀文字、后缀文字或解释说明
+- 不要使用反引号、星号或其他Markdown格式符号
+- 直接返回JSON数组，确保可以被JSON.parse()正确解析
+- 字符串值中避免使用特殊字符，如需要可以使用转义字符
+- title 字段不超过10个字
+- type 类型必须与内容相符
+`
 }
 
 // buildDailyTipsUserPrompt 构建每日建议用户提示
@@ -366,11 +393,12 @@ func (b *AnalysisChainBuilder) parseAnalysisResponse(content string, analysisTyp
 	b.logger.Debug("提取的JSON", zap.String("json", jsonContent))
 
 	var result struct {
-		Score       float64               `json:"score"`
-		Insights    []entity.AIInsight    `json:"insights"`
-		Alerts      []entity.AIAlert      `json:"alerts"`
-		Patterns    []entity.AIPattern    `json:"patterns"`
-		Predictions []entity.AIPrediction `json:"predictions"`
+		Score        float64                    `json:"score"`
+		Insights     []entity.AIInsight         `json:"insights"`
+		Alerts       []entity.AIAlert           `json:"alerts"`
+		Patterns     []entity.AIPattern         `json:"patterns"`
+		Predictions  []entity.AIPrediction      `json:"predictions"`
+		UserFriendly *entity.UserFriendlyResult `json:"user_friendly"`
 	}
 
 	if err := json.Unmarshal([]byte(jsonContent), &result); err != nil {
@@ -389,16 +417,68 @@ func (b *AnalysisChainBuilder) parseAnalysisResponse(content string, analysisTyp
 		Alerts:       result.Alerts,
 		Patterns:     result.Patterns,
 		Predictions:  result.Predictions,
+		UserFriendly: result.UserFriendly,
 	}, nil
 }
 
 // parseDailyTipsResponse 解析每日建议响应
 func (b *AnalysisChainBuilder) parseDailyTipsResponse(content string) ([]entity.DailyTip, error) {
+	// 清理响应内容，移除可能的代码块标记和其他格式化字符
+	cleanContent := b.cleanJSONResponse(content)
+
 	var tips []entity.DailyTip
-	if err := json.Unmarshal([]byte(content), &tips); err != nil {
+	if err := json.Unmarshal([]byte(cleanContent), &tips); err != nil {
+		// 记录原始内容以便调试
+		b.logger.Error("JSON解析失败",
+			zap.String("original_content", content),
+			zap.String("cleaned_content", cleanContent),
+			zap.Error(err),
+		)
 		return nil, errors.Wrap(errors.InternalError, "解析建议响应失败", err)
 	}
 	return tips, nil
+}
+
+// cleanJSONResponse 清理AI响应中的格式化字符，提取纯JSON
+func (b *AnalysisChainBuilder) cleanJSONResponse(content string) string {
+	// 去除前后空白
+	content = strings.TrimSpace(content)
+
+	// 移除常见的代码块标记
+	content = strings.TrimPrefix(content, "```json")
+	content = strings.TrimPrefix(content, "```")
+	content = strings.TrimSuffix(content, "```")
+
+	// 移除可能的前缀文本（如"以下是建议："等）
+	lines := strings.Split(content, "\n")
+	var jsonLines []string
+	jsonStarted := false
+
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+
+		// 检查是否是JSON开始
+		if strings.HasPrefix(line, "[") || strings.HasPrefix(line, "{") {
+			jsonStarted = true
+		}
+
+		// 如果JSON已经开始，收集所有行
+		if jsonStarted {
+			jsonLines = append(jsonLines, line)
+		}
+	}
+
+	if len(jsonLines) > 0 {
+		content = strings.Join(jsonLines, "\n")
+	}
+
+	// 再次去除前后空白
+	content = strings.TrimSpace(content)
+
+	return content
 }
 
 // extractJSON 从响应中提取JSON内容
@@ -451,25 +531,6 @@ func (b *AnalysisChainBuilder) extractJSON(content string) string {
 
 	// 如果都失败了，返回原内容让JSON解析器处理
 	return content
-}
-
-// generateUserFriendlyResult 生成用户友好的分析结果
-func (b *AnalysisChainBuilder) generateUserFriendlyResult(ctx context.Context, result *entity.AIAnalysisResult, babyID int64) error {
-	// 获取宝宝信息
-	baby, err := b.getBabyInfo(ctx, babyID)
-	if err != nil {
-		return errors.Wrap(errors.InternalError, "获取宝宝信息失败", err)
-	}
-
-	// 使用用户友好Agent生成结果
-	userFriendlyResult, err := b.userFriendlyAgent.GenerateUserFriendlyAnalysis(ctx, result, baby)
-	if err != nil {
-		return errors.Wrap(errors.InternalError, "生成用户友好分析失败", err)
-	}
-
-	// 将用户友好结果添加到原始结果中
-	result.UserFriendly = userFriendlyResult
-	return nil
 }
 
 // getBabyInfo 获取宝宝信息（通过数据工具）

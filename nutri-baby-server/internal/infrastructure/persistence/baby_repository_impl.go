@@ -121,3 +121,36 @@ func (r *babyRepositoryImpl) FindAll(ctx context.Context) ([]*entity.Baby, error
 
 	return babies, nil
 }
+
+// FindActiveBabies 查找活跃宝宝（创建者或协作者在 activeSince 后登录过）
+func (r *babyRepositoryImpl) FindActiveBabies(ctx context.Context, activeSince int64) ([]*entity.Baby, error) {
+	var babies []*entity.Baby
+
+	// 查找活跃用户ID
+	var activeUserIDs []int64
+	if err := r.db.WithContext(ctx).Model(&entity.User{}).
+		Where("last_login_time > ?", activeSince).
+		Pluck("id", &activeUserIDs).Error; err != nil {
+		return nil, errors.Wrap(errors.DatabaseError, "failed to find active users", err)
+	}
+
+	if len(activeUserIDs) == 0 {
+		return []*entity.Baby{}, nil
+	}
+
+	// 查找这些用户创建的宝宝 或 作为协作者的宝宝
+	// 使用 Distinct 去重
+	err := r.db.WithContext(ctx).
+		Distinct("babies.*").
+		Model(&entity.Baby{}).
+		Joins("LEFT JOIN baby_collaborators bc ON babies.id = bc.baby_id").
+		Where("babies.user_id IN (?) OR bc.user_id IN (?)", activeUserIDs, activeUserIDs).
+		Where("babies.deleted_at = 0").
+		Find(&babies).Error
+
+	if err != nil {
+		return nil, errors.Wrap(errors.DatabaseError, "failed to find active babies", err)
+	}
+
+	return babies, nil
+}

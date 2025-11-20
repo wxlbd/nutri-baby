@@ -204,11 +204,41 @@ func (h *AIAnalysisHandler) GetAnalysisResult(c *gin.Context) {
 	response.Success(c, result)
 }
 
+// GetAnalysisStatus 获取分析状态（用于轮询）
+// @Summary 获取分析状态
+// @Description 获取指定分析任务的当前状态，用于前端轮询
+// @Tags AI分析
+// @Accept json
+// @Produce json
+// @Param Authorization header string true "Bearer Token"
+// @Param id path string true "分析任务ID"
+// @Success 200 {object} response.Response{data=service.AnalysisStatusResponse}
+// @Failure 400 {object} response.Response
+// @Failure 401 {object} response.Response
+// @Failure 404 {object} response.Response
+// @Failure 500 {object} response.Response
+// @Router /api/ai/analysis/{id}/status [get]
+func (h *AIAnalysisHandler) GetAnalysisStatus(c *gin.Context) {
+	analysisID := c.Param("id")
+
+	status, err := h.aiAnalysisService.GetAnalysisStatus(c.Request.Context(), analysisID)
+	if err != nil {
+		h.logger.Error("获取分析状态失败",
+			zap.String("analysis_id", analysisID),
+			zap.Error(err),
+		)
+		response.Error(c, err)
+		return
+	}
+
+	response.Success(c, status)
+}
+
 // GetLatestAnalysis 获取最新分析
 func (h *AIAnalysisHandler) GetLatestAnalysis(c *gin.Context) {
 	babyID := c.Param("babyId")
 	analysisType := entity.AIAnalysisType(c.Query("type"))
-	
+
 	id, err := strconv.ParseInt(babyID, 10, 64)
 	if err != nil {
 		response.ErrorWithMessage(c, 1001, "无效的宝宝ID")
@@ -232,7 +262,7 @@ func (h *AIAnalysisHandler) GetLatestAnalysis(c *gin.Context) {
 func (h *AIAnalysisHandler) GetAnalysisStats(c *gin.Context) {
 	babyID := c.Param("babyId")
 	days, _ := strconv.Atoi(c.DefaultQuery("days", "30"))
-	
+
 	id, err := strconv.ParseInt(babyID, 10, 64)
 	if err != nil {
 		response.ErrorWithMessage(c, 1001, "无效的宝宝ID")
@@ -277,7 +307,7 @@ func (h *AIAnalysisHandler) BatchAnalyze(c *gin.Context) {
 func (h *AIAnalysisHandler) GetDailyTips(c *gin.Context) {
 	babyID := c.Param("babyId")
 	dateStr := c.DefaultQuery("date", time.Now().Format("2006-01-02"))
-	
+
 	date, err := time.Parse("2006-01-02", dateStr)
 	if err != nil {
 		response.ErrorWithMessage(c, 1001, "无效的日期格式")
@@ -329,7 +359,13 @@ func RegisterAIAnalysisRoutes(router *gin.RouterGroup, handler *AIAnalysisHandle
 	aiGroup := router.Group("/ai")
 	{
 		aiGroup.POST("/analysis", handler.CreateAnalysis)
+		aiGroup.GET("/analysis/:id/status", handler.GetAnalysisStatus)
+		aiGroup.GET("/analysis/:id", handler.GetAnalysisResult)
+		aiGroup.GET("/latest/:babyId", handler.GetLatestAnalysis)
+		aiGroup.GET("/stats/:babyId", handler.GetAnalysisStats)
+		aiGroup.POST("/batch-analyze", handler.BatchAnalyze)
 		aiGroup.POST("/daily-tips", handler.GenerateDailyTips)
+		aiGroup.GET("/daily-tips/:babyId", handler.GetDailyTips)
 		aiGroup.POST("/process-pending", handler.ProcessPendingAnalyses)
 		aiGroup.GET("/test-tools", handler.TestToolCalling)
 	}

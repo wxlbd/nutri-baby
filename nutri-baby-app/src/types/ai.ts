@@ -42,6 +42,7 @@ export interface AIAnalysisResult {
   patterns: AIPattern[]
   predictions: AIPrediction[]
   metadata?: Record<string, any>
+  user_friendly?: UserFriendlyResult // 新增用户友好结果
 }
 
 /**
@@ -98,6 +99,48 @@ export interface TimeRange {
 }
 
 /**
+ * 用户友好的分析结果
+ */
+export interface UserFriendlyResult {
+  overall_summary: string // 总体评价
+  score_explanation: string // 评分说明
+  key_highlights: UserFriendlyHighlight[] // 关键亮点
+  improvement_areas: UserFriendlyImprovement[] // 改进建议
+  next_step_actions: UserFriendlyAction[] // 下一步行动
+  encouraging_words: string // 鼓励话语
+}
+
+/**
+ * 用户友好的亮点
+ */
+export interface UserFriendlyHighlight {
+  title: string // 标题
+  description: string // 描述
+  icon: string // 图标建议
+}
+
+/**
+ * 用户友好的改进建议
+ */
+export interface UserFriendlyImprovement {
+  area: string // 改进领域
+  issue: string // 问题描述
+  suggestion: string // 具体建议
+  priority: 'high' | 'medium' | 'low' // 优先级
+  difficulty: 'easy' | 'medium' | 'hard' // 实施难度
+}
+
+/**
+ * 用户友好的行动建议
+ */
+export interface UserFriendlyAction {
+  action: string // 行动内容
+  timeline: string // 时间安排
+  benefit: string // 预期收益
+  how_to: string // 具体做法
+}
+
+/**
  * 每日建议
  */
 export interface DailyTips {
@@ -150,7 +193,17 @@ export interface AnalysisResponse {
   status: AIAnalysisStatus
   result?: AIAnalysisResult
   created_at: string
-  message?: string
+}
+
+/**
+ * 分析状态响应（用于轮询）
+ */
+export interface AnalysisStatusResponse {
+  analysis_id: string
+  status: AIAnalysisStatus
+  progress: number // 进度百分比 0-100
+  message: string  // 状态描述
+  updated_at: string
 }
 
 /**

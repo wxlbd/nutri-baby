@@ -38,7 +38,7 @@
           v-for="(detail, index) in details"
           :key="index"
         >
-          <view class="detail-icon">{{ getDetailIcon(detail.type) }}</text>
+          <view class="detail-icon">{{ getDetailIcon(detail.type) }}</view>
           <view class="detail-content">
             <text class="detail-name">{{ detail.name }}</text>
             <view class="detail-score">
@@ -76,6 +76,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
+import CircleProgress from '@/components/common/CircleProgress.vue'
 
 interface DetailItem {
   type: string

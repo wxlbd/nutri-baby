@@ -33,6 +33,8 @@
             v-model="recordDateTime"
             type="datetime"
             @confirm="onDateTimeConfirm"
+            :minDate="minDateTime"
+            :maxDate="maxDateTime"
           />
           <!-- 大便详情 (仅大便/两者时显示) -->
           <view
@@ -97,12 +99,12 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import { onLoad } from "@dcloudio/uni-app";
-import { currentBabyId, getCurrentBaby } from "@/store/baby";
+import { currentBaby, currentBabyId, getCurrentBaby } from "@/store/baby";
 import { getUserInfo } from "@/store/user";
 import type { DiaperType, PoopColor, PoopTexture } from "@/types";
-import { goBack, goBackHome } from "@/utils/common";
 // 直接调用 API 层
 import * as diaperApi from "@/api/diaper";
+import { goBack, goBackHome } from "@/utils/common";
 
 // 编辑模式相关
 const editId = ref<string>("");
@@ -121,6 +123,10 @@ const form = ref<{
   note: "",
 });
 
+const minDateTime = ref(
+  Date.parse(currentBaby.value?.birthDate || "2015-01-01")
+); // 最小: 出生日期或2015-01-01
+const maxDateTime = ref(new Date().getTime()); // 最大: 当前时间
 // 是否显示详情
 const showDetails = ref(false);
 

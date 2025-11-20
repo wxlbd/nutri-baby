@@ -12,6 +12,8 @@ declare module 'vue' {
     AIInsightCard: typeof import('./src/components/ai/AIInsightCard.vue')['default']
     AIScoreCard: typeof import('./src/components/ai/AIScoreCard.vue')['default']
     BabyCollaboratorsPreview: typeof import('./src/components/BabyCollaboratorsPreview.vue')['default']
+    CircleProgress: typeof import('./src/components/common/CircleProgress.vue')['default']
+    DailyTipsCard: typeof import('./src/components/DailyTipsCard.vue')['default']
     SubscribeGuide: typeof import('./src/components/SubscribeGuide.vue')['default']
     UChart: typeof import('./src/components/UChart.vue')['default']
     WdBadge: typeof import('wot-design-uni/components/wd-badge/wd-badge.vue')['default']
@@ -38,6 +40,8 @@ declare module 'vue' {
     WdSwitch: typeof import('wot-design-uni/components/wd-switch/wd-switch.vue')['default']
     WdTab: typeof import('wot-design-uni/components/wd-tab/wd-tab.vue')['default']
     WdTabs: typeof import('wot-design-uni/components/wd-tabs/wd-tabs.vue')['default']
+    WdTag: typeof import('wot-design-uni/components/wd-tag/wd-tag.vue')['default']
+    WdText: typeof import('wot-design-uni/components/wd-text/wd-text.vue')['default']
     WdTextarea: typeof import('wot-design-uni/components/wd-textarea/wd-textarea.vue')['default']
     WdToast: typeof import('wot-design-uni/components/wd-toast/wd-toast.vue')['default']
   }
