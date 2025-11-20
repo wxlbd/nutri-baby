@@ -73,6 +73,48 @@ export interface BabyStatisticsResponse {
   weekly: WeeklyStatistics
 }
 
+// ============ 按日统计 DTO ============
+
+// 每日喂养统计项
+export interface DailyFeedingStatsItem {
+  date: string          // 日期，格式 YYYY-MM-DD
+  feedingType: string   // 喂养类型：breast/bottle/food
+  totalCount: number    // 总次数
+  totalAmount: number   // 总量（ml）
+  totalDuration: number // 总时长（秒）
+}
+
+// 每日睡眠统计项
+export interface DailySleepStatsItem {
+  date: string          // 日期，格式 YYYY-MM-DD
+  totalDuration: number // 总时长（秒）
+  totalCount: number    // 总次数
+}
+
+// 每日排泄统计项
+export interface DailyDiaperStatsItem {
+  date: string       // 日期，格式 YYYY-MM-DD
+  diaperType: string // 排泄类型：pee/poop/both
+  totalCount: number // 总次数
+}
+
+// 每日成长统计项
+export interface DailyGrowthStatsItem {
+  date: string              // 日期，格式 YYYY-MM-DD
+  latestHeight?: number     // 最新身高（cm）
+  latestWeight?: number     // 最新体重（g）
+  latestHeadCircumference?: number // 最新头围（cm）
+  recordCount: number       // 当日记录数
+}
+
+// 按日统计响应
+export interface DailyStatsResponse {
+  feeding?: DailyFeedingStatsItem[] // 喂养统计
+  sleep?: DailySleepStatsItem[]     // 睡眠统计
+  diaper?: DailyDiaperStatsItem[]   // 排泄统计
+  growth?: DailyGrowthStatsItem[]   // 成长统计
+}
+
 // ============ API 接口 ============
 
 /**
@@ -84,5 +126,30 @@ export const apiFetchBabyStatistics = (babyId: string): Promise<ApiResponse<Baby
   return request({
     method: 'GET',
     url: `/babies/${babyId}/statistics`,
+  })
+}
+
+/**
+ * 获取按日统计数据
+ * @param babyId 宝宝ID
+ * @param startDate 开始日期（毫秒时间戳）
+ * @param endDate 结束日期（毫秒时间戳）
+ * @param types 统计类型，逗号分隔：feeding,sleep,diaper,growth，默认全部
+ * @returns 按日统计数据响应
+ */
+export const apiFetchDailyStats = (params: {
+  babyId: string
+  startDate: number
+  endDate: number
+  types?: string
+}): Promise<ApiResponse<DailyStatsResponse>> => {
+  return request({
+    method: 'GET',
+    url: `/babies/${params.babyId}/daily-stats`,
+    data: {
+      startDate: params.startDate,
+      endDate: params.endDate,
+      types: params.types || 'feeding,sleep,diaper,growth'
+    }
   })
 }

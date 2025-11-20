@@ -4,17 +4,19 @@ package dto
 
 // TodayFeedingStats 今日喂养统计
 type TodayFeedingStats struct {
-	BreastCount      int   `json:"breastCount"`      // 母乳喂养次数
-	BottleMl         int64 `json:"bottleMl"`         // 奶瓶总毫升数
-	TotalCount       int   `json:"totalCount"`       // 总喂养次数
-	LastFeedingTime  *int64 `json:"lastFeedingTime,omitempty"` // 最后一次喂养时间戳(毫秒)，nil 表示今天无喂养记录
+	BreastCount     int    `json:"breastCount"`               // 母乳喂养次数
+	BottleMl        int64  `json:"bottleMl"`                  // 奶瓶总毫升数
+	BottleCount     int    `json:"bottleCount"`               // 奶瓶喂养次数
+	FoodCount       int    `json:"foodCount"`                 // 饮食喂养次数
+	TotalCount      int    `json:"totalCount"`                // 总喂养次数
+	LastFeedingTime *int64 `json:"lastFeedingTime,omitempty"` // 最后一次喂养时间戳(毫秒)，nil 表示今天无喂养记录
 }
 
 // TodaySleepStats 今日睡眠统计
 type TodaySleepStats struct {
-	TotalMinutes   int `json:"totalMinutes"`   // 总睡眠分钟数
+	TotalMinutes     int `json:"totalMinutes"`     // 总睡眠分钟数
 	LastSleepMinutes int `json:"lastSleepMinutes"` // 上次睡眠分钟数
-	SessionCount   int `json:"sessionCount"`   // 睡眠次数
+	SessionCount     int `json:"sessionCount"`     // 睡眠次数
 }
 
 // TodayDiaperStats 今日换尿布统计
@@ -43,9 +45,9 @@ type TodayStatistics struct {
 
 // WeeklyFeedingStats 本周喂养统计
 type WeeklyFeedingStats struct {
-	TotalCount  int   `json:"totalCount"`  // 本周总喂养次数
-	Trend       int   `json:"trend"`       // 趋势对比（与上周的差异）
-	AvgPerDay   float64 `json:"avgPerDay"` // 日均喂养次数
+	TotalCount int     `json:"totalCount"` // 本周总喂养次数
+	Trend      int     `json:"trend"`      // 趋势对比（与上周的差异）
+	AvgPerDay  float64 `json:"avgPerDay"`  // 日均喂养次数
 }
 
 // WeeklySleepStats 本周睡眠统计
@@ -57,8 +59,8 @@ type WeeklySleepStats struct {
 
 // WeeklyGrowthStats 本周成长统计
 type WeeklyGrowthStats struct {
-	WeightGain     float64 `json:"weightGain"`     // 周内体重增长 (kg)
-	HeightGain     float64 `json:"heightGain"`     // 周内身高增长 (cm)
+	WeightGain      float64  `json:"weightGain"`                // 周内体重增长 (kg)
+	HeightGain      float64  `json:"heightGain"`                // 周内身高增长 (cm)
 	WeekStartWeight *float64 `json:"weekStartWeight,omitempty"` // 周初体重 (kg)
 }
 

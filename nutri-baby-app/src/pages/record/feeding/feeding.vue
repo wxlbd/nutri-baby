@@ -10,7 +10,7 @@
       <view class="form-wrapper">
         <wd-cell-group title="喂养记录" border>
           <!-- 喂养类型选择 -->
-          <wd-cell title="喂养类型" title-width="100px" prop="count" center>
+          <wd-cell title="喂养类型" title-width="156rpx" prop="count" center>
             <view style="text-align: left">
               <wd-radio-group v-model="feedingType" cell inline shape="button">
                 <wd-radio value="breast">母乳</wd-radio>
@@ -21,7 +21,7 @@
           </wd-cell>
           <!-- 母乳喂养 -->
           <view v-if="feedingType === 'breast'">
-            <wd-cell title="喂养侧" title-width="100px" prop="count" center>
+            <wd-cell title="喂养侧" title-width="156rpx" prop="count" center>
               <wd-radio-group
                 v-model="breastForm.side"
                 cell
@@ -37,7 +37,7 @@
             <wd-cell
               v-if="breastForm.side === 'left' || breastForm.side === 'both'"
               title="左侧时长(分钟)"
-              title-width="100px"
+              title-width="156rpx"
               prop="count"
             >
               <view style="text-align: left">
@@ -53,7 +53,7 @@
             <wd-cell
               v-if="breastForm.side === 'right' || breastForm.side === 'both'"
               title="右侧时长(分钟)"
-              title-width="100px"
+              title-width="156rpx"
               prop="count"
             >
               <view style="text-align: left">
@@ -70,7 +70,7 @@
           <!-- 奶瓶喂养 -->
           <view v-if="feedingType === 'bottle'">
             <view style="text-align: left">
-              <wd-cell title="奶类型" title-width="100px" prop="count" center>
+              <wd-cell title="奶类型" title-width="156rpx" prop="count" center>
                 <wd-radio-group
                   v-model="bottleForm.bottleType"
                   cell
@@ -86,7 +86,7 @@
                 </wd-radio-group>
               </wd-cell>
             </view>
-            <wd-cell title="单位" title-width="100px" prop="count" center>
+            <wd-cell title="单位" title-width="156rpx" prop="count" center>
               <wd-radio-group
                 v-model="bottleForm.unit"
                 cell
@@ -101,7 +101,7 @@
                 >
               </wd-radio-group>
             </wd-cell>
-            <wd-cell title="喂养量" title-width="100px" prop="count">
+            <wd-cell title="喂养量" title-width="156rpx" prop="count">
               <view style="text-align: left">
                 <wd-input-number
                   input-width="100rpx"
@@ -113,7 +113,7 @@
                 />
               </view>
             </wd-cell>
-            <wd-cell title="剩余量" title-width="100px" prop="count">
+            <wd-cell title="剩余量" title-width="156rpx" prop="count">
               <view style="text-align: left">
                 <wd-input-number
                   input-width="100rpx"
@@ -175,8 +175,8 @@
             v-model="recordDateTime"
             :label="isEditing ? '更新时间' : '记录时间'"
             type="datetime"
-            :min-date="minDateTime"
-            :max-date="maxDateTime"
+            :minDate="minDateTime"
+            :maxDate="maxDateTime"
             @confirm="onDateTimeConfirm"
             @cancel="onDateTimeCancel"
           />
@@ -531,7 +531,7 @@ const stopTimer = () => {
 const recordDateTime = ref(new Date().getTime()); // 记录时间,初始为当前时间戳
 const showDatetimePickerModal = ref(false);
 const minDateTime = ref(
-  new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).getTime()
+  Date.parse(currentBaby.value?.birthDate || "2025-01-01")
 ); // 最小: 30天前
 const maxDateTime = ref(new Date().getTime()); // 最大: 当前时间
 

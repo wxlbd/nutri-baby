@@ -87,7 +87,7 @@ type DiaperRecord struct {
 	ID              int64                 `gorm:"primaryKey;column:id" json:"id"`                                    // 雪花ID主键
 	BabyID          int64                 `gorm:"column:baby_id;index" json:"babyId"`                                // 宝宝ID (引用Baby.ID)
 	Time            int64                 `gorm:"column:time;index" json:"time"`                                     // 记录时间(毫秒时间戳)
-	Type            string                `gorm:"column:type;type:varchar(16)" json:"type"`                          // wet, dirty, both
+	Type            string                `gorm:"column:type;type:varchar(16)" json:"type"`                          // pee, poop, both
 	PoopColor       *string               `gorm:"column:poop_color;type:varchar(16)" json:"poopColor"`               // 便便颜色
 	PoopTexture     *string               `gorm:"column:poop_texture;type:varchar(16)" json:"poopTexture"`           // 便便质地
 	Note            *string               `gorm:"column:note;type:text" json:"note"`                                 // 备注

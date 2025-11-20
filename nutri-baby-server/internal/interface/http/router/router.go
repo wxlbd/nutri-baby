@@ -18,6 +18,7 @@ func NewRouter(
 	recordHandler *handler.RecordHandler,
 	vaccineScheduleHandler *handler.VaccineScheduleHandler, // 新增
 	statisticsHandler *handler.StatisticsHandler,
+	dailyStatsHandler *handler.DailyStatsHandler, // 新增按日统计处理器
 	subscribeHandler *handler.SubscribeHandler,
 	syncHandler *handler.SyncHandler,
 	uploadHandler *handler.UploadHandler,
@@ -99,6 +100,8 @@ func NewRouter(
 
 				// 统计接口 (新增)
 				babies.GET("/:babyId/statistics", statisticsHandler.GetBabyStatistics)
+				// 按日统计接口 (新增)
+				babies.GET("/:babyId/daily-stats", dailyStatsHandler.GetDailyStats)
 			}
 
 			// 喂养记录
@@ -158,6 +161,7 @@ func NewRouter(
 			{
 				aiAnalysis.POST("", aiAnalysisHandler.CreateAnalysis)
 				aiAnalysis.GET("/:id", aiAnalysisHandler.GetAnalysisResult)
+				aiAnalysis.GET("/:id/status", aiAnalysisHandler.GetAnalysisStatus) // 新增：获取分析状态（用于轮询）
 				aiAnalysis.GET("/baby/:babyId/latest", aiAnalysisHandler.GetLatestAnalysis)
 				aiAnalysis.GET("/baby/:babyId/history", aiAnalysisHandler.GetAnalysisStats)
 				aiAnalysis.POST("/batch", aiAnalysisHandler.BatchAnalyze)

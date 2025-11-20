@@ -195,6 +195,7 @@ import * as feedingApi from '@/api/feeding'
 import * as sleepApi from '@/api/sleep'
 import * as diaperApi from '@/api/diaper'
 import * as growthApi from '@/api/growth'
+import * as statisticsApi from '@/api/statistics'
 
 // 图表实例
 let feedingChartInstance: any = null
@@ -246,13 +247,10 @@ const getTimeRange = () => {
   return { start, end: now }
 }
 
-// 记录数据(从 API 获取)
-const feedingRecords = ref<feedingApi.FeedingRecordResponse[]>([])
-const sleepRecords = ref<sleepApi.SleepRecordResponse[]>([])
-const diaperRecords = ref<diaperApi.DiaperRecordResponse[]>([])
-const growthRecords = ref<growthApi.GrowthRecordResponse[]>([])
+// 统计数据(从按日统计 API 获取)
+const dailyStats = ref<statisticsApi.DailyStatsResponse>({})
 
-// 加载所有记录
+// 加载统计数据
 const loadRecords = async () => {
   if (!currentBaby.value) return
 
@@ -260,17 +258,8 @@ const loadRecords = async () => {
   const { start, end } = getTimeRange()
 
   try {
-    const [feedingData, sleepData, diaperData, growthData] = await Promise.all([
-      feedingApi.apiFetchFeedingRecords({ babyId, startTime: start, endTime: end, pageSize: 500 }),
-      sleepApi.apiFetchSleepRecords({ babyId, startTime: start, endTime: end, pageSize: 500 }),
-      diaperApi.apiFetchDiaperRecords({ babyId, startTime: start, endTime: end, pageSize: 500 }),
-      growthApi.apiFetchGrowthRecords({ babyId, pageSize: 100 }) // 成长记录不限制时间范围
-    ])
-
-    feedingRecords.value = feedingData.records
-    sleepRecords.value = sleepData.records
-    diaperRecords.value = diaperData.records
-    growthRecords.value = growthData.records
+    const dailyStatsData = await statisticsApi.apiFetchDailyStats({ babyId, startDate: start, endDate: end })
+    dailyStats.value = dailyStatsData.data || {}
   } catch (error) {
     console.error('加载统计数据失败:', error)
     uni.showToast({
@@ -289,7 +278,7 @@ watch(timeRange, async () => {
 
 // 喂养统计
 const feedingStats = computed(() => {
-  if (!currentBaby.value) {
+  if (!currentBaby.value || !dailyStats.value.feeding) {
     return {
       totalMilk: 0,
       count: 0,
@@ -300,22 +289,20 @@ const feedingStats = computed(() => {
   }
 
   let totalMilk = 0
+  let totalCount = 0
   const dailyMap = new Map<string, number>()
 
-  feedingRecords.value.forEach(record => {
+  // 使用按日统计数据
+  dailyStats.value.feeding?.forEach(item => {
     // 只统计奶瓶喂养的奶量，母乳喂养不计入
-    if (record.feedingType === 'bottle') {
-      const feedingDetail = record.detail
-      const unit = (feedingDetail && feedingDetail.type === 'bottle') ? feedingDetail.unit : 'ml'
-      const amount = unit === 'oz'
-        ? (record.amount || 0) * 29.5735
-        : (record.amount || 0)
-
-      totalMilk += amount
-
-      // 按日期统计
-      const date = formatDate(record.feedingTime, 'MM-DD')
-      dailyMap.set(date, (dailyMap.get(date) || 0) + amount)
+    if (item.feedingType === 'bottle') {
+      totalMilk += item.totalAmount
+      totalCount += item.totalCount
+      
+      // 按日期统计（转换日期格式）
+      const date = new Date(item.date)
+      const dateStr = formatDate(date.getTime(), 'MM-DD')
+      dailyMap.set(dateStr, item.totalAmount)
     }
   })
 
@@ -339,8 +326,8 @@ const feedingStats = computed(() => {
 
   return {
     totalMilk: Math.round(totalMilk),
-    count: feedingRecords.value.length,
-    avgMilk: feedingRecords.value.length > 0 ? Math.round(totalMilk / days) : 0,
+    count: totalCount,
+    avgMilk: days > 0 ? Math.round(totalMilk / days) : 0,
     dailyData,
     maxDaily,
   }
@@ -348,7 +335,7 @@ const feedingStats = computed(() => {
 
 // 睡眠统计
 const sleepStats = computed(() => {
-  if (!currentBaby.value) {
+  if (!currentBaby.value || !dailyStats.value.sleep) {
     return {
       totalHours: 0,
       count: 0,
@@ -359,45 +346,27 @@ const sleepStats = computed(() => {
       nightSleepHours: 0,
       napCount: 0,
       napHours: 0,
-      recommendation: ''
+      recommendation: '',
+      totalDurationFormatted: '0分',
+      avgDurationFormatted: '0分'
     }
   }
 
-  // ⚠️ 注意：sleepRecords.value.duration 存储的是秒，需要转换为分钟
-  const totalSeconds = sleepRecords.value.reduce((sum, r) => sum + (r.duration || 0), 0)
+  // 使用按日统计数据计算总时长和次数
+  let totalSeconds = 0
+  let totalCount = 0
+  
+  dailyStats.value.sleep?.forEach(item => {
+    totalSeconds += item.totalDuration
+    totalCount += item.totalCount
+  })
+  
   const totalMinutes = Math.round(totalSeconds / 60)
   const days = timeRange.value === 'week' ? 7 : 30
 
-  // 计算最长单次睡眠（秒转分钟）
-  const longestSleepSeconds = sleepRecords.value.length > 0
-    ? Math.max(...sleepRecords.value.map(r => r.duration || 0))
-    : 0
-  const longestSleep = Math.round(longestSleepSeconds / 60)
-
-  // 计算平均单次睡眠（秒转分钟）
-  const avgSingleSleep = sleepRecords.value.length > 0
-    ? Math.round(totalMinutes / sleepRecords.value.length)
-    : 0
-
-  // 统计夜间睡眠和小睡（秒转分钟）
-  let nightSleepSeconds = 0
-  let nightSleepCount = 0
-  let napSeconds = 0
-  let napCount = 0
-
-  sleepRecords.value.forEach(r => {
-    if (r.sleepType === 'night') {
-      nightSleepSeconds += r.duration || 0
-      nightSleepCount++
-    } else {
-      napSeconds += r.duration || 0
-      napCount++
-    }
-  })
-
-  const nightSleepMinutes = Math.round(nightSleepSeconds / 60)
-  const napMinutes = Math.round(napSeconds / 60)
-
+  // 简化统计（由于按日统计无法获取单次睡眠详情，使用估算）
+  const avgSingleSleep = totalCount > 0 ? Math.round(totalMinutes / totalCount) : 0
+  
   // 计算宝宝月龄
   const birthDate = new Date(currentBaby.value.birthDate)
   const now = new Date()
@@ -440,14 +409,14 @@ const sleepStats = computed(() => {
 
   return {
     totalHours: Math.round(totalMinutes / 60 * 10) / 10,
-    count: sleepRecords.value.length,
+    count: totalCount,
     avgHours: Math.round((totalMinutes / days / 60) * 10) / 10,
-    longestSleep,
+    longestSleep: 0, // 按日统计无法获取单次最长睡眠
     avgSingleSleep,
-    nightSleepCount,
-    nightSleepHours: Math.round(nightSleepMinutes / 60 * 10) / 10,
-    napCount,
-    napHours: Math.round(napMinutes / 60 * 10) / 10,
+    nightSleepCount: 0, // 按日统计无法区分夜间睡眠
+    nightSleepHours: 0,
+    napCount: 0,
+    napHours: 0,
     recommendation,
     // 添加格式化后的时长字段（X时Y分）
     totalDurationFormatted: formatDurationToTimeString(totalMinutes),
@@ -457,24 +426,29 @@ const sleepStats = computed(() => {
 
 // 排泄统计
 const diaperStats = computed(() => {
-  if (!currentBaby.value) {
+  if (!currentBaby.value || !dailyStats.value.diaper) {
     return { total: 0, wet: 0, dirty: 0 }
   }
 
   let wet = 0
   let dirty = 0
+  let total = 0
 
-  diaperRecords.value.forEach(r => {
-    if (r.diaperType === 'pee') wet++
-    else if (r.diaperType === 'poo') dirty++
-    else {
-      wet++
-      dirty++
+  // 使用按日统计数据
+  dailyStats.value.diaper?.forEach(item => {
+    total += item.totalCount
+    if (item.diaperType === 'pee') {
+      wet += item.totalCount
+    } else if (item.diaperType === 'poop') {
+      dirty += item.totalCount
+    } else if (item.diaperType === 'both') {
+      wet += item.totalCount
+      dirty += item.totalCount
     }
   })
 
   return {
-    total: diaperRecords.value.length,
+    total,
     wet,
     dirty,
   }
@@ -482,7 +456,7 @@ const diaperStats = computed(() => {
 
 // 成长统计
 const growthStats = computed(() => {
-  if (!currentBaby.value) {
+  if (!currentBaby.value || !dailyStats.value.growth) {
     return {
       hasData: false,
       latestHeight: 0,
@@ -499,7 +473,7 @@ const growthStats = computed(() => {
     }
   }
 
-  if (growthRecords.value.length === 0) {
+  if (!dailyStats.value.growth || dailyStats.value.growth.length === 0) {
     return {
       hasData: false,
       latestHeight: 0,
@@ -516,40 +490,23 @@ const growthStats = computed(() => {
     }
   }
 
-  // 最新数据
-  const latestRecord = growthRecords.value[0]
-
-  if (!latestRecord) {
-    return {
-      hasData: false,
-      latestHeight: 0,
-      latestWeight: 0,
-      latestHead: 0,
-      dates: [],
-      heightData: [],
-      weightData: [],
-      headData: [],
-      heightMin: 0,
-      heightMax: 0,
-      weightMin: 0,
-      weightMax: 0
-    }
-  }
-
-  // 准备曲线数据（按时间正序）
-  const sortedRecords = [...growthRecords.value].reverse()
+  // 使用按日统计数据
+  const growthData = dailyStats.value.growth
   const dates: string[] = []
   const heightData: number[] = []
   const weightData: number[] = []
   const headData: number[] = []
 
-  sortedRecords.forEach(record => {
-    const date = new Date(record.measureTime)
+  // 最新数据（取最后一条记录）
+  const latestRecord = growthData[growthData.length - 1]
+
+  growthData.forEach(record => {
+    const date = new Date(record.date)
     dates.push(`${date.getMonth() + 1}/${date.getDate()}`)
 
-    if (record.height) heightData.push(record.height)
-    if (record.weight) weightData.push(record.weight)
-    if (record.headCircumference) headData.push(record.headCircumference)
+    if (record.latestHeight) heightData.push(record.latestHeight)
+    if (record.latestWeight) weightData.push(record.latestWeight)
+    if (record.latestHeadCircumference) headData.push(record.latestHeadCircumference)
   })
 
   // 计算最大最小值
@@ -560,9 +517,9 @@ const growthStats = computed(() => {
 
   return {
     hasData: true,
-    latestHeight: latestRecord.height || 0,
-    latestWeight: latestRecord.weight || 0,
-    latestHead: latestRecord.headCircumference || 0,
+    latestHeight: latestRecord?.latestHeight || 0,
+    latestWeight: latestRecord?.latestWeight || 0,
+    latestHead: latestRecord?.latestHeadCircumference || 0,
     dates,
     heightData,
     weightData,
@@ -956,6 +913,21 @@ const touchEndWeight = (e: any) => {
   }
 }
 
+// 跳转到AI分析页面
+const goToAIAnalysis = () => {
+  if (!currentBaby.value) {
+    uni.showToast({
+      title: '请先选择宝宝',
+      icon: 'none'
+    })
+    return
+  }
+  
+  uni.navigateTo({
+    url: '/pages/statistics/ai-analysis'
+  })
+}
+
 // 初始化页面数据
 const initPageData = async () => {
   console.log('[Statistics] 初始化页面数据')
@@ -1034,6 +1006,61 @@ onBeforeUnmount(() => {
 
 .time-range {
   background: white;
+}
+
+.ai-analysis-entry {
+  margin: 20rpx;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 16rpx;
+  padding: 24rpx;
+  box-shadow: 0 4rpx 12rpx rgba(102, 126, 234, 0.3);
+  cursor: pointer;
+  transition: all 0.3s ease;
+
+  &:active {
+    transform: scale(0.98);
+  }
+
+  .ai-entry-content {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+
+    .ai-entry-left {
+      display: flex;
+      align-items: center;
+      gap: 16rpx;
+
+      .ai-entry-icon {
+        font-size: 48rpx;
+        filter: drop-shadow(0 2rpx 4rpx rgba(0, 0, 0, 0.2));
+      }
+
+      .ai-entry-text {
+        .ai-entry-title {
+          display: block;
+          font-size: 32rpx;
+          font-weight: 600;
+          color: #ffffff;
+          margin-bottom: 8rpx;
+        }
+
+        .ai-entry-subtitle {
+          display: block;
+          font-size: 24rpx;
+          color: rgba(255, 255, 255, 0.9);
+        }
+      }
+    }
+
+    .ai-entry-right {
+      .ai-entry-arrow {
+        font-size: 32rpx;
+        color: #ffffff;
+        font-weight: bold;
+      }
+    }
+  }
 }
 
 .stat-section {
