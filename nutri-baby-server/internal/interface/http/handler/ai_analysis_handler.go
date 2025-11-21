@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/wxlbd/nutri-baby-server/internal/application/dto"
 	"go.uber.org/zap"
 
 	"github.com/wxlbd/nutri-baby-server/internal/application/service"
@@ -44,7 +45,7 @@ func NewAIAnalysisHandler(
 // @Failure 500 {object} response.Response
 // @Router /api/ai/enhanced/analysis [post]
 func (h *AIAnalysisHandler) CreateAnalysis(c *gin.Context) {
-	var req service.CreateAnalysisRequest
+	var req dto.CreateAnalysisRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		response.ErrorWithMessage(c, 1001, "参数错误: "+err.Error())
 		return
@@ -170,11 +171,11 @@ func (h *AIAnalysisHandler) TestToolCalling(c *gin.Context) {
 	}
 
 	// 创建一个测试分析请求
-	req := &service.CreateAnalysisRequest{
+	req := &dto.CreateAnalysisRequest{
 		BabyID:       babyID,
 		AnalysisType: entity.AIAnalysisTypeFeeding,
-		StartDate:    service.CustomTime{Time: time.Now().AddDate(0, 0, -7)},
-		EndDate:      service.CustomTime{Time: time.Now()},
+		StartDate:    dto.CustomTime{Time: time.Now().AddDate(0, 0, -7)},
+		EndDate:      dto.CustomTime{Time: time.Now()},
 	}
 
 	result, err := h.aiAnalysisService.CreateAnalysis(c.Request.Context(), req)
@@ -284,7 +285,7 @@ func (h *AIAnalysisHandler) GetAnalysisStats(c *gin.Context) {
 
 // BatchAnalyze 批量分析
 func (h *AIAnalysisHandler) BatchAnalyze(c *gin.Context) {
-	var req service.BatchAnalysisRequest
+	var req dto.BatchAnalysisRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		response.ErrorWithMessage(c, 1001, "参数错误: "+err.Error())
 		return

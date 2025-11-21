@@ -13,9 +13,21 @@ import (
 	"github.com/cloudwego/eino/schema"
 	"github.com/wxlbd/nutri-baby-server/internal/domain/entity"
 	"github.com/wxlbd/nutri-baby-server/internal/infrastructure/eino/cache"
+	"github.com/wxlbd/nutri-baby-server/internal/infrastructure/eino/prompts"
 	"github.com/wxlbd/nutri-baby-server/internal/infrastructure/eino/tools"
 	"github.com/wxlbd/nutri-baby-server/pkg/errors"
 	"go.uber.org/zap"
+)
+
+const (
+	// 最大迭代次数 - 防止无限循环
+	maxIterations = 10
+	// 最大消息历史数 - 控制上下文窗口大小
+	maxMessageHistory = 20
+	// 最小保留消息数 - 至少保留 system + user + 最近几轮
+	minMessageHistory = 6
+	// 早停机制 - 只要没有工具调用，就视为分析完成（因为我们强制要求返回JSON）
+	earlyStopThreshold = 1
 )
 
 // AnalysisChainBuilder 分析链构建器
@@ -48,8 +60,95 @@ func NewAnalysisChainBuilder(
 	}
 }
 
+// getDataTypesForAnalysis 根据分析类型获取需要的数据类型
+func (b *AnalysisChainBuilder) getDataTypesForAnalysis(analysisType entity.AIAnalysisType) []string {
+	switch analysisType {
+	case entity.AIAnalysisTypeFeeding:
+		return []string{"baby_info", "feeding", "diaper"}
+	case entity.AIAnalysisTypeSleep:
+		return []string{"baby_info", "sleep"}
+	case entity.AIAnalysisTypeGrowth:
+		return []string{"baby_info", "growth"}
+	case entity.AIAnalysisTypeHealth:
+		return []string{"baby_info", "feeding", "sleep", "growth", "diaper"}
+	case entity.AIAnalysisTypeBehavior:
+		return []string{"baby_info", "feeding", "sleep", "diaper"}
+	default:
+		return []string{"baby_info"}
+	}
+}
+
+// preloadBatchData 预加载批量数据
+func (b *AnalysisChainBuilder) preloadBatchData(
+	ctx context.Context,
+	babyID int64,
+	startDate, endDate time.Time,
+	analysisType entity.AIAnalysisType,
+) (string, error) {
+	dataTypes := b.getDataTypesForAnalysis(analysisType)
+
+	params := map[string]interface{}{
+		"baby_id":    float64(babyID),
+		"start_date": startDate.Format("2006-01-02"),
+		"end_date":   endDate.Format("2006-01-02"),
+		"data_types": dataTypes,
+	}
+
+	// 使用 BatchDataTools 执行批量查询
+	result, err := b.batchDataTools.Execute(ctx, params)
+	if err != nil {
+		return "", err
+	}
+
+	b.logger.Debug("批量数据预加载完成",
+		zap.Int64("baby_id", babyID),
+		zap.Strings("data_types", dataTypes),
+		zap.Int("result_size", len(result)),
+	)
+
+	return result, nil
+}
+
+// trimMessageHistory 修剪消息历史，保持在合理范围内
+func (b *AnalysisChainBuilder) trimMessageHistory(messages []*schema.Message) []*schema.Message {
+	if len(messages) <= maxMessageHistory {
+		return messages
+	}
+
+	// 保留 system prompt (第1条) 和 user prompt (第2条)
+	// 移除中间的旧消息，保留最新的消息
+	keepFromStart := 2
+	keepFromEnd := maxMessageHistory - keepFromStart
+
+	if keepFromEnd < minMessageHistory-keepFromStart {
+		keepFromEnd = minMessageHistory - keepFromStart
+	}
+
+	trimmed := make([]*schema.Message, 0, keepFromStart+keepFromEnd)
+	trimmed = append(trimmed, messages[:keepFromStart]...)
+	trimmed = append(trimmed, messages[len(messages)-keepFromEnd:]...)
+
+	b.logger.Debug("消息历史已修剪",
+		zap.Int("original_count", len(messages)),
+		zap.Int("trimmed_count", len(trimmed)),
+		zap.Int("removed_count", len(messages)-len(trimmed)),
+	)
+
+	return trimmed
+}
+
 // Analyze 执行AI分析
 func (b *AnalysisChainBuilder) Analyze(ctx context.Context, analysis *entity.AIAnalysis) (*entity.AIAnalysisResult, error) {
+	// 预加载批量数据
+	batchData, err := b.preloadBatchData(ctx, analysis.BabyID, analysis.StartDate, analysis.EndDate, analysis.AnalysisType)
+	if err != nil {
+		b.logger.Warn("批量数据预加载失败，将使用按需加载",
+			zap.Error(err),
+		)
+		// 预加载失败不影响后续流程，AI 可以按需调用工具
+		batchData = ""
+	}
+
 	// 绑定数据查询工具
 	toolBoundModel, err := b.chatModel.WithTools(b.dataTools.GetToolInfos())
 	if err != nil {
@@ -67,9 +166,19 @@ func (b *AnalysisChainBuilder) Analyze(ctx context.Context, analysis *entity.AIA
 		schema.UserMessage(userPrompt),
 	}
 
+	// 如果批量数据预加载成功，添加到初始消息中
+	if batchData != "" {
+		messages = append(messages, schema.UserMessage(fmt.Sprintf("以下是已预加载的数据，可以直接使用：\n%s", batchData)))
+	}
+
 	// 开始对话循环，处理工具调用
-	maxIterations := 10 // 防止无限循环
+	consecutiveNoToolCalls := 0 // 连续无工具调用的次数
 	for i := 0; i < maxIterations; i++ {
+		b.logger.Debug("AI分析迭代",
+			zap.Int("iteration", i+1),
+			zap.Int("message_count", len(messages)),
+		)
+
 		response, err := toolBoundModel.Generate(ctx, messages)
 		if err != nil {
 			return nil, errors.Wrap(errors.InternalError, "AI分析失败", err)
@@ -79,40 +188,64 @@ func (b *AnalysisChainBuilder) Analyze(ctx context.Context, analysis *entity.AIA
 
 		// 检查是否有工具调用
 		if len(response.ToolCalls) == 0 {
-			// 没有工具调用，说明分析完成
-			result, err := b.parseAnalysisResponse(response.Content, analysis.AnalysisType, analysis.BabyID)
-			if err != nil {
-				return nil, err
-			}
+			consecutiveNoToolCalls++
+			b.logger.Debug("无工具调用",
+				zap.Int("consecutive_count", consecutiveNoToolCalls),
+			)
 
-			return result, nil
-		}
-
-		// 处理工具调用（支持并行执行）
-		if b.enableParallel && len(response.ToolCalls) > 1 {
-			// 并行执行多个工具调用
-			toolResults := b.executeToolCallsParallel(ctx, response.ToolCalls)
-			messages = append(messages, toolResults...)
-		} else {
-			// 串行执行工具调用
-			for _, toolCall := range response.ToolCalls {
-				toolResult, err := b.executeToolCall(ctx, toolCall)
+			// 早停机制：连续 N 次没有工具调用，说明分析完成
+			if consecutiveNoToolCalls >= earlyStopThreshold {
+				b.logger.Debug("触发早停机制",
+					zap.Int("iteration", i+1),
+					zap.Int("consecutive_no_tool_calls", consecutiveNoToolCalls),
+				)
+				result, err := b.parseAnalysisResponse(response.Content, analysis.AnalysisType, analysis.BabyID)
 				if err != nil {
-					b.logger.Error("工具调用失败",
-						zap.String("tool_name", toolCall.Function.Name),
-						zap.Error(err),
-					)
-					toolResult = fmt.Sprintf("工具调用失败: %v", err)
+					return nil, err
 				}
 
-				// 添加工具调用结果到消息历史
-				messages = append(messages, &schema.Message{
-					Role:       schema.Tool,
-					Content:    toolResult,
-					ToolCallID: toolCall.ID,
-				})
+				b.logger.Info("AI分析完成",
+					zap.Int64("baby_id", analysis.BabyID),
+					zap.String("analysis_type", string(analysis.AnalysisType)),
+					zap.Int("iterations", i+1),
+					zap.Int("final_message_count", len(messages)),
+				)
+
+				return result, nil
+			}
+		} else {
+			// 有工具调用，重置计数器
+			consecutiveNoToolCalls = 0
+
+			// 处理工具调用（支持并行执行）
+			if b.enableParallel && len(response.ToolCalls) > 1 {
+				// 并行执行多个工具调用
+				toolResults := b.executeToolCallsParallel(ctx, response.ToolCalls)
+				messages = append(messages, toolResults...)
+			} else {
+				// 串行执行工具调用
+				for _, toolCall := range response.ToolCalls {
+					toolResult, err := b.executeToolCall(ctx, toolCall)
+					if err != nil {
+						b.logger.Error("工具调用失败",
+							zap.String("tool_name", toolCall.Function.Name),
+							zap.Error(err),
+						)
+						toolResult = fmt.Sprintf("工具调用失败: %v", err)
+					}
+
+					// 添加工具调用结果到消息历史
+					messages = append(messages, &schema.Message{
+						Role:       schema.Tool,
+						Content:    toolResult,
+						ToolCallID: toolCall.ID,
+					})
+				}
 			}
 		}
+
+		// 修剪消息历史，控制上下文窗口大小
+		messages = b.trimMessageHistory(messages)
 	}
 
 	return nil, errors.New(errors.InternalError, "分析超时，达到最大迭代次数")
@@ -120,6 +253,18 @@ func (b *AnalysisChainBuilder) Analyze(ctx context.Context, analysis *entity.AIA
 
 // GenerateDailyTips 生成每日建议
 func (b *AnalysisChainBuilder) GenerateDailyTips(ctx context.Context, baby *entity.Baby, date time.Time) ([]entity.DailyTip, error) {
+	// 预加载批量数据（每日建议通常需要综合数据）
+	// 使用 AIAnalysisTypeHealth 获取最全面的数据
+	endDate := date.Add(24 * time.Hour)
+	startDate := date.Add(-7 * 24 * time.Hour) // 获取过去7天的数据
+	batchData, err := b.preloadBatchData(ctx, baby.ID, startDate, endDate, entity.AIAnalysisTypeHealth)
+	if err != nil {
+		b.logger.Warn("批量数据预加载失败，将使用按需加载",
+			zap.Error(err),
+		)
+		batchData = ""
+	}
+
 	// 绑定数据查询工具
 	toolBoundModel, err := b.chatModel.WithTools(b.dataTools.GetToolInfos())
 	if err != nil {
@@ -134,9 +279,19 @@ func (b *AnalysisChainBuilder) GenerateDailyTips(ctx context.Context, baby *enti
 		schema.UserMessage(userPrompt),
 	}
 
+	// 如果批量数据预加载成功，添加到初始消息中
+	if batchData != "" {
+		messages = append(messages, schema.UserMessage(fmt.Sprintf("以下是已预加载的最近7天数据，可以直接使用：\n%s", batchData)))
+	}
+
 	// 对话循环处理工具调用
-	maxIterations := 10
+	consecutiveNoToolCalls := 0
 	for i := 0; i < maxIterations; i++ {
+		b.logger.Debug("每日建议生成迭代",
+			zap.Int("iteration", i+1),
+			zap.Int("message_count", len(messages)),
+		)
+
 		response, err := toolBoundModel.Generate(ctx, messages)
 		if err != nil {
 			return nil, errors.Wrap(errors.InternalError, "生成每日建议失败", err)
@@ -146,27 +301,38 @@ func (b *AnalysisChainBuilder) GenerateDailyTips(ctx context.Context, baby *enti
 
 		// 检查是否有工具调用
 		if len(response.ToolCalls) == 0 {
-			// 没有工具调用，解析建议
-			return b.parseDailyTipsResponse(response.Content)
-		}
-
-		// 处理工具调用
-		for _, toolCall := range response.ToolCalls {
-			toolResult, err := b.executeToolCall(ctx, toolCall)
-			if err != nil {
-				b.logger.Error("工具调用失败",
-					zap.String("tool_name", toolCall.Function.Name),
-					zap.Error(err),
+			consecutiveNoToolCalls++
+			if consecutiveNoToolCalls >= earlyStopThreshold {
+				b.logger.Info("每日建议生成完成",
+					zap.Int64("baby_id", baby.ID),
+					zap.Int("iterations", i+1),
 				)
-				toolResult = fmt.Sprintf("工具调用失败: %v", err)
+				// 没有工具调用，解析建议
+				return b.parseDailyTipsResponse(response.Content)
 			}
+		} else {
+			consecutiveNoToolCalls = 0
+			// 处理工具调用
+			for _, toolCall := range response.ToolCalls {
+				toolResult, err := b.executeToolCall(ctx, toolCall)
+				if err != nil {
+					b.logger.Error("工具调用失败",
+						zap.String("tool_name", toolCall.Function.Name),
+						zap.Error(err),
+					)
+					toolResult = fmt.Sprintf("工具调用失败: %v", err)
+				}
 
-			messages = append(messages, &schema.Message{
-				Role:       schema.Tool,
-				Content:    toolResult,
-				ToolCallID: toolCall.ID,
-			})
+				messages = append(messages, &schema.Message{
+					Role:       schema.Tool,
+					Content:    toolResult,
+					ToolCallID: toolCall.ID,
+				})
+			}
 		}
+
+		// 修剪消息历史
+		messages = b.trimMessageHistory(messages)
 	}
 
 	return nil, errors.New(errors.InternalError, "生成建议超时，达到最大迭代次数")
@@ -222,83 +388,20 @@ func (b *AnalysisChainBuilder) executeToolCallsParallel(ctx context.Context, too
 
 // buildSystemPrompt 构建系统提示
 func (b *AnalysisChainBuilder) buildSystemPrompt(analysisType entity.AIAnalysisType) string {
-	basePrompt := `你是一个专业的婴幼儿护理专家，擅长分析宝宝的各项数据并提供专业建议。
-
-你可以使用以下工具来获取宝宝的数据：
-- get_baby_info: 获取宝宝基本信息
-- get_feeding_data: 获取喂养记录
-- get_sleep_data: 获取睡眠记录  
-- get_growth_data: 获取成长记录
-- get_diaper_data: 获取尿布记录
-- get_vaccine_data: 获取疫苗记录
-
-请根据分析类型，主动调用相关工具获取数据，然后进行专业分析。
-
-**重要：最终必须只返回纯JSON格式的分析结果，不要包含任何解释文字或其他内容。**
-
-JSON格式要求：
-{
-  "score": 0-100的评分,
-  "insights": [洞察数组],
-  "alerts": [警告数组],
-  "patterns": [模式数组],
-  "predictions": [预测数组],
-  "user_friendly": {
-    "overall_summary": "总体评价，用温暖的语言概括宝宝的整体情况",
-    "score_explanation": "评分说明，用通俗的语言解释评分含义",
-    "key_highlights": [
-      {
-        "title": "亮点标题",
-        "description": "亮点描述，突出宝宝的优秀表现",
-        "icon": "建议的图标名称"
-      }
-    ],
-    "improvement_areas": [
-      {
-        "area": "改进领域",
-        "issue": "问题描述，用温和的语言",
-        "suggestion": "具体建议，可操作性强",
-        "priority": "优先级",
-        "difficulty": "实施难度"
-      }
-    ],
-    "next_step_actions": [
-      {
-        "action": "具体行动",
-        "timeline": "时间安排",
-        "benefit": "预期收益",
-        "how_to": "具体做法"
-      }
-    ],
-    "encouraging_words": "鼓励话语，给父母信心和支持"
-  }
-}
-
-**请确保响应只包含有效的JSON，不要添加任何前缀、后缀或解释文本。**
-
-每个洞察包含：type(string), title(string), description(string), priority(string), category(string)
-每个警告包含：level(string), type(string), title(string), description(string), suggestion(string), timestamp(time.Time)
-每个模式包含：pattern_type(string), description(string), confidence(float64), frequency(string), time_range(TimeRange对象，包含start和end时间)
-每个预测包含：prediction_type(string), value(string), confidence(float64), time_frame(string), reason(string)
-
-注意：
-- confidence字段必须是0-1之间的浮点数
-- timestamp字段使用ISO 8601格式的时间字符串
-- time_range对象格式：{"start": "2024-01-01T00:00:00Z", "end": "2024-01-02T00:00:00Z"}`
 
 	switch analysisType {
 	case entity.AIAnalysisTypeFeeding:
-		return basePrompt + "\n\n专业领域：婴幼儿喂养营养分析。重点关注喂养规律、营养摄入、消化健康等方面。"
+		return prompts.AnalysisSystem + "\n\n专业领域：婴幼儿喂养营养分析。重点关注喂养规律、营养摄入、消化健康等方面。"
 	case entity.AIAnalysisTypeSleep:
-		return basePrompt + "\n\n专业领域：婴幼儿睡眠质量分析。重点关注睡眠时长、作息规律、睡眠质量等方面。"
+		return prompts.AnalysisSystem + "\n\n专业领域：婴幼儿睡眠质量分析。重点关注睡眠时长、作息规律、睡眠质量等方面。"
 	case entity.AIAnalysisTypeGrowth:
-		return basePrompt + "\n\n专业领域：婴幼儿生长发育分析。重点关注身高体重增长、发育里程碑、WHO标准对比等方面。"
+		return prompts.AnalysisSystem + "\n\n专业领域：婴幼儿生长发育分析。重点关注身高体重增长、发育里程碑、WHO标准对比等方面。"
 	case entity.AIAnalysisTypeHealth:
-		return basePrompt + "\n\n专业领域：婴幼儿综合健康分析。需要综合多种数据进行整体健康评估。"
+		return prompts.AnalysisSystem + "\n\n专业领域：婴幼儿综合健康分析。需要综合多种数据进行整体健康评估。"
 	case entity.AIAnalysisTypeBehavior:
-		return basePrompt + "\n\n专业领域：婴幼儿行为模式分析。重点关注行为发展、习惯养成、个性特征等方面。"
+		return prompts.AnalysisSystem + "\n\n专业领域：婴幼儿行为模式分析。重点关注行为发展、习惯养成、个性特征等方面。"
 	default:
-		return basePrompt
+		return prompts.AnalysisSystem
 	}
 }
 
@@ -316,45 +419,14 @@ func (b *AnalysisChainBuilder) buildUserPrompt(analysis *entity.AIAnalysis) stri
 
 // buildDailyTipsSystemPrompt 构建每日建议系统提示
 func (b *AnalysisChainBuilder) buildDailyTipsSystemPrompt() string {
-	return `你是一个专业的育儿专家，擅长根据宝宝的日常数据提供个性化的育儿建议。
-
-你可以使用工具获取宝宝的各项数据，然后基于这些数据生成实用的育儿建议。
-
-请生成3-5条实用、具体的育儿建议，以JSON数组格式返回：
-[
-  {
-    "id": "唯一标识",
-    "title": "建议标题（不超过10个字）",
-    "description": "详细描述",
-    "type": "类型(feeding/sleep/growth/health/behavior)",
-    "priority": "优先级(high/medium/low)",
-    "action_url": "相关页面链接(可选)"
-  }
-]
-
-建议应该：
-1. 基于实际数据，具有针对性
-2. 实用性强，易于执行
-3. 考虑宝宝的月龄和发展阶段
-4. 包含具体的行动建议
-5. 使用友好的语气
-
-重要提醒：
-- 响应必须是纯JSON格式，不要使用任何代码块标记（如` + "`" + `json或` + "`" + `）
-- 不要添加任何前缀文字、后缀文字或解释说明
-- 不要使用反引号、星号或其他Markdown格式符号
-- 直接返回JSON数组，确保可以被JSON.parse()正确解析
-- 字符串值中避免使用特殊字符，如需要可以使用转义字符
-- title 字段不超过10个字
-- type 类型必须与内容相符
-`
+	return prompts.DailyTipsSystem
 }
 
 // buildDailyTipsUserPrompt 构建每日建议用户提示
 func (b *AnalysisChainBuilder) buildDailyTipsUserPrompt(baby *entity.Baby, date time.Time) string {
-	return fmt.Sprintf(`请为宝宝ID %d 生成 %s 的个性化育儿建议。
-
-请先获取宝宝的基本信息，然后获取最近7天的相关数据（喂养、睡眠、成长等），基于这些数据生成针对性的建议。`,
+	return fmt.Sprintf(`请分析宝宝（ID: %d）在 %s 的各项数据，生成今日的个性化育儿建议。
+	请检查上下文中是否已有足够数据，若不足请调用工具查询最近 7 天的详细记录（喂养、睡眠、成长等）。
+	记住：保持温暖亲切的语气，仅返回 JSON 数组。`,
 		baby.ID,
 		date.Format("2006-01-02"),
 	)
@@ -393,12 +465,12 @@ func (b *AnalysisChainBuilder) parseAnalysisResponse(content string, analysisTyp
 	b.logger.Debug("提取的JSON", zap.String("json", jsonContent))
 
 	var result struct {
-		Score        float64                    `json:"score"`
-		Insights     []entity.AIInsight         `json:"insights"`
-		Alerts       []entity.AIAlert           `json:"alerts"`
-		Patterns     []entity.AIPattern         `json:"patterns"`
-		Predictions  []entity.AIPrediction      `json:"predictions"`
-		UserFriendly *entity.UserFriendlyResult `json:"user_friendly"`
+		OverallScore     float64                        `json:"overall_score"`
+		OverallSummary   string                         `json:"overall_summary"`
+		KeyHighlights    []entity.UserFriendlyHighlight `json:"key_highlights"`
+		ImprovementAreas []entity.UserFriendlyImprovement `json:"improvement_areas"`
+		NextStepActions  []entity.UserFriendlyAction    `json:"next_step_actions"`
+		EncouragingWords string                         `json:"encouraging_words"`
 	}
 
 	if err := json.Unmarshal([]byte(jsonContent), &result); err != nil {
@@ -409,15 +481,21 @@ func (b *AnalysisChainBuilder) parseAnalysisResponse(content string, analysisTyp
 		return nil, errors.Wrap(errors.InternalError, "解析分析响应失败", err)
 	}
 
+	// 将新的简化结构转换为现有的AIAnalysisResult结构
 	return &entity.AIAnalysisResult{
 		BabyID:       babyID,
 		AnalysisType: analysisType,
-		Score:        result.Score,
-		Insights:     result.Insights,
-		Alerts:       result.Alerts,
-		Patterns:     result.Patterns,
-		Predictions:  result.Predictions,
-		UserFriendly: result.UserFriendly,
+		Score:        result.OverallScore,
+		// 简化结构不再直接返回insights/alerts/patterns/predictions数组
+		// 这些信息现在包含在user_friendly结构中
+		UserFriendly: &entity.UserFriendlyResult{
+			OverallSummary:   result.OverallSummary,
+			ScoreExplanation: "", // 新结构中没有评分说明，可以留空或生成
+			KeyHighlights:    result.KeyHighlights,
+			ImprovementAreas: result.ImprovementAreas,
+			NextStepActions:  result.NextStepActions,
+			EncouragingWords: result.EncouragingWords,
+		},
 	}, nil
 }
 

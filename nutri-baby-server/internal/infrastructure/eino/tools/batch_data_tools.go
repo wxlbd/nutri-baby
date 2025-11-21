@@ -53,13 +53,13 @@ type BatchDataRequest struct {
 
 // BatchDataResponse 批量数据响应
 type BatchDataResponse struct {
-	Type        string                  `json:"type"`
-	BabyInfo    *entity.Baby            `json:"baby_info,omitempty"`
-	FeedingData []entity.FeedingRecord  `json:"feeding_data,omitempty"`
-	SleepData   []entity.SleepRecord    `json:"sleep_data,omitempty"`
-	GrowthData  []entity.GrowthRecord   `json:"growth_data,omitempty"`
-	DiaperData  []entity.DiaperRecord   `json:"diaper_data,omitempty"`
-	Errors      map[string]string       `json:"errors,omitempty"`
+	Type        string                 `json:"type"`
+	BabyInfo    *entity.Baby           `json:"baby_info,omitempty"`
+	FeedingData []entity.FeedingRecord `json:"feeding_data,omitempty"`
+	SleepData   []entity.SleepRecord   `json:"sleep_data,omitempty"`
+	GrowthData  []entity.GrowthRecord  `json:"growth_data,omitempty"`
+	DiaperData  []entity.DiaperRecord  `json:"diaper_data,omitempty"`
+	Errors      map[string]string      `json:"errors,omitempty"`
 }
 
 // GetToolInfo 获取工具信息
@@ -93,12 +93,12 @@ func (t *BatchDataTools) GetToolInfo() *schema.ToolInfo {
 }
 
 // Execute 执行批量数据查询
-func (t *BatchDataTools) Execute(ctx context.Context, params map[string]interface{}) (string, error) {
+func (t *BatchDataTools) Execute(ctx context.Context, params map[string]any) (string, error) {
 	// 解析参数
 	babyID := int64(params["baby_id"].(float64))
 	startDateStr := params["start_date"].(string)
 	endDateStr := params["end_date"].(string)
-	dataTypesRaw := params["data_types"].([]interface{})
+	dataTypesRaw := params["data_types"].([]string)
 
 	startDate, err := time.Parse("2006-01-02", startDateStr)
 	if err != nil {
@@ -112,7 +112,7 @@ func (t *BatchDataTools) Execute(ctx context.Context, params map[string]interfac
 
 	dataTypes := make([]string, len(dataTypesRaw))
 	for i, dt := range dataTypesRaw {
-		dataTypes[i] = dt.(string)
+		dataTypes[i] = dt
 	}
 
 	// 并行获取数据
