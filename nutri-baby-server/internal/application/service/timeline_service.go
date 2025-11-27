@@ -63,7 +63,29 @@ func (s *TimelineService) GetTimeline(ctx context.Context, openID string, query 
 	recordQuery.Page = &pageVal
 	recordQuery.PageSize = &pageSizeVal
 
-	// 并发查询所有类型的记录
+	// 根据 recordType 决定查询哪些类型
+	recordType := query.RecordType
+	queryFeeding := recordType == "" || recordType == "feeding"
+	querySleep := recordType == "" || recordType == "sleep"
+	queryDiaper := recordType == "" || recordType == "diaper"
+	queryGrowth := recordType == "" || recordType == "growth"
+
+	// 计算需要查询的类型数量
+	queryCount := 0
+	if queryFeeding {
+		queryCount++
+	}
+	if querySleep {
+		queryCount++
+	}
+	if queryDiaper {
+		queryCount++
+	}
+	if queryGrowth {
+		queryCount++
+	}
+
+	// 并发查询所需类型的记录
 	var (
 		feedingRecords []dto.FeedingRecordDTO
 		sleepRecords   []dto.SleepRecordDTO
@@ -74,68 +96,76 @@ func (s *TimelineService) GetTimeline(ctx context.Context, openID string, query 
 		errs           []error
 	)
 
-	wg.Add(4)
+	wg.Add(queryCount)
 
 	// 查询喂养记录
-	go func() {
-		defer wg.Done()
-		records, _, err := s.feedingService.GetFeedingRecords(ctx, openID, recordQuery)
-		if err != nil {
-			mu.Lock()
-			errs = append(errs, err)
-			mu.Unlock()
-			s.logger.Warn("获取喂养记录失败", zap.Error(err))
-			return
-		}
-		feedingRecords = records
-	}()
+	if queryFeeding {
+		go func() {
+			defer wg.Done()
+			records, _, err := s.feedingService.GetFeedingRecords(ctx, openID, recordQuery)
+			if err != nil {
+				mu.Lock()
+				errs = append(errs, err)
+				mu.Unlock()
+				s.logger.Warn("获取喂养记录失败", zap.Error(err))
+				return
+			}
+			feedingRecords = records
+		}()
+	}
 
 	// 查询睡眠记录
-	go func() {
-		defer wg.Done()
-		records, _, err := s.sleepService.GetSleepRecords(ctx, openID, recordQuery)
-		if err != nil {
-			mu.Lock()
-			errs = append(errs, err)
-			mu.Unlock()
-			s.logger.Warn("获取睡眠记录失败", zap.Error(err))
-			return
-		}
-		sleepRecords = records
-	}()
+	if querySleep {
+		go func() {
+			defer wg.Done()
+			records, _, err := s.sleepService.GetSleepRecords(ctx, openID, recordQuery)
+			if err != nil {
+				mu.Lock()
+				errs = append(errs, err)
+				mu.Unlock()
+				s.logger.Warn("获取睡眠记录失败", zap.Error(err))
+				return
+			}
+			sleepRecords = records
+		}()
+	}
 
 	// 查询排泄记录
-	go func() {
-		defer wg.Done()
-		records, _, err := s.diaperService.GetDiaperRecords(ctx, openID, recordQuery)
-		if err != nil {
-			mu.Lock()
-			errs = append(errs, err)
-			mu.Unlock()
-			s.logger.Warn("获取排泄记录失败", zap.Error(err))
-			return
-		}
-		diaperRecords = records
-	}()
+	if queryDiaper {
+		go func() {
+			defer wg.Done()
+			records, _, err := s.diaperService.GetDiaperRecords(ctx, openID, recordQuery)
+			if err != nil {
+				mu.Lock()
+				errs = append(errs, err)
+				mu.Unlock()
+				s.logger.Warn("获取排泄记录失败", zap.Error(err))
+				return
+			}
+			diaperRecords = records
+		}()
+	}
 
 	// 查询成长记录
-	go func() {
-		defer wg.Done()
-		records, _, err := s.growthService.GetGrowthRecords(ctx, openID, recordQuery)
-		if err != nil {
-			mu.Lock()
-			errs = append(errs, err)
-			mu.Unlock()
-			s.logger.Warn("获取成长记录失败", zap.Error(err))
-			return
-		}
-		growthRecords = records
-	}()
+	if queryGrowth {
+		go func() {
+			defer wg.Done()
+			records, _, err := s.growthService.GetGrowthRecords(ctx, openID, recordQuery)
+			if err != nil {
+				mu.Lock()
+				errs = append(errs, err)
+				mu.Unlock()
+				s.logger.Warn("获取成长记录失败", zap.Error(err))
+				return
+			}
+			growthRecords = records
+		}()
+	}
 
 	wg.Wait()
 
 	// 如果所有查询都失败,返回错误
-	if len(errs) == 4 {
+	if len(errs) == queryCount {
 		return nil, errs[0]
 	}
 

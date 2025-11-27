@@ -2,9 +2,10 @@ package dto
 
 // TimelineQuery 时间线查询参数
 type TimelineQuery struct {
-	BabyID    string `form:"babyId" binding:"required"`
-	StartTime int64  `form:"startTime"`
-	EndTime   int64  `form:"endTime"`
+	BabyID     string `form:"babyId" binding:"required"`
+	StartTime  int64  `form:"startTime"`
+	EndTime    int64  `form:"endTime"`
+	RecordType string `form:"recordType"` // 可选: "feeding" | "sleep" | "diaper" | "growth" | "" (空表示全部)
 	PaginationRequest
 }
 

@@ -35,6 +35,7 @@ type DatabaseConfig struct {
 	Password        string `mapstructure:"password"`
 	DBName          string `mapstructure:"dbname"`
 	SSLMode         string `mapstructure:"sslmode"`
+	Timezone        string `mapstructure:"timezone"` // 时区配置，如 Asia/Shanghai
 	MaxOpenConns    int    `mapstructure:"max_open_conns"`
 	MaxIdleConns    int    `mapstructure:"max_idle_conns"`
 	ConnMaxLifetime int    `mapstructure:"conn_max_lifetime"`
@@ -46,8 +47,12 @@ type DatabaseConfig struct {
 
 // DSN 返回PostgreSQL连接字符串
 func (d DatabaseConfig) DSN() string {
-	return fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=%s",
+	dsn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=%s",
 		d.Host, d.Port, d.User, d.Password, d.DBName, d.SSLMode)
+	if d.Timezone != "" {
+		dsn += " timezone=" + d.Timezone
+	}
+	return dsn
 }
 
 // RedisConfig Redis配置
@@ -190,6 +195,7 @@ func GetDefaultConfig() *Config {
 			Password:          "",
 			DBName:            "nutri_baby",
 			SSLMode:           "disable",
+			Timezone:          "Asia/Shanghai", // 默认时区为中国北京时间
 			MaxOpenConns:      100,
 			MaxIdleConns:      10,
 			ConnMaxLifetime:   3600,

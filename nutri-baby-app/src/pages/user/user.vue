@@ -93,17 +93,6 @@
     <view class="section">
       <view class="section-title">设置</view>
       <wd-cell-group>
-        <wd-cell
-          title="消息提醒设置"
-          desc="管理订阅消息"
-          is-link
-          @click="goToSubscribeSettings"
-        >
-
-          <template #icon>
-            <wd-icon name="notification" size="20px" custom-class="cell-icon" />
-          </template>
-        </wd-cell>
         <!-- #ifdef MP-WEIXIN -->
         <button
           open-type="feedback"
@@ -395,7 +384,7 @@ const showAbout = () => {
   uni.showModal({
     title: "关于我们",
     content:
-      "宝宝喂养时刻是一款专为新手父母设计的育儿记录工具,帮助您科学、轻松地记录和追踪宝宝的成长数据。",
+      "宝宝喂养时刻是一款专为新手父母设计的育儿记录工具,帮助您科学、轻松地记录和追踪宝宝的成长数据。根据喂养记录生成每日喂养建议,帮助您更好地照顾宝宝。欢迎提出宝贵意见和建议，一起让宝宝健康成长！",
     showCancel: false,
   });
 };

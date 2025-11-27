@@ -19,6 +19,7 @@ func NewDatabase(cfg *config.Config) (*gorm.DB, error) {
 	gormConfig := &gorm.Config{
 		Logger: gormlogger.Default.LogMode(gormlogger.Info),
 		NowFunc: func() time.Time {
+			// 返回 UTC 时间，PostgreSQL 会根据 DSN 中的 timezone 参数自动转换
 			return time.Now().UTC()
 		},
 		// 禁用外键约束检查，避免迁移顺序问题

@@ -186,7 +186,7 @@ import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import { isLoggedIn } from '@/store/user'
 import { currentBaby } from '@/store/baby'
-import { getWeekStart, getMonthStart, formatDate } from '@/utils/date'
+import { formatDate } from '@/utils/date'
 import uCharts from '@qiun/ucharts'
 import { useUChart, columnChartPreset, lineChartPreset } from '@/composables/useUChart'
 
@@ -240,11 +240,14 @@ const {
   updateChartData: updateWeightChart
 } = useUChart('line', lineChartPreset())
 
-// 获取时间范围
+// 获取时间范围 - 改为过去7天/30天
 const getTimeRange = () => {
   const now = Date.now()
-  const start = timeRange.value === 'week' ? getWeekStart() : getMonthStart()
-  return { start, end: now }
+  const days = timeRange.value === 'week' ? 7 : 30
+  // 计算开始时间：今天往前推N天的00:00:00
+  const startDate = new Date(now - (days - 1) * 24 * 60 * 60 * 1000)
+  startDate.setHours(0, 0, 0, 0)
+  return { start: startDate.getTime(), end: now }
 }
 
 // 统计数据(从按日统计 API 获取)
@@ -597,7 +600,8 @@ const drawFeedingChart = () => {
       }],
       animation: true,
       color: ['#7dd3a2'],
-      padding: [15, 20, 0, 15] as [number, number, number, number],
+      padding: [15, 15, 10, 15] as [number, number, number, number],
+      dataLabel: true,
       enableScroll: enableScroll,
       legend: {
         show: false
@@ -606,16 +610,23 @@ const drawFeedingChart = () => {
         disableGrid: true,
         itemCount: itemCount,
         scrollShow: true,
-        boundaryGap: 'center'
+        scrollAlign: 'right',
+        boundaryGap: 'center',
+        fontSize: 11,
+        axisLineHeight: 15
       },
       yAxis: {
         gridType: 'dash',
-        dashLength: 2
+        dashLength: 2,
+        data: [{
+          min: 0,
+          max: null
+        }]
       },
       extra: {
         column: {
           type: 'group',
-          width: enableScroll ? 15 : 20 // 滚动时柱子稍窄一些
+          width: enableScroll ? 15 : 20
         }
       }
     }
@@ -1191,8 +1202,7 @@ onBeforeUnmount(() => {
 
 .chart-canvas {
   width: 100%;
-  height: 500rpx;
-  overflow: hidden;
+  height: 550rpx;
   display: block;
   background-color: #ffffff;
 }

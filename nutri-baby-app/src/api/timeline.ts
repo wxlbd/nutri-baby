@@ -7,6 +7,7 @@ export interface TimelineQuery {
   babyId: string
   startTime?: number
   endTime?: number
+  recordType?: 'feeding' | 'sleep' | 'diaper' | 'growth' | ''  // 可选，空表示全部
   page?: number
   pageSize?: number
 }

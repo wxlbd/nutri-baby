@@ -37,8 +37,8 @@
       <!-- </view> -->
     </view>
 
-    <!-- 可滚动的内容区域 -->
-    <view class="timeline-list" @scroll="handleScroll" scroll-y="true">
+    <!-- 内容区域 -->
+    <view class="timeline-list">
       <view v-if="isLoggedIn">
         <view v-if="groupedRecords.length === 0" class="empty-state">
           <wd-status-tip
@@ -130,15 +130,11 @@
       </view>
     </view>
 
-    <!-- 浮动日期显示 -->
-    <view v-if="currentScrollDate" class="floating-date-badge">
-      {{ currentScrollDate }}
-    </view>
   </view>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from "vue";
+import { ref, computed, onMounted, watch } from "vue";
 import { onReachBottom, onPullDownRefresh } from "@dcloudio/uni-app";
 import { isLoggedIn } from "@/store/user";
 import { currentBaby } from "@/store/baby";
@@ -174,8 +170,6 @@ const selectedDateTimestamp = ref<number[]>([]);
 // 时间线数据(从聚合 API 获取)
 const timelineItems = ref<TimelineItem[]>([]);
 const totalRecords = ref(0);
-// 滚动时动态更新的当前日期
-const currentScrollDate = ref<string>("");
 const dateTimePickerRef = ref<any>(null);
 // 日期选择器的最小和最大日期
 // 最小日期为当前宝宝的出生日期
@@ -295,12 +289,8 @@ const allRecords = computed<TimelineRecord[]>(() => {
     });
   });
 
-  // 根据类型筛选
-  if (recordTypeFilter.value === "all") {
-    return records;
-  } else {
-    return records.filter((record) => record.type === recordTypeFilter.value);
-  }
+  // 后端已根据 recordType 筛选，前端直接返回
+  return records;
 });
 
 // 按日期分组
@@ -409,35 +399,33 @@ const loadRecords = async (isRefresh: boolean = false, pullDown: boolean = false
       babyId,
       startTime,
       endTime,
+      recordType: recordTypeFilter.value === 'all' ? '' : recordTypeFilter.value,
       page: pageToLoad,
       pageSize: pageSize.value,
     });
 
+    const newItems = response.data.items || [];
+    
     // 如果是刷新，替换数据；否则追加数据
     if (isRefresh) {
-      timelineItems.value = response.data.items;
-      // 刷新后，如果有数据，下次加载第2页
-      if (response.data.items.length > 0) {
-        currentPage.value = 2;
-      }
+      timelineItems.value = newItems;
     } else {
-      timelineItems.value.push(...response.data.items);
-      // 加载更多后，如果有数据，页码递增
-      if (response.data.items.length > 0) {
-        currentPage.value++;
-      }
+      timelineItems.value.push(...newItems);
     }
+
+    // 页码递增（无论是否有数据，都要递增以避免重复请求同一页）
+    currentPage.value = pageToLoad + 1;
 
     totalRecords.value = response.data.total;
 
-    // 判断是否还有更多数据
-    const loadedCount = timelineItems.value.length;
-    hasMore.value = loadedCount < response.data.total;
+    // 判断是否还有更多数据：返回的数据少于请求的 pageSize，说明已经没有更多了
+    hasMore.value = newItems.length >= pageSize.value;
 
     console.log("[Timeline] 加载数据完成", {
       loadedPage: pageToLoad,
       nextPage: currentPage.value,
-      loadedCount,
+      newItemsCount: newItems.length,
+      totalLoaded: timelineItems.value.length,
       total: response.data.total,
       hasMore: hasMore.value,
     });
@@ -479,6 +467,13 @@ onMounted(() => {
   if (isLoggedIn.value) {
     loadRecords(true);
   }
+});
+
+// 监听记录类型变化，重新加载数据
+watch(recordTypeFilter, () => {
+  currentPage.value = 1;
+  hasMore.value = true;
+  loadRecords(true);
 });
 
 // 下拉刷新
@@ -581,15 +576,7 @@ const deleteRecord = async (record: TimelineRecord) => {
   });
 };
 
-// 加载更多状态计算
-const filteredHasMore = computed(() => {
-  if (!hasMore.value) return false;
-  if (recordTypeFilter.value === "all") return hasMore.value;
-
-  // 当筛选特定类型时，如果当前可见记录不足一页，则视为已加载完
-  return allRecords.value.length >= pageSize.value;
-});
-
+// 加载更多状态计算（后端已处理类型筛选，直接使用 hasMore）
 const loadMoreState = computed<string>(() => {
   if (!isLoggedIn.value || !currentBaby.value) return "finished";
 
@@ -597,7 +584,7 @@ const loadMoreState = computed<string>(() => {
 
   if (isLoadingMore.value) return "loading";
 
-  if (!filteredHasMore.value) return "finished";
+  if (!hasMore.value) return "finished";
 
   return "loading";
 });
@@ -606,27 +593,6 @@ const loadMoreState = computed<string>(() => {
 const loadMore = () => {
   console.log("[Timeline] 点击重试加载");
   loadRecords(false);
-};
-
-// 滚动事件处理 - 动态更新显示的日期
-const handleScroll = () => {
-  // 根据滚动位置找到当前可见的日期
-  const dateHeaders = document.querySelectorAll(".date-header");
-  let currentDate = "";
-
-  dateHeaders.forEach((header: any) => {
-    const rect = header.getBoundingClientRect();
-    // 如果日期标题在视口顶部附近，更新当前显示的日期
-    if (rect.top <= 120) {
-      currentDate = header.textContent || "";
-    }
-  });
-
-  if (currentDate) {
-    currentScrollDate.value = currentDate;
-  }
-
-  // 注意：自动加载更多由 onReachBottom 生命周期钩子处理
 };
 
 </script>
@@ -725,14 +691,12 @@ const handleScroll = () => {
   background: white;
 }
 
-// ========== 可滚动内容区域 ==========
+// ========== 内容区域 ==========
 .timeline-list {
-  flex: 1;
   padding: 20rpx;
   padding-top: 180rpx; // 为固定的顶部预留空间
-  overflow-y: auto;
-  overflow-x: hidden;
-  -webkit-overflow-scrolling: touch;
+  padding-bottom: 40rpx;
+  min-height: 100vh;
 }
 
 .empty-state {
@@ -912,33 +876,6 @@ const handleScroll = () => {
   justify-content: flex-end;
   gap: 12rpx;
   margin-top: 16rpx;
-}
-
-// ========== 浮动日期徽章 ==========
-.floating-date-badge {
-  position: fixed;
-  bottom: 100rpx;
-  right: 30rpx;
-  background: linear-gradient(135deg, #7dd3a2, #52c41a);
-  color: white;
-  padding: 16rpx 24rpx;
-  border-radius: 40rpx;
-  font-size: 28rpx;
-  font-weight: 600;
-  box-shadow: 0 4rpx 16rpx rgba(125, 211, 162, 0.35);
-  z-index: 50;
-  animation: slideInRight 0.3s ease;
-}
-
-@keyframes slideInRight {
-  from {
-    opacity: 0;
-    transform: translateX(60rpx);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
 }
 
 :deep(.wd-tabs) {
