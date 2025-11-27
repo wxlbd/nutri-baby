@@ -155,12 +155,12 @@ func (s *StatisticsService) getTodayFeedingStats(ctx context.Context, babyID int
 		stats.TotalCount += int(record.TotalCount)
 		switch record.FeedingType {
 		case entity.FeedingTypeBreast:
-			stats.BreastCount = int(record.TotalCount)
+			stats.BreastCount += int(record.TotalCount)
 		case entity.FeedingTypeBottle:
-			stats.BottleCount = int(record.TotalCount)
-			stats.BottleMl = record.TotalAmount
+			stats.BottleCount += int(record.TotalCount)
+			stats.BottleMl += record.TotalAmount
 		case entity.FeedingTypeFood:
-			stats.FoodCount = int(record.TotalCount)
+			stats.FoodCount += int(record.TotalCount)
 		}
 	}
 

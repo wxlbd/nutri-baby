@@ -26,14 +26,6 @@
                 <wd-radio value="night">夜间睡眠</wd-radio>
               </wd-radio-group>
             </wd-cell>
-            <wd-cell title="睡眠质量">
-              <wd-radio-group v-model="editForm.quality">
-                <wd-radio value="">无</wd-radio>
-                <wd-radio value="good">好</wd-radio>
-                <wd-radio value="fair">一般</wd-radio>
-                <wd-radio value="poor">差</wd-radio>
-              </wd-radio-group>
-            </wd-cell>
             <wd-textarea
               v-model="editForm.note"
               label="备注"
@@ -67,7 +59,6 @@
       <!-- 详细信息卡片 -->
       <wd-card title="详细信息">
         <wd-cell-group border>
-          <wd-cell v-if="record.quality" title="睡眠质量" :value="qualityText" />
           <wd-cell v-if="record.note" title="备注" :value="record.note" />
         </wd-cell-group>
       </wd-card>
@@ -108,7 +99,6 @@ const record = ref<SleepRecordResponse | null>(null)
 // 编辑表单
 const editForm = ref({
   sleepType: 'nap' as 'nap' | 'night',
-  quality: '' as '' | 'good' | 'fair' | 'poor',
   note: '',
 })
 
@@ -150,15 +140,6 @@ const sleepTypeText = computed(() => {
   return map[record.value.sleepType] || record.value.sleepType
 })
 
-const qualityText = computed(() => {
-  if (!record.value || !record.value.quality) return ''
-  const map: Record<string, string> = {
-    good: '好',
-    fair: '一般',
-    poor: '差',
-  }
-  return map[record.value.quality] || record.value.quality
-})
 
 const durationText = computed(() => {
   if (!record.value) return ''
@@ -187,7 +168,6 @@ function handleEdit() {
   // 填充编辑表单
   editForm.value = {
     sleepType: record.value.sleepType,
-    quality: (record.value.quality || '') as '' | 'good' | 'fair' | 'poor',
     note: record.value.note || '',
   }
 
@@ -208,9 +188,6 @@ async function handleSave() {
     sleepType: editForm.value.sleepType,
   }
 
-  if (editForm.value.quality) {
-    updateData.quality = editForm.value.quality
-  }
   if (editForm.value.note) {
     updateData.note = editForm.value.note
   }

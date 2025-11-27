@@ -12,8 +12,7 @@ import { get, post, put, del } from "@/utils/request";
 export interface SleepRecordResponse {
   recordId: string;
   babyId: string;
-  sleepType?: "nap" | "night";  // 新增：兼容后端sleepType字段
-  quality?: "nap" | "night";    // 旧字段：后端返回quality作为睡眠类型
+  sleepType: "nap" | "night";  // 睡眠类型
   startTime: number;
   endTime?: number;
   duration?: number;  // 秒数
@@ -57,7 +56,7 @@ export function transformSleepRecordResponse(response: SleepRecordResponse): any
     startTime: response.startTime,
     endTime: response.endTime,
     duration: response.duration ? Math.round(response.duration / 60) : undefined, // 秒转分钟
-    type: response.sleepType || response.quality || 'nap', // 优先使用sleepType，回退到quality
+    type: response.sleepType, // 直接使用sleepType字段
     createBy: response.createBy,
     createByName: '',
     createByAvatar: '',

@@ -100,7 +100,62 @@
             </view>
           </view>
         </view>
-
+        <!-- 快捷操作 - 4 列网格 -->
+        <view class="quick-actions">
+          <view class="action-title">快捷操作</view>
+          <view class="action-grid">
+            <view class="action-card action-feeding" @click="handleFeeding">
+              <view class="action-icon-wrapper">
+                <image
+                  src="/static/breastfeeding.svg"
+                  mode="aspectFill"
+                  class="action-icon"
+                />
+              </view>
+              <text class="action-label">记录喂养</text>
+            </view>
+            <view class="action-card action-sleep" @click="handleSleep">
+              <view class="action-icon-wrapper">
+                <image
+                  src="/static/moon_stars.svg"
+                  mode="aspectFill"
+                  class="action-icon"
+                />
+              </view>
+              <text class="action-label">记录睡眠</text>
+            </view>
+            <view class="action-card action-diaper" @click="handleDiaper">
+              <view class="action-icon-wrapper">
+                <image
+                  src="/static/blanket.svg"
+                  mode="aspectFill"
+                  class="action-icon"
+                />
+              </view>
+              <text class="action-label">记录尿布</text>
+            </view>
+            <view class="action-card action-growth" @click="handleGrowth">
+              <view class="action-icon-wrapper">
+                <image
+                  src="/static/monitoring.svg"
+                  mode="aspectFill"
+                  class="action-icon"
+                />
+              </view>
+              <text class="action-label">记录成长</text>
+            </view>
+            <!-- <view class="action-card action-ai" @click="handleAIAnalysis">
+              <view class="action-icon-wrapper">
+                <image
+                  src="/static/smart_toy.svg"
+                  mode="aspectFill"
+                  class="action-icon"
+                />
+              </view>
+              <text class="action-label">AI分析</text>
+            </view> -->
+          </view>
+        </view>
         <!-- 今日数据概览 - 2x2 网格 -->
         <view class="today-stats">
           <view class="card-header">
@@ -231,62 +286,7 @@
           </view>
         </view>
 
-        <!-- 快捷操作 - 4 列网格 -->
-        <view class="quick-actions">
-          <view class="action-title">快捷操作</view>
-          <view class="action-grid">
-            <view class="action-card action-feeding" @click="handleFeeding">
-              <view class="action-icon-wrapper">
-                <image
-                  src="/static/breastfeeding.svg"
-                  mode="aspectFill"
-                  class="action-icon"
-                />
-              </view>
-              <text class="action-label">记录喂养</text>
-            </view>
-            <view class="action-card action-sleep" @click="handleSleep">
-              <view class="action-icon-wrapper">
-                <image
-                  src="/static/moon_stars.svg"
-                  mode="aspectFill"
-                  class="action-icon"
-                />
-              </view>
-              <text class="action-label">记录睡眠</text>
-            </view>
-            <view class="action-card action-diaper" @click="handleDiaper">
-              <view class="action-icon-wrapper">
-                <image
-                  src="/static/blanket.svg"
-                  mode="aspectFill"
-                  class="action-icon"
-                />
-              </view>
-              <text class="action-label">记录尿布</text>
-            </view>
-            <view class="action-card action-growth" @click="handleGrowth">
-              <view class="action-icon-wrapper">
-                <image
-                  src="/static/monitoring.svg"
-                  mode="aspectFill"
-                  class="action-icon"
-                />
-              </view>
-              <text class="action-label">记录成长</text>
-            </view>
-            <!-- <view class="action-card action-ai" @click="handleAIAnalysis">
-              <view class="action-icon-wrapper">
-                <image
-                  src="/static/smart_toy.svg"
-                  mode="aspectFill"
-                  class="action-icon"
-                />
-              </view>
-              <text class="action-label">AI分析</text>
-            </view> -->
-          </view>
-        </view>
+
       </view>
     </view>
   </view>

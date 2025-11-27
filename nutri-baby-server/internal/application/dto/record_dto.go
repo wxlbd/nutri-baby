@@ -177,7 +177,7 @@ type CreateSleepRecordRequest struct {
 	StartTime int64  `json:"startTime" binding:"required"`
 	EndTime   int64  `json:"endTime"`
 	Duration  int    `json:"duration"` // 秒
-	Quality   string `json:"quality" binding:"omitempty,oneof=good fair poor"`
+	SleepType string `json:"sleepType" binding:"required,oneof=nap night"` // 睡眠类型：nap(小睡) | night(夜间长睡)
 	Note      string `json:"note"`
 }
 
@@ -188,7 +188,7 @@ type SleepRecordDTO struct {
 	StartTime  int64  `json:"startTime"`
 	EndTime    int64  `json:"endTime"`
 	Duration   int    `json:"duration"`
-	Quality    string `json:"quality"`
+	SleepType  string `json:"sleepType"` // 睡眠类型：nap(小睡) | night(夜间长睡)
 	Note       string `json:"note"`
 	CreateBy   string `json:"createBy"`
 	CreateTime int64  `json:"createTime"`
@@ -252,7 +252,7 @@ type UpdateSleepRecordRequest struct {
 	StartTime *int64  `json:"startTime,omitempty"`
 	EndTime   *int64  `json:"endTime,omitempty"`
 	Duration  *int    `json:"duration,omitempty"`
-	Quality   *string `json:"quality,omitempty" binding:"omitempty,oneof=good fair poor"`
+	SleepType *string `json:"sleepType,omitempty" binding:"omitempty,oneof=nap night"` // 睡眠类型：nap(小睡) | night(夜间长睡)
 	Note      *string `json:"note,omitempty"`
 }
 

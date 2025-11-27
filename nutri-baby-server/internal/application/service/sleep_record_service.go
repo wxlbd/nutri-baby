@@ -58,10 +58,8 @@ func (s *SleepRecordService) CreateSleepRecord(ctx context.Context, openID strin
 		duration = &req.Duration
 	}
 
-	sleepType := "nap"
-	if req.Quality == "night" {
-		sleepType = "night"
-	}
+	// 使用 SleepType 字段
+	sleepType := req.SleepType
 
 	record := &entity.SleepRecord{
 		BabyID:    babyIDInt64,
@@ -94,7 +92,7 @@ func (s *SleepRecordService) CreateSleepRecord(ctx context.Context, openID strin
 		StartTime:  record.StartTime,
 		EndTime:    resultEndTime,
 		Duration:   resultDuration,
-		Quality:    record.Type,
+		SleepType:  record.Type,
 		Note:       "",
 		CreateTime: record.CreatedAt,
 	}, nil
@@ -142,7 +140,7 @@ func (s *SleepRecordService) GetSleepRecords(ctx context.Context, openID string,
 			StartTime:  record.StartTime,
 			EndTime:    endTime,
 			Duration:   duration,
-			Quality:    record.Type,
+			SleepType:  record.Type,
 			Note:       "",
 			CreateTime: record.CreatedAt,
 		})
@@ -189,7 +187,7 @@ func (s *SleepRecordService) GetSleepRecordById(ctx context.Context, openID, rec
 		StartTime:  record.StartTime,
 		EndTime:    endTime,
 		Duration:   duration,
-		Quality:    record.Type,
+		SleepType:  record.Type,
 		Note:       "",
 		CreateTime: record.CreatedAt,
 	}, nil
@@ -235,8 +233,9 @@ func (s *SleepRecordService) UpdateSleepRecord(ctx context.Context, openID, reco
 		updated = true
 	}
 
-	if req.Quality != nil && *req.Quality != record.Type {
-		record.Type = *req.Quality
+	// 处理 SleepType 字段更新
+	if req.SleepType != nil && *req.SleepType != record.Type {
+		record.Type = *req.SleepType
 		updated = true
 	}
 
