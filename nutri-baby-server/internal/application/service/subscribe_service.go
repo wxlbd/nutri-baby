@@ -5,12 +5,11 @@ import (
 	"encoding/json"
 	"time"
 
-	"go.uber.org/zap"
-
 	"github.com/wxlbd/nutri-baby-server/internal/application/dto"
 	"github.com/wxlbd/nutri-baby-server/internal/domain/entity"
 	"github.com/wxlbd/nutri-baby-server/internal/domain/repository"
 	errs "github.com/wxlbd/nutri-baby-server/pkg/errors"
+	"go.uber.org/zap"
 )
 
 type SubscribeService struct {
@@ -186,6 +185,9 @@ func (s *SubscribeService) SendSubscribeMessage(
 		req.Page,
 		"formal",
 	)
+	if err != nil {
+		s.logger.Error("Failed to send subscribe message", zap.Error(err))
+	}
 
 	// 4. 标记授权为已使用(无论发送成功或失败,授权都会被消耗)
 	s.logger.Info("🔄 [SendSubscribeMessage] STEP 4 - 标记授权为已使用",
