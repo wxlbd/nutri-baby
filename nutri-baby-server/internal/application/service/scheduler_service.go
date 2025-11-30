@@ -20,7 +20,8 @@ type SchedulerService struct {
 	vaccineScheduleRepo repository.BabyVaccineScheduleRepository // 新增: 疫苗接种日程仓储
 	feedingRecordRepo   repository.FeedingRecordRepository
 	userRepo            repository.UserRepository
-	babyRepo            repository.BabyRepository // 新增: 宝宝仓储
+	babyRepo            repository.BabyRepository             // 新增: 宝宝仓储
+	collaboratorRepo    repository.BabyCollaboratorRepository // 协作者仓储
 	subscribeService    *SubscribeService
 	aiAnalysisService   AIAnalysisService // 新增: AI分析服务
 	strategyFactory     *FeedingReminderStrategyFactory
@@ -32,7 +33,8 @@ func NewSchedulerService(
 	vaccineScheduleRepo repository.BabyVaccineScheduleRepository,
 	feedingRecordRepo repository.FeedingRecordRepository,
 	userRepo repository.UserRepository,
-	babyRepo repository.BabyRepository, // 新增
+	babyRepo repository.BabyRepository,
+	collaboratorRepo repository.BabyCollaboratorRepository, // 协作者仓储
 	subscribeService *SubscribeService,
 	aiAnalysisService AIAnalysisService, // 新增: AI分析服务
 	cfg *config.Config,
@@ -46,9 +48,10 @@ func NewSchedulerService(
 		vaccineScheduleRepo: vaccineScheduleRepo,
 		feedingRecordRepo:   feedingRecordRepo,
 		userRepo:            userRepo,
-		babyRepo:            babyRepo, // 新增
+		babyRepo:            babyRepo,
+		collaboratorRepo:    collaboratorRepo,
 		subscribeService:    subscribeService,
-		aiAnalysisService:   aiAnalysisService, // 新增
+		aiAnalysisService:   aiAnalysisService,
 		strategyFactory:     NewFeedingReminderStrategyFactory(cfg),
 		logger:              logger,
 	}
@@ -249,40 +252,33 @@ func (s *SchedulerService) CancelFeedingReminderTask(jobTag string) {
 }
 
 // executeFeedingReminder 执行喂养提醒逻辑
+// 向宝宝的所有协作者发送喂养提醒消息
 func (s *SchedulerService) executeFeedingReminder(ctx context.Context, record *entity.FeedingRecord) error {
 	s.logger.Info("开始执行喂养提醒",
 		zap.String("recordID", strconv.FormatInt(record.ID, 10)),
 		zap.String("babyID", strconv.FormatInt(record.BabyID, 10)),
 		zap.String("feedingType", record.FeedingType))
 
-	// 获取用户的 OpenID
-	user, err := s.userRepo.FindByID(ctx, record.CreatedBy)
+	// 1. 获取宝宝的所有协作者
+	collaborators, err := s.collaboratorRepo.FindByBabyID(ctx, record.BabyID)
 	if err != nil {
-		s.logger.Error("获取用户信息失败",
-			zap.Int64("userID", record.CreatedBy),
+		s.logger.Error("获取宝宝协作者列表失败",
+			zap.Int64("babyID", record.BabyID),
 			zap.Error(err))
 		return err
 	}
 
-	// 1. 根据喂养类型获取模板类型
+	if len(collaborators) == 0 {
+		s.logger.Warn("宝宝没有协作者，跳过提醒",
+			zap.Int64("babyID", record.BabyID))
+		return nil
+	}
+
+	// 2. 根据喂养类型获取模板类型
 	templateType := s.getTemplateType(record.FeedingType)
 	if templateType == "" {
 		s.logger.Warn("不支持的喂养类型，无法发送提醒",
 			zap.String("feedingType", record.FeedingType))
-		return nil
-	}
-
-	// 2. 检查用户是否已授权此提醒
-	hasAuth, err := s.subscribeService.CheckAuthorizationStatus(ctx, user.OpenID, templateType)
-	if err != nil {
-		s.logger.Error("检查授权状态失败", zap.Error(err))
-		return err
-	}
-
-	if !hasAuth {
-		s.logger.Info("用户未授权此提醒，跳过发送",
-			zap.String("templateType", templateType),
-			zap.String("openID", user.OpenID))
 		return nil
 	}
 
@@ -297,20 +293,63 @@ func (s *SchedulerService) executeFeedingReminder(ctx context.Context, record *e
 	hoursSince := time.Since(lastFeedingTime).Hours()
 	messageData := strategy.BuildMessageData(record, lastFeedingTime, hoursSince)
 
-	// 4. 发送微信订阅消息
-	sendReq := &dto.SendMessageRequest{
-		OpenID:     user.OpenID,
-		TemplateID: strategy.GetTemplateID(),
-		Data:       messageData,
-		Page:       "pages/record/feeding/feeding",
-	}
+	// 4. 遍历所有协作者，分别发送消息
+	var sentCount, failCount int
+	for _, collaborator := range collaborators {
+		// 跳过已过期的临时协作者
+		if collaborator.IsExpired() {
+			s.logger.Debug("跳过已过期的临时协作者",
+				zap.Int64("userID", collaborator.UserID))
+			continue
+		}
 
-	err = s.subscribeService.SendSubscribeMessage(ctx, sendReq)
-	if err != nil {
-		s.logger.Error("发送微信消息失败",
-			zap.Error(err),
-			zap.String("recordID", strconv.FormatInt(record.ID, 10)))
-		return err
+		// 获取协作者的用户信息
+		user, err := s.userRepo.FindByID(ctx, collaborator.UserID)
+		if err != nil {
+			s.logger.Warn("获取协作者用户信息失败",
+				zap.Int64("userID", collaborator.UserID),
+				zap.Error(err))
+			failCount++
+			continue
+		}
+
+		// 检查用户是否已授权此提醒
+		hasAuth, err := s.subscribeService.CheckAuthorizationStatus(ctx, user.OpenID, templateType)
+		if err != nil {
+			s.logger.Warn("检查授权状态失败",
+				zap.String("openID", user.OpenID),
+				zap.Error(err))
+			failCount++
+			continue
+		}
+
+		if !hasAuth {
+			s.logger.Debug("用户未授权此提醒，跳过发送",
+				zap.String("templateType", templateType),
+				zap.String("openID", user.OpenID))
+			continue
+		}
+
+		// 发送微信订阅消息
+		sendReq := &dto.SendMessageRequest{
+			OpenID:     user.OpenID,
+			TemplateID: strategy.GetTemplateID(),
+			Data:       messageData,
+			Page:       "pages/record/feeding/feeding",
+		}
+
+		if err := s.subscribeService.SendSubscribeMessage(ctx, sendReq); err != nil {
+			s.logger.Warn("发送微信消息失败",
+				zap.String("openID", user.OpenID),
+				zap.Error(err))
+			failCount++
+			continue
+		}
+
+		sentCount++
+		s.logger.Debug("向协作者发送提醒成功",
+			zap.String("openID", user.OpenID),
+			zap.String("role", collaborator.Role))
 	}
 
 	// 5. 标记提醒已发送
@@ -318,15 +357,17 @@ func (s *SchedulerService) executeFeedingReminder(ctx context.Context, record *e
 	record.ReminderSent = true
 	record.ReminderTime = &now
 
-	err = s.feedingRecordRepo.Update(ctx, record)
-	if err != nil {
+	if err := s.feedingRecordRepo.Update(ctx, record); err != nil {
 		s.logger.Error("更新记录状态失败", zap.Error(err))
 		return err
 	}
 
-	s.logger.Info("喂养提醒发送成功",
+	s.logger.Info("喂养提醒发送完成",
 		zap.String("recordID", strconv.FormatInt(record.ID, 10)),
-		zap.String("templateType", templateType))
+		zap.String("templateType", templateType),
+		zap.Int("sentCount", sentCount),
+		zap.Int("failCount", failCount),
+		zap.Int("totalCollaborators", len(collaborators)))
 
 	return nil
 }
