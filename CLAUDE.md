@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## 项目概述
 
-**宝宝喂养记录 (BabyLog+)** - 一个全栈育儿记录系统，帮助新手父母记录和追踪婴幼儿的成长数据。
+**宝宝喂养日志 (BabyLog+)** - 一个全栈育儿记录系统，帮助新手父母记录和追踪婴幼儿的成长数据。
 
 ### 核心特性
 

@@ -522,7 +522,7 @@ host: localhost:8080
 info:
   contact: {}
   description: 全栈育儿记录系统 API 文档
-  title: 宝宝喂养记录 API
+  title: 宝宝喂养日志 API
   version: "1.0"
   x-logo:
     url: https://example.com/logo.png

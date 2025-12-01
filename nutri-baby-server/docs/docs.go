@@ -1927,7 +1927,7 @@ var SwaggerInfo = &swag.Spec{
 	Host:             "localhost:8080",
 	BasePath:         "/",
 	Schemes:          []string{"http", "https"},
-	Title:            "宝宝喂养记录 API",
+	Title:            "宝宝喂养日志 API",
 	Description:      "全栈育儿记录系统 API 文档",
 	InfoInstanceName: "swagger",
 	SwaggerTemplate:  docTemplate,

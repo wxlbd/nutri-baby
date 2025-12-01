@@ -1,6 +1,6 @@
 package main
 
-// @title 宝宝喂养记录 API
+// @title 宝宝喂养日志 API
 // @version 1.0
 // @description 全栈育儿记录系统 API 文档
 // @host localhost:8080
