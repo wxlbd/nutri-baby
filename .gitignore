@@ -59,3 +59,4 @@ nutri-baby-server/cmd/server/__debug_*
 
 # 前端spec-workflow配置
 nutri-baby-app/.spec-workflow/
+/nutri-baby-server/.spec-workflow/
