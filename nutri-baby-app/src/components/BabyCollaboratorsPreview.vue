@@ -12,7 +12,7 @@
     <view class="collaborators-header">
       <wd-icon name="people" size="16" color="#32dc6e" />
       <text class="collaborators-count">
-        协作者
+        亲友团
         ({{ collaboratorsPreview.total }})
       </text>
       <wd-icon name="arrow-right" size="12" color="#999" class="arrow" />
@@ -40,10 +40,18 @@
         <view class="collaborator-info">
           <text class="collaborator-name">{{ collaborator.nickName }}</text>
           <text class="collaborator-role">
-            {{ getRoleLabel(collaborator.role) }}
-            <text v-if="collaborator.isCreator" class="creator-badge">
-              创建者
+            <text v-if="isCurrentUser(collaborator) && !collaborator.relationship" class="set-relationship-mini" @click.stop="handleSetMyRelationship">
+              <wd-icon name="edit" size="10" />
+              设置关系
             </text>
+            <template v-else>
+              {{ collaborator.relationship || '未设置关系' }}
+              <text class="role-separator">·</text>
+              {{ getRoleLabel(collaborator.role) }}
+              <text v-if="collaborator.isCreator" class="creator-badge">
+                创建者
+              </text>
+            </template>
           </text>
         </view>
       </view>
@@ -59,7 +67,13 @@
 
     <!-- 空状态 -->
     <view v-else class="collaborators-empty">
-      <text>仅你一人</text>
+      <view class="empty-content">
+        <text class="empty-text">仅你一人</text>
+        <text class="set-relationship-hint" @click.stop="$emit('set-relationship')">
+          <wd-icon name="edit" size="12" />
+          设置关系
+        </text>
+      </view>
     </view>
   </view>
 </template>
@@ -68,6 +82,7 @@
 import { computed } from 'vue';
 import type { BabyCollaborator } from '@/types/collaborator';
 import { getRoleLabel } from '@/utils/permission';
+import { getUserInfo } from '@/store/user';
 
 interface Props {
   babyId: string;
@@ -80,6 +95,7 @@ const props = withDefaults(defineProps<Props>(), {
 
 const emit = defineEmits<{
   'go-to-collaborators': [babyId: string];
+  'set-relationship': [];
 }>();
 
 /**
@@ -103,6 +119,17 @@ const collaboratorsPreview = computed(() => {
 
 const goToCollaborators = () => {
   emit('go-to-collaborators', props.babyId);
+};
+
+// 判断是否是当前用户
+const isCurrentUser = (collaborator: BabyCollaborator): boolean => {
+  const currentUser = getUserInfo();
+  return currentUser?.openid === collaborator.openid;
+};
+
+// 设置自己的关系
+const handleSetMyRelationship = () => {
+  emit('set-relationship');
 };
 </script>
 
@@ -230,5 +257,62 @@ const goToCollaborators = () => {
   text-align: center;
   color: $color-text-tertiary;
   font-size: $font-size-sm;
+}
+
+.empty-content {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-sm;
+  align-items: center;
+}
+
+.empty-text {
+  color: $color-text-tertiary;
+  font-size: $font-size-sm;
+}
+
+.set-relationship-hint {
+  color: $color-primary;
+  font-size: $font-size-sm;
+  font-weight: $font-weight-medium;
+  cursor: pointer;
+  padding: $spacing-sm $spacing-md;
+  border-radius: $radius-md;
+  background: rgba(50, 220, 110, 0.1);
+  transition: all $transition-base;
+  display: flex;
+  align-items: center;
+  gap: $spacing-xs;
+  border: 1rpx solid rgba(50, 220, 110, 0.2);
+
+  &:active {
+    background: rgba(50, 220, 110, 0.2);
+    transform: scale(0.98);
+  }
+}
+
+.role-separator {
+  color: $color-border-light;
+  margin: 0 4rpx;
+}
+
+.set-relationship-mini {
+  color: $color-primary;
+  font-size: $font-size-xs;
+  font-weight: $font-weight-medium;
+  cursor: pointer;
+  padding: 2rpx 6rpx;
+  border-radius: 4rpx;
+  background: rgba(50, 220, 110, 0.1);
+  transition: all $transition-base;
+  display: inline-flex;
+  align-items: center;
+  gap: 2rpx;
+  border: 1rpx solid rgba(50, 220, 110, 0.2);
+
+  &:active {
+    background: rgba(50, 220, 110, 0.2);
+    transform: scale(0.95);
+  }
 }
 </style>
