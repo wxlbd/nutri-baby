@@ -36,23 +36,25 @@ type BabyDTO struct {
 	UpdateTime int64  `json:"updateTime"`
 }
 
-// CollaboratorDTO 协作者DTO
+// FamilyMemberDTO 亲友团成员DTO (原 CollaboratorDTO)
 type CollaboratorDTO struct {
-	OpenID     string `json:"openid"`
-	NickName   string `json:"nickName"`
-	AvatarURL  string `json:"avatarUrl"`
-	Role       string `json:"role"`       // admin, editor, viewer
-	AccessType string `json:"accessType"` // permanent, temporary
-	ExpiresAt  *int64 `json:"expiresAt"`  // 临时权限过期时间
-	JoinTime   int64  `json:"joinTime"`
+	OpenID       string `json:"openid"`
+	NickName     string `json:"nickName"`
+	AvatarURL    string `json:"avatarUrl"`
+	Role         string `json:"role"`         // admin, editor, viewer
+	Relationship string `json:"relationship"` // 与宝宝的关系: 爸爸, 妈妈, 爷爷, 奶奶, 外公, 外婆等
+	AccessType   string `json:"accessType"`   // permanent, temporary
+	ExpiresAt    *int64 `json:"expiresAt"`    // 临时权限过期时间
+	JoinTime     int64  `json:"joinTime"`
 }
 
-// InviteCollaboratorRequest 邀请协作者请求 (微信分享/二维码)
+// InviteFamilyMemberRequest 邀请亲友团成员请求 (微信分享/二维码)
 type InviteCollaboratorRequest struct {
-	InviteType string `json:"inviteType" binding:"required,oneof=share qrcode"` // share=微信分享, qrcode=二维码
-	Role       string `json:"role" binding:"required,oneof=admin editor viewer"`
-	AccessType string `json:"accessType" binding:"required,oneof=permanent temporary"`
-	ExpiresAt  *int64 `json:"expiresAt"` // 仅当 accessType=temporary 时需要
+	InviteType   string `json:"inviteType" binding:"required,oneof=share qrcode"` // share=微信分享, qrcode=二维码
+	Role         string `json:"role" binding:"required,oneof=admin editor viewer"`
+	Relationship string `json:"relationship"` // 与宝宝的关系: 爸爸, 妈妈, 爷爷, 奶奶, 外公, 外婆等
+	AccessType   string `json:"accessType" binding:"required,oneof=permanent temporary"`
+	ExpiresAt    *int64 `json:"expiresAt"` // 仅当 accessType=temporary 时需要
 }
 
 // BabyInvitationDTO 宝宝邀请信息DTO
@@ -84,6 +86,12 @@ type QRCodeParams struct {
 type JoinBabyRequest struct {
 	BabyID string `json:"babyId" binding:"required"` // 宝宝ID
 	Token  string `json:"token" binding:"required"`  // 临时token(验证邀请有效性)
+}
+
+// UpdateFamilyMemberRequest 更新亲友团成员请求
+type UpdateFamilyMemberRequest struct {
+	Role         string `json:"role" binding:"omitempty,oneof=admin editor viewer"` // 角色
+	Relationship string `json:"relationship"`                                       // 与宝宝的关系
 }
 
 // InvitationDetailDTO 邀请详情DTO (用于通过短码查询)

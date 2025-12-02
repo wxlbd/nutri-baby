@@ -31,17 +31,18 @@ func (Baby) TableName() string {
 	return "babies"
 }
 
-// BabyCollaborator 宝宝协作者实体 (替代 FamilyMember)
+// BabyFamilyMember 宝宝亲友团成员实体 (原 BabyCollaborator)
 type BabyCollaborator struct {
-	ID         int64                 `gorm:"primaryKey;column:id" json:"id"`                                            // 雪花ID主键
-	BabyID     int64                 `gorm:"column:baby_id;index;uniqueIndex:idx_baby_user" json:"babyId"`              // 宝宝ID (引用Baby.ID)
-	UserID     int64                 `gorm:"column:user_id;index;uniqueIndex:idx_baby_user" json:"userId"`              // 用户ID (引用User.ID)
-	Role       string                `gorm:"column:role;type:varchar(16)" json:"role"`                                  // 角色 admin, editor, viewer
-	AccessType string                `gorm:"column:access_type;type:varchar(16);default:'permanent'" json:"accessType"` // 访问类型 permanent, temporary
-	ExpiresAt  *int64                `gorm:"column:expires_at" json:"expiresAt"`                                        // 临时权限过期时间(毫秒时间戳)
-	CreatedAt  int64                 `gorm:"column:created_at;autoCreateTime:milli" json:"createdAt"`                   // 创建时间(毫秒时间戳)
-	UpdatedAt  int64                 `gorm:"column:updated_at;autoUpdateTime:milli" json:"updatedAt"`                   // 更新时间(毫秒时间戳)
-	DeletedAt  soft_delete.DeletedAt `gorm:"column:deleted_at;softDelete:milli;index;default:0" json:"-"`               // 软删除(毫秒时间戳)
+	ID           int64                 `gorm:"primaryKey;column:id" json:"id"`                                            // 雪花ID主键
+	BabyID       int64                 `gorm:"column:baby_id;index;uniqueIndex:idx_baby_user" json:"babyId"`              // 宝宝ID (引用Baby.ID)
+	UserID       int64                 `gorm:"column:user_id;index;uniqueIndex:idx_baby_user" json:"userId"`              // 用户ID (引用User.ID)
+	Role         string                `gorm:"column:role;type:varchar(16)" json:"role"`                                  // 角色 admin, editor, viewer
+	Relationship string                `gorm:"column:relationship;type:varchar(32)" json:"relationship"`                  // 与宝宝的关系: 爸爸, 妈妈, 爷爷, 奶奶, 外公, 外婆, 叔叔, 阿姨等
+	AccessType   string                `gorm:"column:access_type;type:varchar(16);default:'permanent'" json:"accessType"` // 访问类型 permanent, temporary
+	ExpiresAt    *int64                `gorm:"column:expires_at" json:"expiresAt"`                                        // 临时权限过期时间(毫秒时间戳)
+	CreatedAt    int64                 `gorm:"column:created_at;autoCreateTime:milli" json:"createdAt"`                   // 创建时间(毫秒时间戳)
+	UpdatedAt    int64                 `gorm:"column:updated_at;autoUpdateTime:milli" json:"updatedAt"`                   // 更新时间(毫秒时间戳)
+	DeletedAt    soft_delete.DeletedAt `gorm:"column:deleted_at;softDelete:milli;index;default:0" json:"-"`               // 软删除(毫秒时间戳)
 
 	// 关联
 	User *User `gorm:"foreignKey:UserID;references:ID" json:"user,omitempty"`

@@ -11,13 +11,15 @@ type TimelineQuery struct {
 
 // TimelineItem 时间线记录项
 type TimelineItem struct {
-	RecordType string `json:"recordType"` // "feeding" | "sleep" | "diaper" | "growth"
-	RecordID   string `json:"recordId"`
-	BabyID     string `json:"babyId"`
-	EventTime  int64  `json:"eventTime"` // 统一时间戳
-	Detail     any    `json:"detail"`    // 具体记录详情
-	CreateBy   string `json:"createBy"`
-	CreateTime int64  `json:"createTime"`
+	RecordType   string `json:"recordType"` // "feeding" | "sleep" | "diaper" | "growth"
+	RecordID     string `json:"recordId"`
+	BabyID       string `json:"babyId"`
+	EventTime    int64  `json:"eventTime"` // 统一时间戳
+	Detail       any    `json:"detail"`    // 具体记录详情
+	CreateBy     string `json:"createBy"`
+	CreateTime   int64  `json:"createTime"`
+	CreateName   string `json:"createName"`   // 创建者昵称
+	Relationship string `json:"relationship"` // 创建者与宝宝的关系
 }
 
 // TimelineResponse 时间线响应
