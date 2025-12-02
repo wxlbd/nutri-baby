@@ -61,19 +61,30 @@ install-tools:
 	go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
 	go install github.com/swaggo/swag/cmd/swag@latest
 
+# 设置本地配置 (从模板复制)
+setup-config:
+	@if [ ! -f "config/config.yaml" ]; then \
+		echo "📋 创建本地配置文件 config/config.yaml..."; \
+		cp config/config.yaml.example config/config.yaml; \
+		echo "✅ 配置文件已创建，请编辑 config/config.yaml 填入真实凭证"; \
+	else \
+		echo "⚠️ 配置文件 config/config.yaml 已存在"; \
+	fi
+
 # 帮助
 help:
 	@echo "可用命令:"
-	@echo "  make wire         - 生成Wire依赖注入代码"
-	@echo "  make swag         - 生成Swagger API文档"
-	@echo "  make run          - 运行服务"
-	@echo "  make build        - 构建可执行文件 (当前OS)"
-	@echo "  make build-linux  - 构建 Linux amd64 可执行文件"
-	@echo "  make build-all    - 构建所有平台 (macOS + Linux amd64)"
-	@echo "  make test         - 运行测试"
-	@echo "  make fmt          - 格式化代码"
-	@echo "  make lint         - 代码检查"
-	@echo "  make migrate-up   - 数据库迁移升级"
-	@echo "  make migrate-down - 数据库迁移降级"
-	@echo "  make clean        - 清理生成文件"
-	@echo "  make install-tools- 安装开发工具"
+	@echo "  make wire          - 生成Wire依赖注入代码"
+	@echo "  make swag          - 生成Swagger API文档"
+	@echo "  make run           - 运行服务"
+	@echo "  make build         - 构建可执行文件 (当前OS)"
+	@echo "  make build-linux   - 构建 Linux amd64 可执行文件"
+	@echo "  make build-all     - 构建所有平台 (macOS + Linux amd64)"
+	@echo "  make test          - 运行测试"
+	@echo "  make fmt           - 格式化代码"
+	@echo "  make lint          - 代码检查"
+	@echo "  make migrate-up    - 数据库迁移升级"
+	@echo "  make migrate-down  - 数据库迁移降级"
+	@echo "  make clean         - 清理生成文件"
+	@echo "  make install-tools - 安装开发工具"
+	@echo "  make setup-config  - 从模板创建配置文件"

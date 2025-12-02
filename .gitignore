@@ -60,3 +60,15 @@ nutri-baby-server/cmd/server/__debug_*
 # 前端spec-workflow配置
 nutri-baby-app/.spec-workflow/
 /nutri-baby-server/.spec-workflow/
+
+# 配置文件（包含敏感信息）
+# 以下文件包含数据库密码、API密钥等敏感信息，不应提交到版本控制
+# 使用 .example 文件作为模板
+nutri-baby-server/config/config.yaml
+nutri-baby-app/.env.development
+nutri-baby-app/.env.production
+# 但允许提交模板文件
+!nutri-baby-server/config/*.example
+!nutri-baby-app/.env.*.example
+/SECURITY_CLEANUP.md
+/SET_UP_CONFIG.md
