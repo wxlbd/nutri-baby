@@ -1,10 +1,11 @@
 /**
- * 宝宝协作者管理状态 (去家庭化架构)
+ * 宝宝亲友团管理状态 (去家庭化架构)
  *
  * 核心逻辑:
- * - 每个宝宝有独立的协作者列表
- * - 支持通过微信分享和二维码邀请协作者
- * - 协作者拥有不同的角色权限: admin / editor / viewer
+ * - 每个宝宝有独立的亲友团列表
+ * - 支持通过微信分享和二维码邀请亲友
+ * - 亲友拥有不同的角色权限: admin / editor / viewer
+ * - 每个亲友可以设置与宝宝的关系: 爸爸、妈妈、爷爷、奶奶等
  * - 支持永久和临时访问权限
  */
 import { ref } from 'vue'
@@ -217,6 +218,61 @@ export async function updateCollaboratorRole(
     }
   } catch (error: any) {
     console.error('update collaborator role error:', error)
+    uni.showToast({
+      title: error.message || '更新失败',
+      icon: 'none',
+    })
+    throw error
+  }
+}
+
+/**
+ * 更新亲友团成员信息
+ * - 管理员可以更新任何成员的角色和关系
+ * - 普通用户可以更新自己的关系
+ *
+ * API: PUT /babies/{babyId}/collaborators/{openid}
+ * 请求: { role?: 'admin' | 'editor' | 'viewer', relationship?: string }
+ * 响应: { code, message, data: null }
+ */
+export async function updateFamilyMember(
+  babyId: string,
+  openid: string,
+  data: { role?: 'admin' | 'editor' | 'viewer'; relationship?: string }
+): Promise<boolean> {
+  try {
+    const response = await put(
+      `/babies/${babyId}/collaborators/${openid}`,
+      data
+    )
+
+    if (response.code === 0) {
+      // 更新本地缓存
+      const list = collaborators.value.get(babyId)
+      if (list) {
+        const collaborator = list.find(c => c.openid === openid)
+        if (collaborator) {
+          if (data.role) {
+            collaborator.role = data.role
+          }
+          if (data.relationship !== undefined) {
+            collaborator.relationship = data.relationship
+          }
+          collaborators.value.set(babyId, [...list])
+        }
+      }
+
+      uni.showToast({
+        title: '更新成功',
+        icon: 'success',
+      })
+
+      return true
+    } else {
+      throw new Error(response.message || '更新失败')
+    }
+  } catch (error: any) {
+    console.error('update family member error:', error)
     uni.showToast({
       title: error.message || '更新失败',
       icon: 'none',

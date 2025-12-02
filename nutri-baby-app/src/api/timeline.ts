@@ -22,6 +22,8 @@ export interface TimelineItem {
   detail: any // 具体记录详情 (FeedingRecordDTO | SleepRecordDTO | DiaperRecordDTO | GrowthRecordDTO)
   createBy: string
   createTime: number
+  createName: string   // 创建者昵称
+  relationship: string // 创建者与宝宝的关系
 }
 
 // ======================== 时间线响应 ========================
