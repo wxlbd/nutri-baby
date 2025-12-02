@@ -44,6 +44,7 @@ export interface BabyCollaborator {
   nickName: string
   avatarUrl: string
   role: CollaboratorRole
+  relationship?: string // 与宝宝的关系: 爸爸, 妈妈, 爷爷, 奶奶, 外公, 外婆等
   accessType: AccessType
   expiresAt?: number // 临时权限过期时间
   joinTime: number
