@@ -94,6 +94,7 @@ func (s *SleepRecordService) CreateSleepRecord(ctx context.Context, openID strin
 		Duration:   resultDuration,
 		SleepType:  record.Type,
 		Note:       "",
+		CreateBy:   strconv.FormatInt(record.CreatedBy, 10),
 		CreateTime: record.CreatedAt,
 	}, nil
 }
@@ -142,6 +143,7 @@ func (s *SleepRecordService) GetSleepRecords(ctx context.Context, openID string,
 			Duration:   duration,
 			SleepType:  record.Type,
 			Note:       "",
+			CreateBy:   strconv.FormatInt(record.CreatedBy, 10),
 			CreateTime: record.CreatedAt,
 		})
 	}
@@ -189,6 +191,7 @@ func (s *SleepRecordService) GetSleepRecordById(ctx context.Context, openID, rec
 		Duration:   duration,
 		SleepType:  record.Type,
 		Note:       "",
+		CreateBy:   strconv.FormatInt(record.CreatedBy, 10),
 		CreateTime: record.CreatedAt,
 	}, nil
 }

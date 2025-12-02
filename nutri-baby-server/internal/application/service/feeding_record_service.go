@@ -155,6 +155,7 @@ func (s *FeedingRecordService) CreateFeedingRecord(ctx context.Context, openID s
 		Note:               utils.DerefString(req.Note),
 		FeedingTime:        record.Time,
 		ActualCompleteTime: record.ActualCompleteTime,
+		CreateBy:           strconv.FormatInt(record.CreatedBy, 10),
 		CreateTime:         record.CreatedAt,
 	}, nil
 }
@@ -223,6 +224,7 @@ func (s *FeedingRecordService) GetFeedingRecords(ctx context.Context, openID str
 			Note:               note,
 			FeedingTime:        record.Time,
 			ActualCompleteTime: record.ActualCompleteTime,
+			CreateBy:           strconv.FormatInt(record.CreatedBy, 10),
 			CreateTime:         record.CreatedAt,
 		})
 	}

@@ -107,6 +107,7 @@ func (s *GrowthRecordService) CreateGrowthRecord(ctx context.Context, openID str
 		HeadCircumference: record.HeadCircumference,
 		Note:              resultNote,
 		MeasureTime:       record.Time,
+		CreateBy:          strconv.FormatInt(record.CreatedBy, 10),
 		CreateTime:        record.CreatedAt,
 	}, nil
 }
@@ -150,6 +151,7 @@ func (s *GrowthRecordService) GetGrowthRecords(ctx context.Context, openID strin
 			HeadCircumference: record.HeadCircumference,
 			Note:              note,
 			MeasureTime:       record.Time,
+			CreateBy:          strconv.FormatInt(record.CreatedBy, 10),
 			CreateTime:        record.CreatedAt,
 		})
 	}
@@ -192,6 +194,7 @@ func (s *GrowthRecordService) GetGrowthRecordById(ctx context.Context, openID, r
 		HeadCircumference: record.HeadCircumference,
 		Note:              note,
 		MeasureTime:       record.Time,
+		CreateBy:          strconv.FormatInt(record.CreatedBy, 10),
 		CreateTime:        record.CreatedAt,
 	}, nil
 }

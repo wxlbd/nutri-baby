@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"sort"
+	"strconv"
 	"sync"
 
 	"go.uber.org/zap"
@@ -174,7 +175,7 @@ func (s *TimelineService) GetTimeline(ctx context.Context, openID string, query 
 
 	// 转换喂养记录
 	for _, record := range feedingRecords {
-		items = append(items, dto.TimelineItem{
+		item := dto.TimelineItem{
 			RecordType: "feeding",
 			RecordID:   record.RecordID,
 			BabyID:     record.BabyID,
@@ -182,12 +183,14 @@ func (s *TimelineService) GetTimeline(ctx context.Context, openID string, query 
 			Detail:     record,
 			CreateBy:   record.CreateBy,
 			CreateTime: record.CreateTime,
-		})
+		}
+		s.enrichTimelineItem(ctx, &item)
+		items = append(items, item)
 	}
 
 	// 转换睡眠记录
 	for _, record := range sleepRecords {
-		items = append(items, dto.TimelineItem{
+		item := dto.TimelineItem{
 			RecordType: "sleep",
 			RecordID:   record.RecordID,
 			BabyID:     record.BabyID,
@@ -195,12 +198,14 @@ func (s *TimelineService) GetTimeline(ctx context.Context, openID string, query 
 			Detail:     record,
 			CreateBy:   record.CreateBy,
 			CreateTime: record.CreateTime,
-		})
+		}
+		s.enrichTimelineItem(ctx, &item)
+		items = append(items, item)
 	}
 
 	// 转换排泄记录
 	for _, record := range diaperRecords {
-		items = append(items, dto.TimelineItem{
+		item := dto.TimelineItem{
 			RecordType: "diaper",
 			RecordID:   record.RecordID,
 			BabyID:     record.BabyID,
@@ -208,12 +213,14 @@ func (s *TimelineService) GetTimeline(ctx context.Context, openID string, query 
 			Detail:     record,
 			CreateBy:   record.CreateBy,
 			CreateTime: record.CreateTime,
-		})
+		}
+		s.enrichTimelineItem(ctx, &item)
+		items = append(items, item)
 	}
 
 	// 转换成长记录
 	for _, record := range growthRecords {
-		items = append(items, dto.TimelineItem{
+		item := dto.TimelineItem{
 			RecordType: "growth",
 			RecordID:   record.RecordID,
 			BabyID:     record.BabyID,
@@ -221,7 +228,9 @@ func (s *TimelineService) GetTimeline(ctx context.Context, openID string, query 
 			Detail:     record,
 			CreateBy:   record.CreateBy,
 			CreateTime: record.CreateTime,
-		})
+		}
+		s.enrichTimelineItem(ctx, &item)
+		items = append(items, item)
 	}
 
 	// 按 eventTime 倒序排序 (最新的在前面)
@@ -251,4 +260,45 @@ func (s *TimelineService) GetTimeline(ctx context.Context, openID string, query 
 		Page:     page,
 		PageSize: pageSize,
 	}, nil
+}
+
+// enrichTimelineItem 丰富时间线项的创建者信息
+func (s *TimelineService) enrichTimelineItem(ctx context.Context, item *dto.TimelineItem) {
+	if item.CreateBy == "" {
+		return
+	}
+
+	// 将 CreateBy 从 string 转换为 int64 (用户ID)
+	userID, err := strconv.ParseInt(item.CreateBy, 10, 64)
+	if err != nil {
+		s.logger.Warn("解析创建者ID失败", zap.String("createBy", item.CreateBy), zap.Error(err))
+		return
+	}
+
+	// 获取创建者用户信息
+	user, err := s.userRepo.FindByID(ctx, userID)
+	if err != nil {
+		s.logger.Warn("获取创建者用户信息失败", zap.Int64("userId", userID), zap.Error(err))
+		return
+	}
+
+	// 设置创建者昵称
+	item.CreateName = user.NickName
+
+	// 获取创建者与宝宝的关系
+	babyIDInt64, err := strconv.ParseInt(item.BabyID, 10, 64)
+	if err != nil {
+		s.logger.Warn("解析宝宝ID失败", zap.String("babyId", item.BabyID), zap.Error(err))
+		return
+	}
+
+	collaborator, err := s.collaboratorRepo.FindByBabyAndUser(ctx, babyIDInt64, userID)
+	if err != nil {
+		s.logger.Warn("获取创建者关系失败", zap.Int64("userId", userID), zap.String("babyId", item.BabyID), zap.Error(err))
+		return
+	}
+
+	if collaborator != nil {
+		item.Relationship = collaborator.Relationship
+	}
 }

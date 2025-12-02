@@ -291,13 +291,14 @@ func (s *BabyService) GetCollaborators(ctx context.Context, babyID, openID strin
 		}
 
 		result = append(result, dto.CollaboratorDTO{
-			OpenID:     collab.User.OpenID,
-			NickName:   collab.User.NickName,
-			AvatarURL:  collab.User.AvatarURL,
-			Role:       collab.Role,
-			AccessType: collab.AccessType,
-			ExpiresAt:  collab.ExpiresAt,
-			JoinTime:   collab.CreatedAt,
+			OpenID:       collab.User.OpenID,
+			NickName:     collab.User.NickName,
+			AvatarURL:    collab.User.AvatarURL,
+			Role:         collab.Role,
+			Relationship: collab.Relationship,
+			AccessType:   collab.AccessType,
+			ExpiresAt:    collab.ExpiresAt,
+			JoinTime:     collab.CreatedAt,
 		})
 	}
 
@@ -383,14 +384,15 @@ func (s *BabyService) InviteCollaborator(ctx context.Context, babyID, openID str
 
 	// 创建邀请记录 (ID由snowflake自动生成)
 	invitation := &entity.BabyInvitation{
-		BabyID:     babyIDInt64,
-		UserID:     user.ID,
-		Token:      token,
-		ShortCode:  shortCode,
-		InviteType: req.InviteType,
-		Role:       req.Role,
-		AccessType: req.AccessType,
-		ExpiresAt:  req.ExpiresAt, // 只保留协作者权限的过期时间
+		BabyID:       babyIDInt64,
+		UserID:       user.ID,
+		Token:        token,
+		ShortCode:    shortCode,
+		InviteType:   req.InviteType,
+		Role:         req.Role,
+		Relationship: req.Relationship,
+		AccessType:   req.AccessType,
+		ExpiresAt:    req.ExpiresAt, // 只保留协作者权限的过期时间
 	}
 
 	if err = s.invitationRepo.Create(ctx, invitation); err != nil {
@@ -495,13 +497,14 @@ func (s *BabyService) JoinBaby(ctx context.Context, openID string, req *dto.Join
 		return nil, errors.New(errors.ParamError, "您已经是该宝宝的协作者")
 	}
 
-	// 创建协作者记录
+	// 创建亲友团成员记录
 	collaborator := &entity.BabyCollaborator{
-		BabyID:     invitation.BabyID,
-		UserID:     user.ID,
-		Role:       invitation.Role,
-		AccessType: invitation.AccessType,
-		ExpiresAt:  invitation.ExpiresAt,
+		BabyID:       invitation.BabyID,
+		UserID:       user.ID,
+		Role:         invitation.Role,
+		Relationship: invitation.Relationship,
+		AccessType:   invitation.AccessType,
+		ExpiresAt:    invitation.ExpiresAt,
 	}
 
 	if err := s.collaboratorRepo.Create(ctx, collaborator); err != nil {
@@ -611,6 +614,81 @@ func (s *BabyService) UpdateCollaboratorRole(ctx context.Context, babyID, openID
 	return s.collaboratorRepo.Update(ctx, collaborator)
 }
 
+// UpdateFamilyMember 更新亲友团成员信息 (角色和关系)
+func (s *BabyService) UpdateFamilyMember(ctx context.Context, babyID, openID, targetOpenID string, req *dto.UpdateFamilyMemberRequest) error {
+	// 转换babyID from string to int64
+	babyIDInt64, err := strconv.ParseInt(babyID, 10, 64)
+	if err != nil {
+		return errors.New(errors.ParamError, "invalid baby id format")
+	}
+
+	// 获取用户信息以获取UserID
+	user, err := s.userRepo.FindByOpenID(ctx, openID)
+	if err != nil {
+		return err
+	}
+
+	// 检查权限：管理员可以更新任何成员信息，用户可以更新自己的关系
+	isAdmin, err := s.collaboratorRepo.IsAdmin(ctx, babyIDInt64, user.ID)
+	if err != nil {
+		return err
+	}
+
+	// 如果不是管理员，只能更新自己的关系
+	if !isAdmin {
+		// 检查是否是更新自己的信息
+		targetUser, err := s.userRepo.FindByOpenID(ctx, targetOpenID)
+		if err != nil {
+			return err
+		}
+
+		// 如果不是自己，拒绝访问
+		if user.ID != targetUser.ID {
+			return errors.New(errors.PermissionDenied, "只有管理员可以更新其他成员信息")
+		}
+
+		// 如果是更新自己的信息，只能更新关系，不能更新角色
+		if req.Role != "" {
+			return errors.New(errors.PermissionDenied, "只有管理员可以修改角色")
+		}
+	}
+
+	// 获取目标用户信息
+	targetUser, err := s.userRepo.FindByOpenID(ctx, targetOpenID)
+	if err != nil {
+		return err
+	}
+
+	collaborator, err := s.collaboratorRepo.FindByBabyAndUser(ctx, babyIDInt64, targetUser.ID)
+	if err != nil {
+		return err
+	}
+	if collaborator == nil {
+		return errors.New(errors.NotFound, "亲友团成员不存在")
+	}
+
+	// 不能修改创建者角色
+	baby, err := s.babyRepo.FindByID(ctx, babyIDInt64)
+	if err != nil {
+		return err
+	}
+
+	// 更新角色 (如果提供且不是创建者)
+	if req.Role != "" {
+		if baby.UserID == targetUser.ID {
+			return errors.New(errors.ParamError, "不能修改创建者的角色")
+		}
+		collaborator.Role = req.Role
+	}
+
+	// 更新关系
+	if req.Relationship != "" {
+		collaborator.Relationship = req.Relationship
+	}
+
+	return s.collaboratorRepo.Update(ctx, collaborator)
+}
+
 // checkPermission 检查用户是否有权限访问宝宝
 func (s *BabyService) checkPermission(ctx context.Context, babyIDInt64 int64, openID string) error {
 	// 获取用户信息以获取UserID
@@ -657,11 +735,12 @@ func (s *BabyService) copyCollaborators(ctx context.Context, sourceBabyIDInt64, 
 		}
 
 		newCollaborators = append(newCollaborators, &entity.BabyCollaborator{
-			BabyID:     targetBabyIDInt64,
-			UserID:     collab.UserID,
-			Role:       collab.Role,
-			AccessType: collab.AccessType,
-			ExpiresAt:  collab.ExpiresAt,
+			BabyID:       targetBabyIDInt64,
+			UserID:       collab.UserID,
+			Role:         collab.Role,
+			Relationship: collab.Relationship,
+			AccessType:   collab.AccessType,
+			ExpiresAt:    collab.ExpiresAt,
 		})
 	}
 

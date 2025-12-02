@@ -199,6 +199,27 @@ func (h *BabyHandler) UpdateCollaboratorRole(c *gin.Context) {
 	response.Success(c, nil)
 }
 
+// UpdateFamilyMember 更新亲友团成员信息
+// @Router /v1/babies/:babyId/collaborators/:openid [put]
+func (h *BabyHandler) UpdateFamilyMember(c *gin.Context) {
+	babyID := c.Param("babyId")
+	targetOpenID := c.Param("openid")
+	openID := c.GetString("openid")
+
+	var req dto.UpdateFamilyMemberRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.ErrorWithMessage(c, 1001, "参数错误: "+err.Error())
+		return
+	}
+
+	if err := h.babyService.UpdateFamilyMember(c.Request.Context(), babyID, openID, targetOpenID, &req); err != nil {
+		response.Error(c, err)
+		return
+	}
+
+	response.Success(c, nil)
+}
+
 // GenerateInviteQRCode 生成邀请小程序码
 // @Router /v1/babies/:babyId/qrcode [get]
 func (h *BabyHandler) GenerateInviteQRCode(c *gin.Context) {

@@ -79,12 +79,13 @@ func NewRouter(
 				babies.PUT("/:babyId", babyHandler.UpdateBaby)
 				babies.DELETE("/:babyId", babyHandler.DeleteBaby)
 
-				// 协作者管理
+				// 亲友团管理 (原协作者管理)
 				babies.GET("/:babyId/collaborators", babyHandler.GetCollaborators)
 				babies.POST("/:babyId/collaborators/invite", babyHandler.InviteCollaborator)
 				babies.POST("/join", babyHandler.JoinBaby) // 通过邀请码加入
 				babies.DELETE("/:babyId/collaborators/:openid", babyHandler.RemoveCollaborator)
 				babies.PUT("/:babyId/collaborators/:openid/role", babyHandler.UpdateCollaboratorRole)
+				babies.PUT("/:babyId/collaborators/:openid", babyHandler.UpdateFamilyMember) // 更新亲友团成员信息(角色+关系)
 
 				// 小程序码生成
 				babies.GET("/:babyId/qrcode", babyHandler.GenerateInviteQRCode)
