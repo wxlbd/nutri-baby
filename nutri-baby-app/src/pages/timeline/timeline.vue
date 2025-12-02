@@ -76,7 +76,13 @@
                       <image :src="record.iconUrl" mode="aspectFill" class="type-icon" />
                       <text class="type-name">{{ record.typeName }}</text>
                     </view>
-                    <text class="record-time">{{ record.timeText }}</text>
+                    <view class="record-meta">
+                      <text class="record-time">{{ record.timeText }}</text>
+                      <text class="record-creator">
+                        {{ record.createName }}
+                        <text v-if="record.relationship" class="relationship">({{ record.relationship }})</text>
+                      </text>
+                    </view>
                   </view>
                 </template>
 
@@ -202,6 +208,8 @@ interface TimelineRecord {
   timeText: string;
   detail: string;
   originalRecord: any;
+  createName: string;   // 创建者昵称
+  relationship: string; // 创建者与宝宝的关系
 }
 
 // 转换时间线数据为展示格式
@@ -286,6 +294,8 @@ const allRecords = computed<TimelineRecord[]>(() => {
       timeText: formatDate(item.eventTime, "HH:mm"),
       detail,
       originalRecord: item.detail,
+      createName: item.createName || '',
+      relationship: item.relationship || '',
     });
   });
 
@@ -818,7 +828,7 @@ const loadMore = () => {
 .record-header {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
   width: 100%;
 }
 
@@ -826,6 +836,13 @@ const loadMore = () => {
   display: flex;
   align-items: center;
   gap: 12rpx;
+}
+
+.record-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4rpx;
 }
 
 .type-icon {
@@ -842,6 +859,19 @@ const loadMore = () => {
 .record-time {
   font-size: 24rpx;
   color: #999;
+}
+
+.record-creator {
+  font-size: 22rpx;
+  color: #666;
+  display: flex;
+  align-items: center;
+  gap: 4rpx;
+}
+
+.relationship {
+  color: #7dd3a2;
+  font-weight: 500;
 }
 
 .record-details {
