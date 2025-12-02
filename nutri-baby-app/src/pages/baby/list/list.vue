@@ -92,6 +92,7 @@
             :baby-id="baby.babyId"
             :collaborators="getCollaborators(baby.babyId)"
             @go-to-collaborators="() => handleGoToCollaborators(baby.babyId, baby.name)"
+            @set-relationship="() => handleSetRelationship(baby.babyId, baby.name)"
           />
 
           <!-- 编辑和删除按钮（并排，各占50%） -->
@@ -130,6 +131,55 @@
       </wd-status-tip>
     </view>
 
+    <!-- 关系设置弹窗 -->
+    <wd-popup
+      v-model="relationshipDialog.show"
+      position="bottom"
+      custom-style="height: auto; padding: 0"
+      safe-area-inset-bottom
+    >
+      <view class="relationship-popup">
+        <view class="popup-header">
+          <text class="popup-title">设置与{{ relationshipDialog.babyName }}的关系</text>
+          <wd-icon name="close" @click="relationshipDialog.show = false" />
+        </view>
+
+        <!-- 自定义输入 -->
+        <view class="custom-input-section">
+          <wd-input
+            v-model="relationshipDialog.customRelationship"
+            placeholder="或输入自定义关系"
+            clearable
+          />
+        </view>
+
+        <!-- 预设选项 -->
+        <view class="preset-options">
+          <view
+            v-for="option in relationshipOptions"
+            :key="option.value"
+            class="option-item"
+            :class="{ active: relationshipDialog.selectedRelationship === option.value }"
+            @click="selectRelationship(option.value)"
+          >
+            <text>{{ option.label }}</text>
+          </view>
+        </view>
+
+        <!-- 确认按钮 -->
+        <view class="popup-footer">
+          <wd-button
+            type="primary"
+            size="large"
+            block
+            @click="confirmRelationship"
+          >
+            确认
+          </wd-button>
+        </view>
+      </view>
+    </wd-popup>
+
     <!-- 添加按钮 -->
     <view class="add-button">
       <wd-button type="primary" size="large" block @click="handleAdd">
@@ -141,11 +191,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from "vue";
+import { ref, onMounted, computed } from "vue";
 import { currentBabyId, setCurrentBaby, getCollaborators, setCollaborators } from "@/store/baby";
-import { userInfo, setDefaultBaby } from "@/store/user";
+import { userInfo, setDefaultBaby, getUserInfo } from "@/store/user";
 import { calculateAge } from "@/utils/date";
 import BabyCollaboratorsPreview from "@/components/BabyCollaboratorsPreview.vue";
+import { updateFamilyMember } from "@/store/collaborator";
 
 // 直接调用 API 层
 import * as babyApi from "@/api/baby";
@@ -153,6 +204,30 @@ import * as collaboratorApi from "@/api/collaborator";
 
 // 宝宝列表(从 API 获取)
 const babyList = ref<babyApi.BabyProfileResponse[]>([]);
+
+// 关系设置弹窗状态
+const relationshipDialog = ref({
+  show: false,
+  babyId: '',
+  babyName: '',
+  selectedRelationship: '',
+  customRelationship: '',
+});
+
+// 关系选项
+const relationshipOptions = [
+  { label: '爸爸', value: '爸爸' },
+  { label: '妈妈', value: '妈妈' },
+  { label: '爷爷', value: '爷爷' },
+  { label: '奶奶', value: '奶奶' },
+  { label: '外公', value: '外公' },
+  { label: '外婆', value: '外婆' },
+  { label: '叔叔', value: '叔叔' },
+  { label: '姑姑', value: '姑姑' },
+  { label: '舅舅', value: '舅舅' },
+  { label: '姨妈', value: '姨妈' },
+  { label: '其他亲友', value: '其他亲友' },
+];
 
 // 加载宝宝列表
 const loadBabyList = async () => {
@@ -284,6 +359,76 @@ const handleDelete = (id: string) => {
       }
     },
   });
+};
+
+// 设置关系
+const handleSetRelationship = (babyId: string, babyName: string) => {
+  // 获取当前用户在该宝宝中的关系
+  const collaborators = getCollaborators(babyId) || [];
+  const currentUser = getUserInfo();
+  const myCollaborator = collaborators.find(c => c.openid === currentUser?.openid);
+  
+  relationshipDialog.value = {
+    show: true,
+    babyId,
+    babyName,
+    selectedRelationship: myCollaborator?.relationship || '',
+    customRelationship: '',
+  };
+};
+
+// 选择预设关系
+const selectRelationship = (value: string) => {
+  relationshipDialog.value.selectedRelationship = value;
+  relationshipDialog.value.customRelationship = '';
+};
+
+// 确认关系设置
+const confirmRelationship = async () => {
+  const { babyId, selectedRelationship, customRelationship } = relationshipDialog.value;
+  
+  // 优先使用自定义输入
+  const finalRelationship = customRelationship.trim() || selectedRelationship;
+  
+  if (!finalRelationship) {
+    uni.showToast({
+      title: '请选择或输入关系',
+      icon: 'none',
+    });
+    return;
+  }
+  
+  try {
+    const currentUser = getUserInfo();
+    if (!currentUser?.openid) {
+      uni.showToast({
+        title: '用户信息异常',
+        icon: 'none',
+      });
+      return;
+    }
+    
+    await updateFamilyMember(babyId, currentUser.openid, {
+      relationship: finalRelationship,
+    });
+    
+    // 更新本地数据
+    const collaborators = getCollaborators(babyId) || [];
+    const myCollaborator = collaborators.find(c => c.openid === currentUser.openid);
+    if (myCollaborator) {
+      myCollaborator.relationship = finalRelationship;
+      setCollaborators(babyId, [...collaborators]);
+    }
+    
+    relationshipDialog.value.show = false;
+    
+  } catch (error: any) {
+    console.error('设置关系失败:', error);
+    uni.showToast({
+      title: error.message || '设置失败',
+      icon: 'none',
+    });
+  }
 };
 </script>
 
@@ -576,6 +721,87 @@ const handleDelete = (id: string) => {
     // 图标文字对齐
     .nut-icon {
       line-height: 1;
+    }
+  }
+}
+
+// ===== 关系设置弹窗 =====
+.relationship-popup {
+  background: $color-bg-primary;
+  border-radius: $radius-lg $radius-lg 0 0;
+  overflow: hidden;
+
+  .popup-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: $spacing-lg $spacing-2xl;
+    border-bottom: 1rpx solid $color-border-primary;
+
+    .popup-title {
+      font-size: $font-size-lg;
+      font-weight: $font-weight-semibold;
+      color: $color-text-primary;
+    }
+
+    :deep(.wd-icon) {
+      font-size: 40rpx;
+      color: $color-text-secondary;
+      cursor: pointer;
+    }
+  }
+
+  .custom-input-section {
+    padding: $spacing-2xl;
+    border-bottom: 1rpx solid $color-border-primary;
+
+    :deep(.wd-input) {
+      background: $color-bg-secondary;
+      border-radius: $radius-md;
+      padding: $spacing-md;
+    }
+  }
+
+  .preset-options {
+    padding: $spacing-lg;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: $spacing-md;
+    max-height: 400rpx;
+    overflow-y: auto;
+
+    .option-item {
+      padding: $spacing-lg;
+      background: $color-bg-secondary;
+      border: 2rpx solid $color-border-primary;
+      border-radius: $radius-md;
+      text-align: center;
+      font-size: $font-size-base;
+      color: $color-text-primary;
+      transition: all $transition-base;
+      cursor: pointer;
+
+      &:active {
+        transform: scale(0.95);
+      }
+
+      &.active {
+        background: $color-primary-lighter;
+        border-color: $color-primary;
+        color: $color-primary;
+        font-weight: $font-weight-semibold;
+      }
+    }
+  }
+
+  .popup-footer {
+    padding: $spacing-lg $spacing-2xl;
+    border-top: 1rpx solid $color-border-primary;
+
+    :deep(.wd-button) {
+      height: 88rpx;
+      font-size: $font-size-lg;
+      border-radius: $radius-md;
     }
   }
 }
