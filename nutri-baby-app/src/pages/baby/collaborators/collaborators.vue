@@ -8,7 +8,7 @@
       fixed
       safeAreaInsetTop
       placeholder
-      :title="`${babyName}的协作者`"
+      :title="`${babyName}的亲友团`"
       left-arrow
     >
       <template #capsule>
@@ -22,13 +22,13 @@
       <view class="search-section">
         <wd-search
           v-model="searchKeyword"
-          placeholder="搜索协作者名称"
+          placeholder="搜索亲友名称"
           clearable
           @search="onSearch"
         />
       </view>
 
-      <!-- 协作者列表 -->
+      <!-- 亲友团列表 -->
       <view v-if="filteredCollaborators.length > 0" class="collaborators-list">
         <view
           v-for="collaborator in filteredCollaborators"
@@ -120,7 +120,7 @@
       <view v-else class="empty-state">
         <wd-status-tip description="暂无协作者" image="empty">
           <template #description>
-            <text>您可以点击下方按钮邀请协作者</text>
+            <text class="tip-text">您可以点击下方按钮邀请亲友</text>
           </template>
         </wd-status-tip>
       </view>
@@ -130,7 +130,7 @@
     <view class="invite-button">
       <wd-button type="primary" size="large" block @click="goToInvite">
         <wd-icon name="plus" size="18" />
-        邀请新的协作者
+邀请新亲友
       </wd-button>
     </view>
 
@@ -145,9 +145,13 @@
         <view class="role-popup-content">
           <wd-cell-group
             border
-            :title="`变更 ${currentCollaborator?.nickName} 的权限`"
+            :title="`编辑 ${currentCollaborator?.nickName} 的信息`"
           >
-            <wd-cell title="协作者角色" title-width="150rpx">
+            <wd-cell title="与宝宝的关系" is-link @click="showRelationshipPicker = true">
+              <text>{{ newRelationship || '未设置' }}</text>
+            </wd-cell>
+
+            <wd-cell title="亲友角色" title-width="150rpx">
               <view style="text-align: left">
                 <wd-radio-group v-model="newRole" inline>
                   <wd-radio value="admin">管理员</wd-radio>
@@ -183,6 +187,55 @@
         </view>
       </view>
     </wd-popup>
+
+    <!-- 关系选择弹窗 -->
+    <wd-popup
+      v-model="showRelationshipPicker"
+      position="bottom"
+      custom-style="height: auto; padding: 0"
+      safe-area-inset-bottom
+    >
+      <view class="relationship-popup">
+        <view class="popup-header">
+          <text class="popup-title">选择与宝宝的关系</text>
+          <wd-icon name="close" @click="showRelationshipPicker = false" />
+        </view>
+
+        <!-- 自定义输入 -->
+        <view class="custom-input-section">
+          <wd-input
+            v-model="customRelationship"
+            placeholder="或输入自定义关系"
+            clearable
+          />
+        </view>
+
+        <!-- 预设选项 -->
+        <view class="preset-options">
+          <view
+            v-for="option in relationshipOptions"
+            :key="option.value"
+            class="option-item"
+            :class="{ active: newRelationship === option.value }"
+            @click="selectRelationship(option.value)"
+          >
+            <text>{{ option.label }}</text>
+          </view>
+        </view>
+
+        <!-- 确认按钮 -->
+        <view class="popup-footer">
+          <wd-button
+            type="primary"
+            size="large"
+            block
+            @click="confirmRelationshipSelection"
+          >
+            确认
+          </wd-button>
+        </view>
+      </view>
+    </wd-popup>
   </view>
 </template>
 
@@ -197,6 +250,7 @@ import {
   apiUpdateCollaboratorRole,
   apiRemoveCollaborator,
 } from "@/api/collaborator";
+import { updateFamilyMember } from "@/store/collaborator";
 import { formatDate } from "@/utils/date";
 import { goBack, goBackHome } from "@/utils/common";
 
@@ -211,9 +265,12 @@ interface PageState {
   showRoleDialog: boolean;
   currentCollaborator: BabyCollaborator | null;
   newRole: string;
+  newRelationship: string;
+  customRelationship: string;
   newAccessType: "permanent" | "temporary";
   newExpiresAt: number;
   showDatePicker: boolean;
+  showRelationshipPicker: boolean;
 }
 
 const state = ref<PageState>({
@@ -226,9 +283,12 @@ const state = ref<PageState>({
   showRoleDialog: false,
   currentCollaborator: null,
   newRole: "editor",
+  newRelationship: "",
+  customRelationship: "",
   newAccessType: "permanent",
   newExpiresAt: Date.now() + 365 * 24 * 60 * 60 * 1000,
   showDatePicker: false,
+  showRelationshipPicker: false,
 });
 
 // ============ 页面参数 ============
@@ -296,6 +356,36 @@ const showDatePicker = computed({
   set: (val) => (state.value.showDatePicker = val),
 });
 
+const newRelationship = computed({
+  get: () => state.value.newRelationship,
+  set: (val) => (state.value.newRelationship = val),
+});
+
+const showRelationshipPicker = computed({
+  get: () => state.value.showRelationshipPicker,
+  set: (val) => (state.value.showRelationshipPicker = val),
+});
+
+const customRelationship = computed({
+  get: () => state.value.customRelationship,
+  set: (val) => (state.value.customRelationship = val),
+});
+
+// 关系选项
+const relationshipOptions = [
+  { label: '爸爸', value: '爸爸' },
+  { label: '妈妈', value: '妈妈' },
+  { label: '爷爷', value: '爷爷' },
+  { label: '奶奶', value: '奶奶' },
+  { label: '外公', value: '外公' },
+  { label: '外婆', value: '外婆' },
+  { label: '叔叔', value: '叔叔' },
+  { label: '姑姑', value: '姑姑' },
+  { label: '舅舅', value: '舅舅' },
+  { label: '姨妈', value: '姨妈' },
+  { label: '其他亲友', value: '其他亲友' },
+];
+
 // ============ 方法 ============
 
 const onBack = () => {
@@ -327,6 +417,7 @@ const loadCollaborators = async () => {
 const showRoleChangeDialog = (collaborator: BabyCollaborator) => {
   state.value.currentCollaborator = collaborator;
   state.value.newRole = collaborator.role;
+  state.value.newRelationship = collaborator.relationship || "";
   state.value.newAccessType = collaborator.accessType;
   state.value.newExpiresAt = collaborator.expiresAt || Date.now();
   state.value.showRoleDialog = true;
@@ -340,16 +431,14 @@ const confirmRoleChange = async () => {
   if (!currentCollaborator.value) return;
 
   try {
-    const expiresAt =
-      newAccessType.value === "permanent"
-        ? undefined
-        : Math.floor(newExpiresAt.value / 1000);
-
-    await apiUpdateCollaboratorRole(
+    // 使用新的 updateFamilyMember API 同时更新角色和关系
+    await updateFamilyMember(
       babyId.value,
       currentCollaborator.value.openid,
-      newRole.value as "admin" | "editor" | "viewer",
-      expiresAt
+      {
+        role: newRole.value as "admin" | "editor" | "viewer",
+        relationship: newRelationship.value,
+      }
     );
 
     // 更新本地列表
@@ -360,15 +449,13 @@ const confirmRoleChange = async () => {
       const collab = collaborators.value[idx];
       if (collab) {
         collab.role = newRole.value as "admin" | "editor" | "viewer";
+        collab.relationship = newRelationship.value;
         collab.accessType = newAccessType.value;
-        if (expiresAt) {
-          collab.expiresAt = expiresAt;
-        }
       }
     }
 
     uni.showToast({
-      title: "权限已更新",
+      title: "信息已更新",
       icon: "success",
     });
 
@@ -436,6 +523,21 @@ const goToInvite = () => {
       babyId.value
     }&babyName=${encodeURIComponent(babyName.value)}`,
   });
+};
+
+// 选择预设关系
+const selectRelationship = (value: string) => {
+  state.value.newRelationship = value;
+  state.value.customRelationship = ""; // 清空自定义输入
+};
+
+// 确认关系选择
+const confirmRelationshipSelection = () => {
+  // 优先使用自定义输入，否则使用预设选项
+  if (state.value.customRelationship.trim()) {
+    state.value.newRelationship = state.value.customRelationship.trim();
+  }
+  state.value.showRelationshipPicker = false;
 };
 
 // ============ 生命周期 ============
@@ -709,4 +811,84 @@ const goToInvite = () => {
   flex-shrink: 0;
 }
 
+// ===== 关系选择弹窗 =====
+.relationship-popup {
+  background: $color-bg-primary;
+  border-radius: $radius-lg $radius-lg 0 0;
+  overflow: hidden;
+
+  .popup-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: $spacing-lg $spacing-2xl;
+    border-bottom: 1rpx solid $color-border-primary;
+
+    .popup-title {
+      font-size: $font-size-lg;
+      font-weight: $font-weight-semibold;
+      color: $color-text-primary;
+    }
+
+    :deep(.wd-icon) {
+      font-size: 40rpx;
+      color: $color-text-secondary;
+      cursor: pointer;
+    }
+  }
+
+  .custom-input-section {
+    padding: $spacing-2xl;
+    border-bottom: 1rpx solid $color-border-primary;
+
+    :deep(.wd-input) {
+      background: $color-bg-secondary;
+      border-radius: $radius-md;
+      padding: $spacing-md;
+    }
+  }
+
+  .preset-options {
+    padding: $spacing-lg;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: $spacing-md;
+    max-height: 400rpx;
+    overflow-y: auto;
+
+    .option-item {
+      padding: $spacing-lg;
+      background: $color-bg-secondary;
+      border: 2rpx solid $color-border-primary;
+      border-radius: $radius-md;
+      text-align: center;
+      font-size: $font-size-base;
+      color: $color-text-primary;
+      transition: all $transition-base;
+      cursor: pointer;
+
+      &:active {
+        transform: scale(0.95);
+      }
+
+      &.active {
+        background: $color-primary-lighter;
+        border-color: $color-primary;
+        color: $color-primary;
+        font-weight: $font-weight-semibold;
+      }
+    }
+  }
+
+  .popup-footer {
+    padding: $spacing-lg $spacing-2xl;
+    border-top: 1rpx solid $color-border-primary;
+
+    :deep(.wd-button) {
+      height: 88rpx;
+      font-size: $font-size-lg;
+      border-radius: $radius-md;
+    }
+  }
+}
 </style>
