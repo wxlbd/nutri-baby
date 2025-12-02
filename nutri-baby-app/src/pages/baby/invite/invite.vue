@@ -1,7 +1,7 @@
 <template>
   <view>
     <wd-navbar
-      title="邀请协作者"
+      title="邀请亲友"
       left-arrow
       safeAreaInsetTop
       @click-left="handleBack"
@@ -30,14 +30,18 @@
           </view>
           <view class="baby-detail">
             <text class="baby-name">{{ babyName }}</text>
-            <text class="baby-desc">邀请家人共同记录成长</text>
+            <text class="baby-desc">邀请亲友共同记录成长</text>
           </view>
         </view>
       </view>
 
       <!-- 设置表单 -->
       <wd-cell-group>
-        <wd-cell title="协作者角色">
+        <wd-cell title="与宝宝的关系" is-link @click="showRelationshipPicker = true">
+          <text>{{ selectedRelationship || '请选择' }}</text>
+        </wd-cell>
+
+        <wd-cell title="亲友角色">
           <wd-radio-group v-model="selectedRole" inline>
             <wd-radio value="editor">编辑者</wd-radio>
             <wd-radio value="viewer">查看者</wd-radio>
@@ -101,6 +105,55 @@
         </wd-card>
       </view>
     </view>
+
+    <!-- 关系选择弹窗 -->
+    <wd-popup
+      v-model="showRelationshipPicker"
+      position="bottom"
+      custom-style="height: auto; padding: 0"
+      safe-area-inset-bottom
+    >
+      <view class="relationship-popup">
+        <view class="popup-header">
+          <text class="popup-title">选择与宝宝的关系</text>
+          <wd-icon name="close" @click="showRelationshipPicker = false" />
+        </view>
+
+        <!-- 自定义输入 -->
+        <view class="custom-input-section">
+          <wd-input
+            v-model="customRelationship"
+            placeholder="或输入自定义关系"
+            clearable
+          />
+        </view>
+
+        <!-- 预设选项 -->
+        <view class="preset-options">
+          <view
+            v-for="option in relationshipOptions"
+            :key="option.value"
+            class="option-item"
+            :class="{ active: selectedRelationship === option.value }"
+            @click="selectRelationship(option.value)"
+          >
+            <text>{{ option.label }}</text>
+          </view>
+        </view>
+
+        <!-- 确认按钮 -->
+        <view class="popup-footer">
+          <wd-button
+            type="primary"
+            size="large"
+            block
+            @click="confirmRelationship"
+          >
+            确认
+          </wd-button>
+        </view>
+      </view>
+    </wd-popup>
   </view>
 </template>
 
@@ -117,9 +170,27 @@ const babyAvatarUrl = ref("");
 
 // 表单数据
 const selectedRole = ref<"editor" | "viewer">("editor");
+const selectedRelationship = ref("");
+const customRelationship = ref("");
 const accessType = ref<"permanent" | "temporary">("permanent");
 const expiresDateValue = ref<number>(Date.now() + 7 * 24 * 60 * 60 * 1000); // 默认7天后
 const showDatetimePickerModal = ref(false);
+const showRelationshipPicker = ref(false);
+
+// 关系选项
+const relationshipOptions = [
+  { label: '爸爸', value: '爸爸' },
+  { label: '妈妈', value: '妈妈' },
+  { label: '爷爷', value: '爷爷' },
+  { label: '奶奶', value: '奶奶' },
+  { label: '外公', value: '外公' },
+  { label: '外婆', value: '外婆' },
+  { label: '叔叔', value: '叔叔' },
+  { label: '姑姑', value: '姑姑' },
+  { label: '舅舅', value: '舅舅' },
+  { label: '姨妈', value: '姨妈' },
+  { label: '其他亲友', value: '其他亲友' },
+];
 
 // 二维码相关
 const qrcodeUrl = ref("");
@@ -183,6 +254,7 @@ async function handleGenerateQRCode() {
       selectedRole.value,
       accessType.value,
       expiresAt,
+      selectedRelationship.value || undefined,
     );
 
     const { qrcodeParams } = invitationData;
@@ -261,6 +333,21 @@ function handleBackHome() {
 }
 function handleBack() {
   uni.navigateBack();
+}
+
+// 选择预设关系
+function selectRelationship(value: string) {
+  selectedRelationship.value = value;
+  customRelationship.value = ""; // 清空自定义输入
+}
+
+// 确认关系选择
+function confirmRelationship() {
+  // 优先使用自定义输入，否则使用预设选项
+  if (customRelationship.value.trim()) {
+    selectedRelationship.value = customRelationship.value.trim();
+  }
+  showRelationshipPicker.value = false;
 }
 </script>
 
@@ -509,6 +596,87 @@ function handleBack() {
     height: 64rpx;
     font-size: $font-size-base;
     border-radius: $radius-md;
+  }
+}
+
+// ===== 关系选择弹窗 =====
+.relationship-popup {
+  background: $color-bg-primary;
+  border-radius: $radius-lg $radius-lg 0 0;
+  overflow: hidden;
+
+  .popup-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: $spacing-lg $spacing-2xl;
+    border-bottom: 1rpx solid $color-border-primary;
+
+    .popup-title {
+      font-size: $font-size-lg;
+      font-weight: $font-weight-semibold;
+      color: $color-text-primary;
+    }
+
+    :deep(.wd-icon) {
+      font-size: 40rpx;
+      color: $color-text-secondary;
+      cursor: pointer;
+    }
+  }
+
+  .custom-input-section {
+    padding: $spacing-2xl;
+    border-bottom: 1rpx solid $color-border-primary;
+
+    :deep(.wd-input) {
+      background: $color-bg-secondary;
+      border-radius: $radius-md;
+      padding: $spacing-md;
+    }
+  }
+
+  .preset-options {
+    padding: $spacing-lg;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: $spacing-md;
+    max-height: 400rpx;
+    overflow-y: auto;
+
+    .option-item {
+      padding: $spacing-lg;
+      background: $color-bg-secondary;
+      border: 2rpx solid $color-border-primary;
+      border-radius: $radius-md;
+      text-align: center;
+      font-size: $font-size-base;
+      color: $color-text-primary;
+      transition: all $transition-base;
+      cursor: pointer;
+
+      &:active {
+        transform: scale(0.95);
+      }
+
+      &.active {
+        background: $color-primary-lighter;
+        border-color: $color-primary;
+        color: $color-primary;
+        font-weight: $font-weight-semibold;
+      }
+    }
+  }
+
+  .popup-footer {
+    padding: $spacing-lg $spacing-2xl;
+    border-top: 1rpx solid $color-border-primary;
+
+    :deep(.wd-button) {
+      height: 88rpx;
+      font-size: $font-size-lg;
+      border-radius: $radius-md;
+    }
   }
 }
 </style>
